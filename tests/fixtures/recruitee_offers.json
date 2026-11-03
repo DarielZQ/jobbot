@@ -1,0 +1,27 @@
+{
+  "offers": [
+    {
+      "id": 7001,
+      "title": "Analista de Soporte Técnico Junior",
+      "location": "Heredia, Heredia, Costa Rica",
+      "city": "Heredia",
+      "country": "Costa Rica",
+      "remote": false,
+      "careers_url": "https://globex1.recruitee.example/o/analista-soporte-tecnico-junior",
+      "company_name": "Globex Soporte S.A.",
+      "created_at": "2026-10-01 12:34:56 UTC",
+      "description": "<p>Soporte a usuarios.</p>",
+      "requirements": "<p>1 año de experiencia.</p>"
+    },
+    {
+      "id": 7002,
+      "title": "HR Systems Analyst",
+      "location": "Remote in Mexico",
+      "remote": true,
+      "careers_url": "https://globex1.recruitee.example/o/hr-systems-analyst-remote-in-mexico",
+      "company_name": "Globex Soporte S.A.",
+      "created_at": null,
+      "description": "<p>HR systems.</p>"
+    }
+  ]
+}

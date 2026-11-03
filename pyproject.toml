@@ -1,0 +1,54 @@
+[project]
+name = "jobbot"
+version = "0.1.0"
+description = "Local job search assistant: discovers and filters job postings and helps you apply (presets for Costa Rica IT and remote LATAM)"
+requires-python = ">=3.11"
+readme = "README.md"
+license = "MIT"
+dependencies = [
+    "httpx>=0.27",
+    "jinja2>=3.1",
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "ruamel-yaml>=0.18",
+]
+
+[project.optional-dependencies]
+# Read-only Gmail: job alerts and application confirmations (docs/platforms/email-alerts.md)
+gmail = ["google-auth-oauthlib>=1.2"]
+# PDF resumes via Chromium; after installing: uv run playwright install chromium
+resumes = ["playwright>=1.48"]
+
+[project.scripts]
+jobbot = "jobbot.cli:main"
+
+[project.gui-scripts]
+jobbot-panel = "jobbot.cli:panel_main"  # desktop shortcut: no console window
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "ruff>=0.6",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jobbot"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["jobbot", "conftest"]

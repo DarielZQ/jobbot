@@ -1,0 +1,4 @@
+# Variables de JobBot. Este archivo vive en tu carpeta de datos y nunca se sube a ningún repo.
+
+# Va en el User-Agent de cada petición HTTP, para que los sitios sepan quién consulta.
+JOBBOT_CONTACT_EMAIL=dariel@example.invalid

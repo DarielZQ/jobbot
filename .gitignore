@@ -1,0 +1,32 @@
+# Datos del usuario: viven en JOBBOT_HOME (por defecto ~/JobBot), nunca en el repo
+/config/
+/profile/
+/data/
+*.pdf
+STATUS.md
+
+# Secretos y sesiones
+.env
+.env.*
+!.env.example
+*token*.json
+*credentials*.json
+
+# Editores
+.vscode/
+.idea/
+
+# Python y herramientas
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+dist/
+build/
+test-results/
+playwright-report/
+.DS_Store
+Thumbs.db

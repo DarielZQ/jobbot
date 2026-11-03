@@ -1,0 +1,187 @@
+# Registro de decisiones (ADR)
+
+Formato: contexto → decisión → consecuencias. Una decisión nueva se agrega al final. Una que cambia se marca como *Reemplazada por ADR-NNN* o *Actualizada por ADR-NNN*; no se borra.
+
+Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando JobBot era una herramienta de uso personal. La ADR-019 define la versión pública.
+
+---
+
+## ADR-001 — Python + Playwright
+
+- **Fecha:** 2026-10-27. *Actualizada por ADR-019.*
+- **Contexto:** los formularios de los ATS modernos son aplicaciones de una sola página, y el ecosistema reutilizable para buscar empleo está sobre todo en Python.
+- **Decisión:** Python ≥ 3.11 con `uv`. HTTP con `httpx`. Playwright se planeó para el envío de postulaciones.
+- **Consecuencias:** un solo lenguaje. Con la ADR-019 no hay envío: Playwright queda solo para generar los CV en PDF, como extra opcional (`resumes`).
+
+## ADR-002 — SQLite como estado
+
+- **Fecha:** 2026-10-27.
+- **Contexto:** un usuario y un proceso a la vez.
+- **Decisión:** SQLite (modo WAL) con `sqlite3` de la biblioteca estándar y migraciones por `PRAGMA user_version`. Sin ORM.
+- **Consecuencias:** cero infraestructura. Cada usuario tiene su propia base en `JOBBOT_HOME/data/jobbot.db` y el respaldo es copiar un archivo.
+
+## ADR-003 — Sin evasión anti-bot
+
+- **Fecha:** 2026-10-27.
+- **Contexto:** saltarse CAPTCHAs y fingerprinting viola los términos de uso de los sitios, arriesga las cuentas del usuario y es técnicamente frágil.
+- **Decisión:** `User-Agent` honesto, sin stealth, sin resolvedores de CAPTCHA, sin fingerprint spoofing ni proxies rotativos. Si un sitio bloquea o muestra un challenge, esa fuente se detiene y se avisa al usuario.
+- **Consecuencias:** menos cobertura en sitios que bloquean bots, compensada con fuentes que tienen API pública y con las alertas por correo.
+
+## ADR-004 — Adapters deterministas por fuente
+
+- **Fecha:** 2026-10-27. *Parte de envío reemplazada por ADR-019.*
+- **Contexto:** pocos ATS concentran la mayoría de vacantes.
+- **Decisión original:** un adapter por ATS, probado con fixtures. Para el envío en ATS desconocidos se planeó un modelo de lenguaje que navegara el sitio, siempre en modo de prueba.
+- **Decisión vigente:** un adapter determinista por fuente de descubrimiento, probado con fixtures y sin red. No hay envío (ADR-019).
+- **Consecuencias:** tests reproducibles y costo cero por consulta.
+
+## ADR-005 — LinkedIn, Indeed y Wellfound sin automatización
+
+- **Fecha:** 2026-10-27.
+- **Contexto:** sus términos prohíben la automatización, y la cuenta de LinkedIn suele ser el activo profesional más valioso de quien busca empleo.
+- **Decisión:** LinkedIn solo en modo asistido: sus alertas llegan al correo del usuario, JobBot las lee y el usuario postula. Indeed solo por sus alertas de correo (ADR-013). Wellfound se descarta (ADR-007).
+- **Consecuencias:** JobBot nunca toca esas cuentas.
+
+## ADR-006 — Envío autónomo con umbral de confianza
+
+- **Fecha:** 2026-10-27. *Reemplazada por ADR-019.*
+- **Contexto:** se buscaba reducir la intervención manual, pero un modelo de lenguaje puede inventar experiencia.
+- **Decisión original:** enviar solo si todas las respuestas salían de `profile/` o eran texto validado contra `facts.yaml`, con confianza ≥ 0,85; si no, estado `NEEDS_INPUT` y una pregunta al usuario.
+- **Consecuencias:** el envío se descartó en la ADR-019. Sigue vigente el principio: **nunca inventar datos del usuario**; si falta algo, se pregunta (grill-me) y la respuesta queda en `profile/`.
+
+## ADR-007 — Prioridad de plataformas por valor × facilidad
+
+- **Fecha:** 2026-10-27.
+- **Contexto:** ordenar las fuentes por facilidad técnica ponía primero a Greenhouse, Lever y RemoteOK, que publican sobre todo roles de startups de EE. UU. con seniority o permiso de trabajo que un perfil junior en Latinoamérica no suele tener.
+- **Decisión:** orden para el preset de Costa Rica: multinacionales con sitio de empleo propio (Workday y otros) → agencias de staffing → LinkedIn (asistido) → CompuTrabajo → BPO de soporte bilingüe → elempleo → bolsas remotas (Get on Board, Remotive, Jobicy, Himalayas) → Greenhouse / Lever / Ashby → Indeed (solo correo). Se descartan Wellfound y Encuentra24. Detalle en [`job-search.md`](job-search.md).
+- **Consecuencias:** el descubrimiento empezó por Workday. Greenhouse y Lever se mantienen porque su API es simple y sirve para empresas que el usuario agregue.
+
+## ADR-008 — Documentación mínima
+
+- **Fecha:** 2026-10-27. *Actualizada por ADR-019.*
+- **Contexto:** muchos documentos vacíos o solapados por adelantado hacen que nadie sepa cuál leer.
+- **Decisión:** en la raíz, `README.md` (inglés) y `README.es.md` (qué es y cómo usarlo), `CONTRIBUTING.md` (reglas), `SECURITY.md` y `ROADMAP.md` (planes). En `docs/`, solo documentos con contenido real. Los valores que lee el bot viven en los YAML de configuración y nunca se copian en Markdown.
+- **Consecuencias:** cada pregunta tiene un solo archivo que la responde.
+
+## ADR-009 — Familias de roles
+
+- **Fecha:** 2026-10-27.
+- **Contexto:** una misma persona puede buscar en más de un área, por ejemplo soporte TI como búsqueda principal y datos como secundaria, con un CV distinto para cada una.
+- **Decisión:** los filtros de título se agrupan en familias en `search.yaml: role_families`. Cada familia tiene `priority` (`primary` o `secondary`), su variante de CV (`cv:`) y un nombre opcional para mostrar (`label`). Cada vacante guarda su `role_family` (migración 2). Las exclusiones globales (seniority, ventas) aplican a todas.
+- **Consecuencias:** `jobbot jobs --family <familia>` separa las búsquedas. Si un título encaja en dos familias, gana la principal.
+
+## ADR-010 — CV generados desde el perfil
+
+- **Fecha:** 2026-10-27. *Actualizada por ADR-019.*
+- **Contexto:** cuando cada CV se edita a mano por separado, terminan contradiciéndose en niveles, certificaciones y fechas.
+- **Decisión:** el contenido de cada variante vive en `profile/resumes/<variante>.yaml` (español e inglés) y `jobbot resumes` genera los PDF con una plantilla HTML y Chromium (Playwright). El contacto sale de `profile/private/contact.yaml`. Las afirmaciones prohibidas u obligatorias de cada usuario (por ejemplo, una certificación no aprobada que no puede aparecer como obtenida) se declaran en `profile/resumes/checks.yaml`, como listas `forbidden` y `required` de reglas `{pattern, reason}`. Si algún CV rompe una regla, el comando no genera ningún PDF.
+- **Consecuencias:** un cambio de perfil se refleja en todos los CV con un comando. Los PDF quedan en `JOBBOT_HOME`, fuera del repositorio.
+
+## ADR-011 — Sitios que bloquean bots y APIs con límite de uso
+
+- **Fecha:** 2026-10.
+- **Contexto:** CompuTrabajo responde 403 a cualquier cliente automatizado, incluso al pedir `robots.txt`. Remotive pide en sus términos un máximo de unas 4 consultas al día.
+- **Decisión:** un sitio que bloquea al bot no se fuerza (ADR-003): CompuTrabajo entra por sus alertas de correo. Las fuentes con límite declaran `min_hours_between_runs` y el pipeline las omite si se consultaron hace menos, usando `last_seen_at` de la base. Para reaplicar filtros sin volver a consultar los sitios existe `jobbot rescreen`, que permite la transición `SKIPPED → DISCOVERED`.
+- **Consecuencias:** se respetan los términos de cada fuente, y ajustar `search.yaml` no obliga a borrar la base.
+
+## ADR-012 — Alertas por correo con Gmail de solo lectura
+
+- **Fecha:** 2026-10.
+- **Contexto:** LinkedIn prohíbe automatizar (ADR-005) y CompuTrabajo bloquea bots (ADR-011), pero ambos envían alertas de empleo al correo del usuario.
+- **Decisión:** leer esas alertas desde Gmail con OAuth de app de escritorio y el permiso `gmail.readonly`, en vez de IMAP con contraseña. Cada usuario crea su propio cliente OAuth. La búsqueda se limita a los remitentes configurados y a los últimos `lookback_days`. Las vacantes entran como `email:<sitio>`. Si falta la configuración, la fuente se reporta como "sin configurar", no como error. `jobbot alerts-sample` guarda un correo real para ajustar los lectores.
+- **Consecuencias:** cero contacto con LinkedIn y CompuTrabajo; el acceso se revoca desde la cuenta de Google. En estado de Prueba, Google vence la autorización más o menos cada 7 días. Las vacantes de correo no traen descripción, así que los filtros de descripción no aplican.
+
+## ADR-013 — elempleo y Jibe directos; Indeed solo por correo
+
+- **Fecha:** 2026-10-27.
+- **Contexto:** el `robots.txt` de elempleo permite sus listados de búsqueda, y sus alertas por correo no siempre traen vacantes. Algunas empresas publican en Jibe, que tiene API pública y pide `crawl-delay: 5`. Indeed usa Cloudflare y enlaces de rastreo opacos.
+- **Decisión:**
+  - **elempleo:** se lee el listado público (`/cr/ofertas-empleo/<búsqueda>`) como máximo cada 12 h y con 5 s entre páginas. Además existe `email:elempleo`, que usa el mismo ID (`ats=elempleo`) para no duplicar.
+  - **Jibe:** fuente `jibe`, filtrada por país en el código, con 5 s entre consultas.
+  - **Indeed:** solo por alertas de correo. Si un enlace trae el ID de la vacante (`jk`), se usa la URL canónica; los enlaces de rastreo nunca se abren, porque implicaría visitar Indeed. Sin ID, la vacante se identifica por título, empresa y ubicación.
+  - **`jobbot alerts-status`:** cuenta por sitio cuántas alertas llegaron, leyendo solo encabezados.
+- **Consecuencias:** elempleo aporta vacantes aunque las alertas no lleguen. Sus listados no traen descripción, así que los filtros de descripción no aplican.
+
+## ADR-014 — Corrida diaria programada
+
+- **Fecha:** 2026-10. *Actualizada por ADR-019.*
+- **Contexto:** buscar a mano cada día se olvida; el usuario quiere que JobBot busque solo y avise si hay algo nuevo.
+- **Decisión:**
+  - `jobbot daily` corre todas las fuentes, escribe `data/reports/<fecha>.html` y `latest.html`, y en Windows muestra una notificación solo si hay vacantes nuevas o una fuente necesita atención (por ejemplo, token de Gmail vencido). Al hacer clic se abre el informe.
+  - En Windows lo programa `scripts/windows/install_schedule.ps1` (tarea "JobBot - busqueda diaria", que corre `scripts/windows/run_daily.ps1`), con *StartWhenAvailable*: si la computadora estaba apagada, corre al encenderla. En Linux y macOS, cron con `scripts/run_daily.sh` (ADR-019).
+  - El registro queda en `data/logs/daily-<fecha>.log`.
+  - Se descartaron Telegram y correo como canal de aviso porque piden credenciales nuevas.
+- **Consecuencias:** cero costo y sin servicios externos. El aviso solo llega a la computadora. La tarea corre con la sesión del usuario iniciada.
+
+## ADR-015 — CV recomendado por vacante y postulaciones manuales registradas
+
+- **Fecha:** 2026-10.
+- **Contexto:** el usuario postula a mano desde el informe y necesita ver, junto a cada vacante, qué CV subir. Además, las vacantes a las que ya postuló seguían apareciendo como pendientes.
+- **Decisión:**
+  - **CV recomendado:** la variante sale de la familia de roles (`cv:` en `search.yaml`) y el idioma, del anuncio. `matching/language.py` cuenta palabras frecuentes y tildes en español e inglés; el título pesa el triple y, si hay empate, gana el inglés, porque así publican las multinacionales. Se muestra en el informe, en el panel y en `jobbot jobs`.
+  - **`jobbot applied <#…>`:** marca una vacante como `SUBMITTED` con motivo `applied_manually`, desde `DISCOVERED`, `SCORED`, `QUEUED` o `SKIPPED`. `--undo` revierte solo una marca manual.
+  - **`jobbot report`:** regenera `latest.html` sin consultar fuentes. "Nuevas" son las de las últimas 24 h; las demás pendientes van en una sección plegable.
+- **Consecuencias:** la detección de idioma es una heurística sin red y puede fallar en anuncios mixtos; si pasa, se ajustan las listas de palabras.
+
+## ADR-016 — Panel local en el navegador
+
+- **Fecha:** 2026-10.
+- **Contexto:** pegar comandos en la consola para cada acción es incómodo para quien no programa.
+- **Decisión:**
+  - `jobbot panel` levanta un servidor HTTP de la biblioteca estándar en `127.0.0.1` (puerto en `settings.yaml: panel.port`) y abre la página en el navegador.
+  - **La página** (`src/jobbot/panel/index.html`, sin frameworks ni CDN): pestañas Pendientes, Postuladas, Entrevistas, Cerradas y Descartadas (y Decisiones, ADR-019), con filtros por familia y búsqueda; botones "Ya postulé", "No me interesa", "Me llamaron", "Rechazo", "Volver a pendientes" y "Deshacer"; CV recomendado con enlace al PDF y botón para copiar su ruta; "Buscar ahora" con barra de avance, que usa lo mismo que la corrida diaria.
+  - **Acceso directo (Windows):** `scripts/windows/install_shortcut.ps1` crea un acceso directo a `.venv\Scripts\jobbot-panel.exe` (`[project.gui-scripts]`), que corre sin ventana de consola y guarda su registro en `data/logs/panel.log`. Si el panel ya está abierto, solo abre la página. Se apaga solo tras 10 minutos sin uso.
+  - **Seguridad:** solo escucha en `127.0.0.1` y exige su propio `Host` (contra DNS rebinding); las acciones solo se aceptan como POST JSON desde su propio `Origin` (contra CSRF) y nunca envía cabeceras CORS; los datos de las vacantes se insertan como texto, nunca como HTML; solo sirve PDF de CV con nombre válido.
+  - **Decisiones del usuario:** "No me interesa" (`not_interested`) y "Volver a pendientes" (`reopened_manually`) quedan fuera de `rescreen`, para que cambiar los filtros no las revierta.
+- **Alternativas descartadas:** Tkinter o Qt (aspecto anticuado o dependencias pesadas); interfaz de consola con Textual (seguía siendo una consola); hacer interactivo el informe HTML estático (no puede escribir en la base sin un servidor).
+- **Consecuencias:** cero dependencias nuevas. El informe y los comandos siguen funcionando igual.
+
+## ADR-017 — Trabajo remoto: bolsas remotas y filtro "100 % remoto"
+
+- **Fecha:** 2026-10-28.
+- **Contexto:** muchas personas buscan trabajo 100 % desde casa, idealmente con planilla local o en empresas abiertas a Latinoamérica. Get on Board y Remotive traían pocas vacantes elegibles: la mayoría de las de Latinoamérica exigían vivir en un país específico.
+- **Decisión:**
+  - **Fuentes nuevas** con API pública y términos que permiten este uso (detalle en [`platforms/job-boards.md`](platforms/job-boards.md)):
+    - **Jobicy:** su filtro `geo` trae lo abierto al país, a Latinoamérica y a "Anywhere". Máximo una consulta por hora; se conserva su enlace.
+    - **Himalayas:** búsqueda filtrada por país; JobBot además descarta lo que no admite el país ni su desfase horario. Se postula por su `applicationLink` sin cambios y no se republica.
+    - Empresas en Workday con planilla local y vacantes remotas.
+  - **Seniority:** las bolsas anotan la seniority al inicio de la descripción (`Seniority: Senior.`), para que `description.exclude` la filtre con su motivo. La ubicación queda como `Remote - <región>` para que la evalúen las reglas de `location`.
+  - **`remote` significa 100 % remoto.** Los híbridos quedan en `False`. El panel etiqueta cada vacante como "100 % remoto", "Nacional" (presencial o híbrido en el país del usuario, según `location.local`) u "Otro país", y filtra por las dos primeras.
+  - **Idiomas:** `title.exclude` puede descartar títulos que piden un idioma que el usuario no habla.
+- **Revisadas y no automatizadas:** Concentrix (Phenom sin endpoint público), TELUS Digital (responde 403 al bot, ADR-003) y Movate (títulos genéricos; el puesto real solo aparece en la descripción).
+- **Consecuencias:** entran más vacantes remotas, con más ruido de soporte al cliente no técnico, que el usuario descarta con "No me interesa". Muchas son por contrato; la diferencia con planilla se explica en [`job-search.md`](job-search.md).
+
+## ADR-018 — Postulaciones confirmadas por correo
+
+- **Fecha:** 2026-11-01.
+- **Contexto:** el usuario postula en los sitios y luego marca "Ya postulé" en el panel. Si lo olvida, la vacante sigue en pendientes y puede postular dos veces. Los sitios ya envían un correo al confirmar cada postulación.
+- **Decisión:**
+  - **Fuente nueva:** `email:postulaciones` (`discovery/applications.py`). Lee esos correos con el mismo Gmail de solo lectura (ADR-012). Las consultas están en `targets.yaml: email_alerts.confirmations` y la fuente corre después de las alertas.
+  - **Qué identifica cada sitio:**
+    - **LinkedIn:** la vacante exacta, por su ID. Las "similares" del mismo correo no se tocan.
+    - **Indeed:** título, empresa y lugar, sin ID. Se marcan las pendientes con la misma empresa y título, de cualquier fuente.
+    - **CompuTrabajo:** solo el título. Se marca únicamente si hay una sola pendiente de CompuTrabajo con ese título; las vacantes dentro del correo son recomendaciones.
+    - **elempleo:** su confirmación no dice a qué vacante se postuló; no se usa.
+  - **Marca:** `SUBMITTED` con motivo `applied_by_email`. Si JobBot nunca había listado la vacante, la guarda ya postulada, para que el aviso "Ya postulaste" funcione con otras fuentes.
+  - **Deshacer:** desde el panel o con `jobbot applied --undo`. La vacante vuelve a pendientes con `reopened_manually` y JobBot no la vuelve a marcar.
+- **Consecuencias:** releer los mismos correos no cambia nada. El valor está en las postulaciones futuras.
+
+## ADR-019 — Versión pública local-first
+
+- **Fecha:** 2026-11-03.
+- **Contexto:** JobBot nació como una herramienta personal, con los datos de su usuario dentro del repositorio y la configuración pensada para un solo país. Para publicarlo como código abierto hay que separar código y datos, permitir otros países y dejar claro que cada persona lo corre en su propia computadora.
+- **Decisión:**
+  - **Carpeta de datos `JOBBOT_HOME`:** por defecto la carpeta visible `JobBot` en el directorio del usuario. Contiene `config/`, `profile/`, `data/` y `.env`. Nada de eso vive en el repositorio.
+  - **Plantillas y presets** dentro del paquete (`src/jobbot/templates/`): la configuración de cada preset, un perfil de ejemplo ficticio y la plantilla de `.env`. `jobbot init --preset <nombre>` los copia sin sobrescribir. Presets iniciales: `costa-rica-it` (por defecto) y `remote-latam`.
+  - **Bloque `region`** en `settings.yaml` (`country`, `country_code`, `country_slug`, `utc_offset`, `timezone`), que las fuentes usan salvo que su entrada diga otra cosa. Sin país, una fuente se reporta como "sin configurar" en vez de adivinar. Las reglas de ubicación usan nombres genéricos: `location.local` y `location.local_exclude`.
+  - **`disabled_sources`** en `settings.yaml`: fuentes que las búsquedas saltan sin borrarlas de `targets.yaml`.
+  - **Extras opcionales:** `gmail` (alertas y confirmaciones; además, `email_alerts.enabled` viene en `false`) y `resumes` (PDF con Playwright + Chromium). Lo específico de Windows va en `scripts/windows/`, sin extra; en Linux y macOS, cron con `scripts/run_daily.sh`.
+  - **grill-me:** `jobbot grill setup-profile` entrevista al usuario por rondas (preguntas numeradas, opciones cortas, recomendada solo en preferencias, confirmación antes de escribir). Los cambios se escriben con `ruamel.yaml` para conservar los comentarios de los archivos del usuario. Después de cada `jobbot daily`, tres detectores deterministas proponen hasta 3 preguntas nuevas por día, que se responden en la pestaña Decisiones o con `jobbot grill pendientes`. La versión 1 no usa ningún modelo de lenguaje.
+  - **Nunca postular:** JobBot solo descubre y asiste. Reemplaza las partes de envío de las ADR-004 y ADR-006.
+  - **Revisiones de CV por usuario:** las frases prohibidas y obligatorias pasan a `profile/resumes/checks.yaml`, en vez de estar en los tests.
+  - **Historial público nuevo:** el repositorio público empieza con un historial limpio, sin commits del desarrollo personal.
+  - **Privacidad verificable:** CI corre tests y lint en Windows, Linux y macOS, más `scripts/privacy_scan.py` sobre los archivos versionados. Cada colaborador puede sumar su propia lista de términos personales (`--denylist`), guardada fuera del repositorio.
+- **Consecuencias:**
+  - Cualquier persona puede usarlo eligiendo un preset, y agregar su país con un preset nuevo.
+  - Actualizar (`git pull` + `uv sync`) no toca los datos del usuario, y el respaldo es copiar una carpeta.
+  - Las opciones nuevas de las plantillas no llegan solas a archivos que el usuario ya tiene: `init` solo agrega los que faltan.

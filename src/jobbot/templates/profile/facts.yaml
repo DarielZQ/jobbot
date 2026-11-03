@@ -1,0 +1,70 @@
+# Única fuente de verdad sobre ti: el CV y las respuestas de formularios salen de aquí.
+# Todo lo que sigue es un EJEMPLO ficticio. Reemplázalo con tus datos reales o deja que
+# `jobbot grill setup-profile` te lo pregunte. Nunca escribas aquí algo que no puedas demostrar.
+
+identity:
+  name: "Alex Ejemplo"
+  headline_es: "Analista de Soporte TI"
+  headline_en: "IT Support Analyst"
+  location:
+    city: "Ciudad Ejemplo"
+    province: ""
+    country: "Costa Rica"
+  work_authorization:
+    in_country: true                    # puedes trabajar en tu país sin patrocinio
+    requires_sponsorship_abroad: true
+
+languages:
+  - { lang: Español, level: native }
+  - { lang: English, level: B2, label_en: "Professional working proficiency" }
+
+experience:
+  - company: "Acme Corp"
+    title: "IT Support Analyst - Level 1"
+    location: "Ciudad Ejemplo"
+    start: "2024-03"
+    end: "2025-08"
+    type: employment
+    setting: [on-site, deskside]
+    duties:
+      - "Soporte en sitio a usuarios: hardware, impresoras y Microsoft 365"
+      - "Registro, seguimiento y cierre de incidentes en un sistema de tickets"
+    tools: [ServiceNow, Microsoft 365, Windows]
+  - company: "Ejemplo Servicios TI S.A."
+    title: "Field Service Technician"
+    location: "Ciudad Ejemplo"
+    start: "2023-01"
+    end: "2024-02"
+    type: employment
+    setting: [field]
+    duties:
+      - "Reemplazo de componentes de hardware y despliegue de imágenes de sistema operativo"
+    tools: [Windows]
+
+education:
+  - institution: "Universidad Ejemplo"
+    degree_es: "Diplomado en Informática"
+    degree_en: "Diploma in Computer Science"
+    status: completed          # completed | in_progress | coursework_completed
+    start: 2020
+    graduation: 2022
+    show_on_cv: true
+
+certifications:
+  - { name: "ITIL 4 Foundation", issuer: PeopleCert, type: certification, status: in_progress, year: }
+
+projects:
+  - name: "Inventario de equipos"
+    context: "Proyecto personal"
+    start: "2025-01"
+    end: "2025-04"
+    status: completed
+    summary_en: "Small web app to track IT assets, with SQL reports."
+    facts: ["Registro de 150 equipos con historial de asignaciones"]
+    skills: [Python, SQL]
+
+skills:
+  work: [Windows, Microsoft 365, ServiceNow, "hardware"]
+  training: [Azure, PowerShell]
+  self_study: [Python, SQL, Linux]
+  exposure: []

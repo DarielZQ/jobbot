@@ -1,0 +1,16 @@
+# Expectativa salarial, solo para formularios que la piden. Nunca va en el CV.
+# Completa la moneda de tu país (código ISO 4217) y, si aplica, dólares.
+salary_expectation:
+  LOCAL:
+    currency: ""     # p. ej. CRC, MXN, COP
+    ask:
+    range: []
+    floor:
+    negotiable: true
+  USD:
+    ask:
+    range: []
+    floor:
+    negotiable: true
+  free_text_es:
+  free_text_en:

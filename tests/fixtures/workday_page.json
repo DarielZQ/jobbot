@@ -1,0 +1,55 @@
+{
+  "total": 3,
+  "facets": [
+    {
+      "facetParameter": "locationMainGroup",
+      "descriptor": "Locations",
+      "values": [
+        {
+          "facetParameter": "locationCountry",
+          "descriptor": "Country",
+          "values": [
+            { "descriptor": "Costa Rica", "id": "cr-country-id", "count": 3 },
+            { "descriptor": "Mexico", "id": "mx-country-id", "count": 40 }
+          ]
+        },
+        {
+          "facetParameter": "locations",
+          "descriptor": "Location",
+          "values": [
+            { "descriptor": "Costa Rica, Heredia", "id": "cr-heredia-id", "count": 2 },
+            { "descriptor": "Costa Rica, San Jose", "id": "cr-sj-id", "count": 1 }
+          ]
+        }
+      ]
+    },
+    {
+      "facetParameter": "jobFamilyGroup",
+      "descriptor": "Job Category",
+      "values": [{ "descriptor": "Information Technology", "id": "it-id", "count": 10 }]
+    }
+  ],
+  "jobPostings": [
+    {
+      "title": "Service Desk Analyst I",
+      "externalPath": "/job/Costa-Rica-Heredia/Service-Desk-Analyst-I_R0001",
+      "locationsText": "Costa Rica, Heredia",
+      "postedOn": "Posted Today",
+      "bulletFields": ["R0001"]
+    },
+    {
+      "title": "Senior Cloud Engineer",
+      "externalPath": "/job/Costa-Rica-Heredia/Senior-Cloud-Engineer_R0002",
+      "locationsText": "Costa Rica, Heredia",
+      "postedOn": "Posted 3 Days Ago",
+      "bulletFields": ["R0002"]
+    },
+    {
+      "title": "IT Support Technician",
+      "externalPath": "/job/Costa-Rica-San-Jose/IT-Support-Technician_R0003",
+      "locationsText": "2 Locations",
+      "postedOn": "Posted 5 Days Ago",
+      "bulletFields": ["R0003"]
+    }
+  ]
+}

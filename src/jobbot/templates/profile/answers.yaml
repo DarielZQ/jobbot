@@ -1,0 +1,36 @@
+# Respuestas habituales de formularios de postulación. EJEMPLO ficticio: ajústalo a tu caso.
+# Si una respuesta no está aquí, el bot no la inventa: la vacante queda pendiente de tu dato.
+
+notice_period:
+  days: 0
+  available_from: "inmediato"
+
+work_mode:
+  onsite_local: true      # presencial en tu zona (location.local en search.yaml)
+  hybrid: true
+  remote: true
+  outside_local: false    # presencial fuera de tu zona
+
+shifts:
+  rotating: true
+  nights: false
+  weekends: true
+
+willing_to_relocate: false
+
+career_stage:
+  level: early_career
+  open_to_internship: true
+  open_to_trainee_programs: true
+
+motivation:
+  status: draft
+  es: "Quiero crecer en soporte TI y nube, aportando orden y buena atención a los usuarios."
+  en: "I want to grow in IT support and cloud, bringing structure and good service to users."
+
+# Preguntas de diversidad: deja "prefer_not_to_say" si no quieres responderlas
+eeo:
+  gender: prefer_not_to_say
+  race: prefer_not_to_say
+  veteran: prefer_not_to_say
+  disability: prefer_not_to_say

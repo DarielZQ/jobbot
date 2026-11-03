@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobBot</title>
+<link rel="icon" href="/favicon.ico">
+<style>
+  :root {
+    --bg:#f5f7fa; --card:#fff; --fg:#1d232b; --muted:#5b6573; --faint:#8a94a3; --line:#dde3ea;
+    --accent:#1f4e79; --accent-fg:#fff; --accent-soft:#e3edf7; --ok:#1e6b3c; --ok-soft:#e2f2e8;
+    --warn-bg:#fff4e5; --warn-line:#f0b45a; --danger:#a32d2d; --hover:#eef2f6;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg:#14181d; --card:#1c2128; --fg:#e6e9ee; --muted:#9aa4b1; --faint:#6f7a88; --line:#2c333c;
+      --accent:#7fb3e6; --accent-fg:#0d1b2a; --accent-soft:#1d2d3f; --ok:#7fd1a0; --ok-soft:#183324;
+      --warn-bg:#2b2316; --warn-line:#8a6420; --danger:#f09595; --hover:#232a33;
+    }
+  }
+  * { box-sizing:border-box; }
+  [hidden] { display:none !important; }
+  body { margin:0; background:var(--bg); color:var(--fg);
+         font:15px/1.45 "Segoe UI", system-ui, sans-serif; }
+  main { max-width:1040px; margin:0 auto; padding:20px 16px 80px; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap; }
+  h1 { margin:0; font-size:22px; color:var(--accent); font-weight:600; }
+  .muted { color:var(--muted); }
+  .small { font-size:13px; }
+  button { font:inherit; font-size:14px; cursor:pointer; border-radius:6px; padding:6px 12px;
+           border:1px solid var(--line); background:var(--card); color:var(--fg); }
+  button:hover { background:var(--hover); }
+  button:disabled { cursor:default; opacity:.6; }
+  button.primary { background:var(--accent); border-color:var(--accent); color:var(--accent-fg); }
+  button.primary:hover { filter:brightness(1.08); }
+  button.ok { border-color:var(--ok); color:var(--ok); }
+  button.ok:hover { background:var(--ok-soft); }
+  button.icon { padding:2px 6px; border:none; background:none; color:var(--muted); vertical-align:middle; }
+  button.icon:hover { color:var(--accent); background:var(--hover); }
+  .progress { margin-top:14px; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:10px 14px; }
+  .bar { height:6px; background:var(--line); border-radius:3px; overflow:hidden; margin-bottom:6px; }
+  .bar span { display:block; height:100%; width:0; background:var(--accent); transition:width .3s; }
+  .warn { margin-top:14px; background:var(--warn-bg); border:1px solid var(--warn-line); border-radius:8px; padding:8px 14px; }
+  .warn ul { margin:4px 0; padding-left:20px; }
+  nav.tabs { display:flex; gap:4px; margin:18px 0 0; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+  nav.tabs button { border:none; border-bottom:2px solid transparent; border-radius:0; background:none;
+                    padding:8px 12px; color:var(--muted); }
+  nav.tabs button.on { color:var(--fg); border-bottom-color:var(--accent); font-weight:600; }
+  .count { display:inline-block; min-width:20px; margin-left:4px; padding:0 6px; border-radius:10px;
+           font-size:12px; background:var(--hover); color:var(--muted); text-align:center; }
+  nav.tabs button.on .count { background:var(--accent-soft); color:var(--accent); }
+  .filters { display:flex; gap:8px; align-items:center; margin:12px 0; flex-wrap:wrap; }
+  .chips button { padding:4px 10px; font-size:13px; border-radius:14px; }
+  .chips button.on { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+  input[type=search] { flex:1; min-width:180px; font:inherit; font-size:14px; padding:6px 10px;
+                       border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--fg); }
+  ul.jobs { list-style:none; margin:0; padding:0; background:var(--card); border:1px solid var(--line); border-radius:8px; }
+  li.job { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center;
+           padding:12px 14px; border-bottom:1px solid var(--line); transition:opacity .25s; }
+  li.job:last-child { border-bottom:none; }
+  li.job.gone { opacity:0; }
+  .title { font-weight:600; color:var(--fg); text-decoration:none; }
+  .title:hover { color:var(--accent); text-decoration:underline; }
+  .badge { display:inline-block; margin-left:6px; padding:1px 8px; border-radius:10px; font-size:12px;
+           background:var(--ok-soft); color:var(--ok); vertical-align:1px; }
+  .badge.remote { background:var(--accent-soft); color:var(--accent); }
+  .badge.national, .badge.abroad { background:var(--hover); color:var(--muted); }
+  .badge.twin { background:var(--warn-bg); color:var(--fg); border:1px solid var(--warn-line); }
+  .meta { color:var(--muted); font-size:13px; margin-top:2px; }
+  .cv { font-size:13px; margin-top:4px; }
+  .cv a { color:var(--accent); font-family:Consolas, monospace; }
+  .actions { display:flex; gap:6px; flex-wrap:wrap; justify-content:flex-end; }
+  .empty { padding:28px 16px; text-align:center; color:var(--muted); }
+  .more { display:block; margin:10px auto 0; }
+  #toast { position:fixed; left:50%; bottom:20px; transform:translateX(-50%); max-width:min(640px, calc(100% - 32px));
+           background:var(--fg); color:var(--bg); padding:10px 16px; border-radius:8px; font-size:14px;
+           display:flex; gap:14px; align-items:center; box-shadow:0 4px 16px rgba(0,0,0,.2); }
+  #toast button { background:none; border:none; color:var(--accent-soft); font-weight:600; padding:0; }
+  .offline { margin-top:14px; border:1px solid var(--danger); color:var(--danger); border-radius:8px; padding:10px 14px; }
+  @media (max-width:640px) { li.job { grid-template-columns:1fr; } .actions { justify-content:flex-start; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div>
+      <h1>JobBot</h1>
+      <div class="muted small" id="last">Cargando…</div>
+    </div>
+    <button class="primary" id="search">Buscar ahora</button>
+  </header>
+
+  <div class="offline" id="offline" hidden>El panel se cerró (se apaga solo tras un rato sin usarlo).
+    Ábrelo de nuevo con <code>jobbot panel</code> o con el acceso directo del escritorio.</div>
+  <div class="progress" id="progress" hidden>
+    <div class="bar"><span id="bar"></span></div>
+    <span class="small muted" id="progress-text"></span>
+  </div>
+  <div class="warn" id="issues" hidden></div>
+
+  <nav class="tabs" id="tabs">
+    <button data-view="pending">Pendientes<span class="count" data-count="pending">–</span></button>
+    <button data-view="applied">Postuladas<span class="count" data-count="applied">–</span></button>
+    <button data-view="interview">Entrevistas<span class="count" data-count="interview">–</span></button>
+    <button data-view="closed">Cerradas<span class="count" data-count="closed">–</span></button>
+    <button data-view="skipped">Descartadas<span class="count" data-count="skipped">–</span></button>
+    <button data-view="decisions" title="Preguntas de JobBot sobre tu búsqueda (grill-me)">Decisiones<span class="count" data-count="decisions">–</span></button>
+  </nav>
+
+  <div class="filters">
+    <div class="chips" id="families">
+      <button data-family="">Todas</button>
+    </div>
+    <div class="chips" id="places">
+      <button data-place="">Remotas y nacionales</button>
+      <button data-place="remote" title="Solo trabajos 100 % desde casa (sin híbridos)">100 % remoto</button>
+      <button data-place="national" title="Presencial o híbrido en tu zona (location.local)">Nacionales</button>
+    </div>
+    <input type="search" id="q" placeholder="Buscar por puesto, empresa o lugar" aria-label="Buscar">
+  </div>
+
+  <ul class="jobs" id="list"></ul>
+  <button class="more" id="more" hidden>Mostrar más</button>
+</main>
+<div id="toast" role="status" hidden><span id="toast-text"></span><button id="toast-undo" hidden>Deshacer</button></div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const PAGE = 150;
+const REASONS = {
+  title_not_target_role: "el título no es de ninguna familia buscada",
+  title_excluded: "título excluido",
+  description_excluded: "la descripción lo excluye",
+  location_outside_area: "fuera de tu zona",
+  location_not_target: "ubicación fuera de la búsqueda",
+  remote_not_eligible: "remoto no elegible desde tu país",
+  remote_region_unknown: "remoto sin región clara",
+  not_interested: "no te interesó",
+};
+const UNDO = { applied: "undo_applied", not_interested: "reopen" };
+const DONE_TEXT = {
+  applied: "Marcada como postulada", undo_applied: "Vuelve a pendientes",
+  not_interested: "Descartada", reopen: "Vuelve a pendientes",
+  interview: "Marcada como entrevista", rejected: "Marcada como cerrada",
+};
+
+const PLACES = { remote: "100 % remoto", national: "Nacional", abroad: "Otro país" };
+const state = { view: "pending", family: "", place: "", query: "", jobs: [], decisions: [], shown: PAGE, polling: null, wasRunning: false };
+try {
+  state.view = localStorage.getItem("jobbot.view") || "pending";
+  state.family = localStorage.getItem("jobbot.family") || "";
+  state.place = localStorage.getItem("jobbot.place") || "";
+} catch (e) { /* storage blocked: defaults */ }
+if (!["pending", "applied", "interview", "closed", "skipped", "decisions"].includes(state.view)) state.view = "pending";
+
+function el(tag, props = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [key, value] of Object.entries(props)) {
+    if (key === "class") node.className = value;
+    else if (key === "on") node.addEventListener("click", value);
+    else node.setAttribute(key, value);
+  }
+  for (const child of children) if (child != null) node.append(child);
+  return node;
+}
+
+async function api(path, method = "GET", payload = {}) {
+  const options = method === "POST"
+    ? { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) } : {};
+  let response;
+  try {
+    response = await fetch(path, options);
+  } catch (e) {
+    $("offline").hidden = false;
+    throw e;
+  }
+  $("offline").hidden = true;
+  const data = await response.json();
+  if (!response.ok) throw new Error(data.error || response.statusText);
+  return data;
+}
+
+function fold(text) {
+  return (text || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+}
+
+function when(iso) {
+  if (!iso) return "";
+  const date = new Date(iso);
+  const today = new Date();
+  const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+  const time = date.toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" });
+  if (date.toDateString() === today.toDateString()) return `hoy ${time}`;
+  if (date.toDateString() === yesterday.toDateString()) return `ayer ${time}`;
+  return `${date.toLocaleDateString("es", { day: "2-digit", month: "2-digit" })} ${time}`;
+}
+
+function reasonText(reason) {
+  if (!reason) return "";
+  const [key, ...rest] = reason.split(": ");
+  if (key === "duplicate_of") return `duplicada de la #${rest.join(": ")}`;
+  const detail = rest.length ? ` (${rest.join(": ")})` : "";
+  return (REASONS[key] || key) + detail;
+}
+
+function safeUrl(url) {
+  return /^https?:\/\//i.test(url || "") ? url : null;
+}
+
+let toastTimer = null;
+function toast(text, undo) {
+  $("toast-text").textContent = text;
+  const button = $("toast-undo");
+  button.hidden = !undo;
+  button.onclick = undo ? () => { $("toast").hidden = true; undo(); } : null;
+  $("toast").hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $("toast").hidden = true; }, undo ? 8000 : 4000);
+}
+
+async function act(job, action, row) {
+  if (action === "rejected" && !confirm(`¿Marcar "${job.title}" como cerrada (rechazo o sin respuesta)?`)) return;
+  if (action === "interview" && !confirm(`¿Te llamaron de "${job.company}"? Pasa a Entrevistas.`)) return;
+  try {
+    await api(`/api/jobs/${job.id}/${action}`, "POST");
+  } catch (e) {
+    toast(e.message || "No se pudo guardar.");
+    return;
+  }
+  if (row) {
+    row.classList.add("gone");
+    setTimeout(() => { state.jobs = state.jobs.filter((j) => j.id !== job.id); render(); }, 250);
+  }
+  const undo = UNDO[action] ? () => act(job, UNDO[action], null).then(load) : null;
+  toast(`${DONE_TEXT[action] || "Listo"}: ${job.title}`, undo);
+  refreshSummary();
+}
+
+function actionsFor(job, row) {
+  const button = (label, action, cls = "") =>
+    el("button", { class: cls, on: () => act(job, action, row) }, label);
+  switch (state.view) {
+    case "pending":
+      return [button("Ya postulé", "applied", "ok"), button("No me interesa", "not_interested")];
+    case "applied": {
+      const list = [button("Me llamaron", "interview", "ok"), button("Rechazo / sin respuesta", "rejected")];
+      if (job.reason === "applied_manually" || job.reason === "applied_by_email") {
+        list.push(button("Deshacer", "undo_applied"));
+      }
+      return list;
+    }
+    case "interview":
+      return [button("Rechazo", "rejected")];
+    case "skipped":
+      return job.reason.startsWith("duplicate_of") ? [] : [button("Volver a pendientes", "reopen")];
+    default:
+      return [];
+  }
+}
+
+function cvLine(job) {
+  if (!job.cv) return null;
+  const name = job.cv.exists
+    ? el("a", { href: `/cv/${encodeURIComponent(job.cv.file)}`, target: "_blank", rel: "noopener",
+                title: "Abrir el PDF" }, job.cv.file)
+    : el("span", { title: "Genera los PDF con: uv run jobbot resumes" }, `${job.cv.file} (sin generar)`);
+  const copy = el("button", {
+    class: "icon", title: "Copiar la ruta del PDF para pegarla al subir el archivo",
+    "aria-label": "Copiar ruta del CV",
+    on: async () => {
+      try {
+        await navigator.clipboard.writeText(job.cv.path);
+        toast("Ruta del CV copiada: pégala con Ctrl+V en la ventana de subir archivo.");
+      } catch (e) {
+        prompt("Copia la ruta del CV:", job.cv.path);
+      }
+    },
+  }, "copiar ruta");
+  return el("div", { class: "cv" }, "CV a subir: ", name, " ", copy);
+}
+
+function row(job) {
+  const li = el("li", { class: "job" });
+  const url = safeUrl(job.url);
+  const title = url
+    ? el("a", { class: "title", href: url, target: "_blank", rel: "noopener noreferrer" }, job.title)
+    : el("span", { class: "title" }, job.title);
+  const meta = [job.company, job.location, job.source].filter(Boolean).join(" · ");
+  let detail = null;
+  if (state.view === "skipped") detail = el("div", { class: "meta" }, `Motivo: ${reasonText(job.reason)}`);
+  else if (state.view !== "pending") {
+    const how = job.reason === "applied_by_email" ? " · marcada por el correo de confirmación" : "";
+    detail = el("div", { class: "meta" }, `Último cambio: ${when(job.updated)}${how}`);
+  }
+  li.append(
+    el("div", {},
+      el("div", {}, title,
+        PLACES[job.place] ? el("span", { class: `badge ${job.place}` }, PLACES[job.place]) : null,
+        job.new ? el("span", { class: "badge" }, "Nueva") : null,
+        job.twin ? el("span", {
+          class: "badge twin",
+          title: `Parece la misma que #${job.twin.id} (${job.twin.title} · ${job.twin.company}), a la que ya postulaste.`,
+        }, `Ya postulaste: #${job.twin.id}`) : null),
+      el("div", { class: "meta" }, `#${job.id} · ${meta}`),
+      cvLine(job),
+      detail),
+    el("div", { class: "actions" }, ...actionsFor(job, li)),
+  );
+  return li;
+}
+
+function visibleJobs() {
+  const query = fold(state.query);
+  return state.jobs.filter((job) =>
+    (!state.family || job.family === state.family) &&
+    (!state.place || job.place === state.place) &&
+    (!query || fold(`${job.title} ${job.company} ${job.location}`).includes(query)));
+}
+
+const EMPTY = {
+  pending: "No hay vacantes pendientes. Usa «Buscar ahora» o espera la búsqueda de las 7:00.",
+  applied: "Todavía no has marcado postulaciones. En Pendientes, usa «Ya postulé».",
+  interview: "Cuando te llamen de una empresa, márcalo en Postuladas con «Me llamaron».",
+  closed: "Aquí quedan las postulaciones rechazadas o sin respuesta.",
+  skipped: "No hay vacantes descartadas.",
+};
+
+function renderDecisions() {
+  // grill-me: questions the daily run queued. Each option says what it does.
+  const list = $("list");
+  list.replaceChildren();
+  if (!state.decisions.length) list.append(el("li", { class: "empty" }, "No hay decisiones pendientes."));
+  for (const d of state.decisions) {
+    const li = el("li", { class: "job" });
+    const buttons = d.options.map((option) => el("button", {
+      class: option === d.recommended ? "ok" : "",
+      on: async () => {
+        try {
+          const data = await api(`/api/decisions/${d.id}`, "POST", { answer: option });
+          toast(data.result);
+        } catch (e) { toast(e.message || "No se pudo guardar."); }
+        load();
+        refreshSummary();
+      },
+    }, option));
+    const hint = d.recommended ? `Recomendada: ${d.recommended}${d.reason ? ` · ${d.reason}` : ""}` : "";
+    li.append(el("div", {}, el("div", { class: "title" }, d.question), hint ? el("div", { class: "meta" }, hint) : null),
+              el("div", { class: "actions" }, ...buttons));
+    list.append(li);
+  }
+  $("more").hidden = true;
+}
+
+function render() {
+  document.querySelector(".filters").hidden = state.view === "decisions";
+  for (const button of document.querySelectorAll("#tabs button"))
+    button.classList.toggle("on", button.dataset.view === state.view);
+  if (state.view === "decisions") return renderDecisions();
+  const jobs = visibleJobs();
+  const list = $("list");
+  list.replaceChildren();
+  if (!jobs.length) {
+    const filtered = state.jobs.length > 0;
+    list.append(el("li", { class: "empty" }, filtered ? "Nada coincide con el filtro." : EMPTY[state.view]));
+  } else {
+    for (const job of jobs.slice(0, state.shown)) list.append(row(job));
+  }
+  $("more").hidden = jobs.length <= state.shown;
+  $("more").textContent = `Mostrar más (${jobs.length - state.shown} restantes)`;
+  for (const button of document.querySelectorAll("#tabs button"))
+    button.classList.toggle("on", button.dataset.view === state.view);
+  for (const button of document.querySelectorAll("#families button"))
+    button.classList.toggle("on", button.dataset.family === state.family);
+  for (const button of document.querySelectorAll("#places button")) {
+    const place = button.dataset.place;
+    if (place) {
+      const count = state.jobs.filter((job) => job.place === place).length;
+      button.textContent = `${place === "remote" ? "100 % remoto" : "Nacionales"} (${count})`;
+    }
+    button.classList.toggle("on", place === state.place);
+  }
+}
+
+async function load() {
+  try {
+    if (state.view === "decisions") {
+      state.decisions = (await api("/api/decisions")).decisions;
+      return render();
+    }
+    const data = await api(`/api/jobs?view=${state.view}`);
+    state.jobs = data.jobs;
+    render();
+  } catch (e) { /* offline banner already shown */ }
+}
+
+function showDiscovery(d) {
+  $("search").disabled = d.running;
+  $("search").textContent = d.running ? "Buscando…" : "Buscar ahora";
+  $("progress").hidden = !d.running;
+  if (d.running) {
+    const pct = d.total ? Math.round((100 * d.done) / d.total) : 3;
+    $("bar").style.width = `${pct}%`;
+    $("progress-text").textContent = d.total
+      ? `Revisando portales: ${d.done} de ${d.total}${d.current ? ` (último: ${d.current})` : ""}`
+      : "Preparando la búsqueda…";
+  }
+  if (state.wasRunning && !d.running) {
+    if (d.error) toast(`La búsqueda falló: ${d.error}`);
+    else toast(d.new ? `Búsqueda terminada: ${d.new} vacantes nuevas.` : "Búsqueda terminada: nada nuevo por ahora.");
+    load();
+  }
+  const issues = d.issues || [];
+  $("issues").hidden = !issues.length;
+  $("issues").replaceChildren(
+    el("b", {}, "Necesita tu atención"),
+    el("ul", {}, ...issues.map(([name, message]) => el("li", {}, `${name}: ${message}`))));
+  state.wasRunning = d.running;
+  schedule(d.running ? 1500 : 60000);
+}
+
+function showFamilies(families) {
+  // One chip per role family of search.yaml; rebuilt only when the config changes.
+  const key = JSON.stringify(families);
+  if (state.familiesKey === key) return;
+  state.familiesKey = key;
+  const chips = Object.entries(families).map(([id, label]) => el("button", { "data-family": id }, label));
+  $("families").replaceChildren(el("button", { "data-family": "" }, "Todas"), ...chips);
+  if (state.family && !(state.family in families)) state.family = "";
+  render();
+}
+
+async function refreshSummary() {
+  try {
+    const data = await api("/api/summary");
+    for (const [view, count] of Object.entries(data.counts))
+      document.querySelector(`[data-count="${view}"]`).textContent = count;
+    const last = data.last_search ? `Última búsqueda: ${when(data.last_search)}` : "Todavía no hay búsquedas";
+    $("last").textContent = `${last} · nuevas en 24 h: ${data.new}`;
+    showFamilies(data.families || {});
+    showDiscovery(data.discovery);
+  } catch (e) {
+    schedule(60000);
+  }
+}
+
+function schedule(ms) {
+  clearTimeout(state.polling);
+  state.polling = setTimeout(refreshSummary, ms);
+}
+
+$("search").addEventListener("click", async () => {
+  try {
+    await api("/api/discover", "POST");
+    state.wasRunning = true;
+    showDiscovery({ running: true, done: 0, total: 0, issues: [] });
+  } catch (e) { toast(e.message || "No se pudo iniciar la búsqueda."); }
+});
+$("tabs").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-view]");
+  if (!button || button.dataset.view === state.view) return;
+  state.view = button.dataset.view;
+  state.shown = PAGE;
+  state.jobs = [];
+  try { localStorage.setItem("jobbot.view", state.view); } catch (e) { /* ignore */ }
+  render();
+  load();
+});
+$("families").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-family]");
+  if (!button) return;
+  state.family = button.dataset.family;
+  state.shown = PAGE;
+  try { localStorage.setItem("jobbot.family", state.family); } catch (e) { /* ignore */ }
+  render();
+});
+$("places").addEventListener("click", (event) => {
+  const button = event.target.closest("button[data-place]");
+  if (!button) return;
+  state.place = button.dataset.place;
+  state.shown = PAGE;
+  try { localStorage.setItem("jobbot.place", state.place); } catch (e) { /* ignore */ }
+  render();
+});
+$("q").addEventListener("input", (event) => { state.query = event.target.value; state.shown = PAGE; render(); });
+$("more").addEventListener("click", () => { state.shown += PAGE; render(); });
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") { refreshSummary(); load(); }
+});
+
+render();
+load();
+refreshSummary();
+</script>
+</body>
+</html>

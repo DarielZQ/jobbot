@@ -1,0 +1,12 @@
+# Datos de `region` por país para `jobbot grill setup-profile`. country_slug es como lo escribe
+# Jobicy en su filtro de ubicación; utc_offset es la hora estándar. Agrega tu país si falta.
+Costa Rica: { country_code: CRI, country_slug: costa-rica, utc_offset: -6, timezone: America/Costa_Rica }
+México: { country: Mexico, country_code: MEX, country_slug: mexico, utc_offset: -6, timezone: America/Mexico_City }
+Colombia: { country_code: COL, country_slug: colombia, utc_offset: -5, timezone: America/Bogota }
+Perú: { country: Peru, country_code: PER, country_slug: peru, utc_offset: -5, timezone: America/Lima }
+Chile: { country_code: CHL, country_slug: chile, utc_offset: -4, timezone: America/Santiago }
+Argentina: { country_code: ARG, country_slug: argentina, utc_offset: -3, timezone: America/Argentina/Buenos_Aires }
+Guatemala: { country_code: GTM, country_slug: guatemala, utc_offset: -6, timezone: America/Guatemala }
+Panamá: { country: Panama, country_code: PAN, country_slug: panama, utc_offset: -5, timezone: America/Panama }
+Ecuador: { country_code: ECU, country_slug: ecuador, utc_offset: -5, timezone: America/Guayaquil }
+Uruguay: { country_code: URY, country_slug: uruguay, utc_offset: -3, timezone: America/Montevideo }

@@ -1,0 +1,159 @@
+# Filtros duros. Los patrones son expresiones regulares, sin distinguir mayúsculas ni tildes
+# (el texto se normaliza antes de comparar: "Técnico" -> "tecnico").
+
+# Familias de roles (ADR-009). El título debe coincidir con el `include` de alguna familia y con
+# ninguno de su `exclude`. Se evalúan en orden: primero las `primary`. `cv` es el prefijo del PDF
+# en profile/resumes/ (<cv>_<es|en>.pdf) y `label`, el nombre que muestran el informe y el panel.
+# Borra la familia que no te interese (o deja que `jobbot grill setup-profile` lo haga).
+role_families:
+  it_support:
+    label: "Soporte TI"
+    priority: primary
+    cv: it-support
+    include:
+      - '\b(it|technical|tech|desktop|end user|field|applications?|network|customer|product|cloud|azure|aws|m365|o365)\s+support\b'
+      - '\bsupport\s+(analyst|specialist|technician|engineer|representative|agent|associate)\b'
+      - '\b(technical|tech|networking)\s+(agent|representative)\b'
+      - '\bhelp\s*desk\b'
+      - '\bservice\s*desk\b'
+      - '\bdesktop\s+(technician|engineer|analyst)\b'
+      - '\b(it|systems?)\s+(technician|analyst|specialist)\b'
+      - '\bcloud\s+(support|operations|engineer|associate|administrator)\b'
+      - '\bnoc\s+(analyst|technician|engineer)\b'
+      - '\bdata\s*center\s+(technician|operator|operations)\b'
+      - '\bincident\s+(management|response)\s+(engineer|analyst|specialist|coordinator)\b'
+      - '\bsoporte\b'
+      - '\bmesa de (ayuda|servicio)\b'
+      - '\btecnico\s+(de\s+|en\s+)?(soporte|ti|it|informatica|computo|computacion|redes|sistemas)\b'
+      - '\btecnico\b.*\b(equipos? de computo|computadoras)\b'
+      - '\banalista\s+(de\s+)?(soporte|ti|sistemas)\b'
+      - '\bauxiliar\s+(de\s+)?(tecnologia|ti|informatica|sistemas|soporte)\b'
+      - '\bprofesional\s+en\s+tecnologias?\s+de\s+(la\s+)?informacion\b'
+      # Entrada a la carrera: pasantías, trainee y programas early career de TI/soporte/cloud
+      - '\b(it|ti|technology|tecnologia|infrastructure|infraestructura|cloud|service desk|help ?desk|end user|workplace)\s+(intern|internship|trainee|apprentice|apprenticeship|pasante|practicante)\b'
+      - '\b(intern|internship|trainee|apprentice|pasantia|pasante|practicante|practica)\s+(-\s+)?(en\s+|de\s+|in\s+)?(it|ti|soporte|support|informatica|sistemas|tecnologia|infrastructure|infraestructura|cloud)\b'
+      - '\b(early career|entry level|graduate program|new grad|recent graduate|programa de talento|recien graduado|egresado)\b.*\b(it|ti|support|soporte|cloud|infrastructure|infraestructura)\b'
+      # Puestos cercanos al soporte TI
+      # Soporte en sitio y de campo
+      - '\bfield\s+(service\s+)?(technician|tech)\b'
+      - '\b(smart|remote)\s+hands\b'
+      - '\bhands\s+(and\s+|y\s+)?eyes\b'
+      - '\b(end user computing|euc)\b'
+      - '\bend user\s+(services|technician|engineer|analyst|specialist)\b'
+      - '\bworkplace\s+(it|technology|technologies)\b'
+      - '\bworkplace\s+services?\s+(technician|engineer)\b'
+      - '\bmodern workplace\b'
+      - '\bimacd?\s+(technician|tech|analyst|specialist|coordinator)\b'
+      - '\b(hardware|storage)\s+(operations\s+)?(intern|internship|technician|operator|specialist)\b'
+      # Gestión de activos TI
+      - '\b(it|hardware|software|technology)\s+asset'
+      - '\bitam\b'
+      - '\b(inventario|activos)\s+(de\s+)?(ti|tecnologia|equipos? de computo|computo)\b'
+      # ITSM y ServiceNow
+      - '\b(itsm|servicenow|cmdb)\b'
+      - '\b(it\s+)?service\s+(management|request|fulfill?ment)\s+(analyst|specialist|associate|coordinator)\b'
+      - '\bproblem\s+management\s+(analyst|specialist|coordinator)\b'
+      - '\bincident\s+(management\s+)?(analyst|specialist|coordinator)\b'
+      - '\bit\s+change\s+(management\s+)?(analyst|specialist|coordinator)\b'
+      - '\bgestion\s+de\s+(servicios\s+(de\s+)?ti|incidentes|problemas)\b'
+      # Identidades y accesos
+      - '\b(identity|iam|access)\s+(and\s+access\s+)?(management\s+)?(analyst|specialist|administrator|associate|engineer|operations)\b'
+      - '\bidentity\s+(governance|operations)\b'
+      - '\buser\s+(provisioning|access|administration)\b'
+      - '\bprovisioning\s+(analyst|specialist)\b'
+      - '\b(analista|especialista|administrador)\s+de\s+(gestion\s+de\s+)?(identidades|accesos)\b'
+      # Monitoreo y operaciones TI
+      - '\b(it|infrastructure|systems?|network|technology)\s+operations\s+(analyst|specialist|technician|associate|engineer|operator)\b'
+      - '\b(it|infrastructure|systems?|network|application|cloud|server|event)\s+monitoring\b'
+      - '\bmonitoring\s+(operator|technician)\b'
+      - '\bcommand\s+cent(er|re)\b'
+      - '(?<!security )\boperations?\s+cent(er|re)\s+(analyst|operator|technician|specialist|associate)\b'
+      - '\bnoc\s+(operator|specialist|associate)\b'
+      - '\b(operador|analista|tecnico|especialista)\s+(de\s+)?(centro\s+de\s+)?monitoreo\b'
+      # Roles adyacentes que suelen pedir más experiencia: sistemas, Microsoft 365 y endpoints
+      - '\b(system|systems|windows|linux|server|it|infrastructure|azure|m365|microsoft 365|o365|office 365)\s+(administrator|admin)\b'
+      - '\bsysadmin\b'
+      - '\badministrador\s+(de\s+)?(sistemas|redes|infraestructura|servidores)\b'
+      - '\bendpoint\s+(management\s+)?(analyst|engineer|specialist|technician|administrator)\b'
+      - '\b(intune|sccm|mecm|jamf)\b'
+      - '\b(m365|microsoft 365|o365|office 365|messaging)\s+(analyst|engineer|specialist)\b'
+      # Roles adyacentes que suelen pedir más experiencia: redes
+      - '\bnetwork\s+(technician|administrator|admin|analyst|specialist|operations)\b'
+      - '\b(junior|jr|associate|entry level|trainee)\b.*\bnetwork engineer\b'
+      - '\bnetwork engineer\s+(i|1|junior|jr|associate)\b'
+      - '\b(analista|administrador|ingeniero)\s+(junior\s+)?de\s+redes\b'
+    exclude:
+      # Mismo vocabulario fuera de TI
+      - '\bredes\s+(sociales|electricas)\b'
+      - '\b(market|patient)\s+access\b'
+      - '\b(access\s+control|control\s+de\s+accesos?)\b'
+      - '\b(provider|transportation|supply chain|logistics|distribution)\s+network\b'
+      - '\b(transaction|transactional|aml|fraud|sanctions)\s+monitoring\b'
+      - '\bmonitoreo\s+(transaccional|de\s+transacciones)\b'
+      - '\b(camaras|cctv|gps|videovigilancia|alarmas)\b'
+
+  data_ai:
+    label: "Datos / IA"
+    priority: secondary
+    cv: data-ai
+    include:
+      # Análisis, reportes y BI
+      - '\b(data|reporting|bi|business intelligence|analytics|insights)\s+(analyst|specialist|associate)\b'
+      - '\bdata\s+(management|governance|quality|operations|integration)\s+(analyst|specialist|associate)\b'
+      - '\bmaster data\b'
+      - '\banalista\s+(de\s+)?(datos|reportes|bi|inteligencia de negocios|calidad de datos)\b'
+      # ETL, operaciones de datos y automatización
+      - '\b(etl|data integration|dataops|data operations)\s+(developer|analyst|specialist|engineer|associate)\b'
+      - '\b(rpa|process automation)\s+(analyst|developer|specialist)\b'
+      # Bases de datos (roles adyacentes)
+      - '\b(database|db|sql)\s+(support|analyst|administrator|admin|specialist|associate)\b'
+      - '\b(junior|jr|associate|entry level|trainee)\b.*\bdba\b'
+      - '\bdba\s+(i|1|junior|jr|associate)\b'
+      - '\b(administrador|analista)\s+de\s+bases?\s+de\s+datos\b'
+      # IA: entrenamiento y anotación de datos
+      - '\b(ai|ml|ia)\s+(data\s+)?(trainer|annotator|tutor|rater|evaluator)\b'
+      - '\bdata\s+(annotat|label)\w*'
+      # Data science / data engineering / ML solo con marca explícita de nivel de entrada
+      - '\b(junior|jr|associate|entry level|trainee|intern|internship|apprentice|pasante|practicante)\b.*\b(data scientist|data engineer|machine learning|ml engineer|ai engineer|cientifico de datos|ingeniero de datos)\b'
+      - '\b(data scientist|data engineer|machine learning engineer|ml engineer|ai engineer)\s+(i|1|junior|jr|associate|intern|trainee)\b'
+      # Pasantías de datos/IA
+      - '\b(data|datos|analytics|analitica|ai|machine learning)\s+(intern|internship|trainee|pasante|practicante)\b'
+      - '\b(intern|internship|pasantia|pasante|practicante)\b.*\b(data|datos|analytics|analitica)\b'
+    exclude:
+      - '\bdata\s+entry\b'
+      - '\bdata\s+(privacy|protection)\b'
+      - '\bdigitador\b'
+
+title:
+  # Exclusiones globales: aplican a todas las familias
+  exclude:
+    - '\b(senior|sr|lead|manager|mgr|director|head|principal|architect|staff|supervisor|vp)\b'
+    - '\b(gerente|jefe|coordinador|lider)\b'
+    # Nivel 3 en adelante. El nivel 2 (II, Tier 2, L2, Mid) pasa; agrégalo aquí si no lo quieres.
+    - '\b(iii|iv|level\s*3|l3|nivel\s*3)\b'
+    - '\b(sales|ventas|recruiter|reclutador)\b'
+    # Piden un idioma que no hablas: quita de la lista los que sí hablas. "(m/w/d)" es la marca de
+    # género de los anuncios en alemán.
+    - '\b(french|german|italian|dutch|japanese|portuguese|frances|aleman|italiano|portugues)\b'
+    - '\b(m w d|m f d|m w x|w m d)\b'
+    # Pasantías permitidas: los include de cada familia ya exigen que sean del área.
+
+description:
+  # Sin filtro por años de experiencia pedidos: las empresas suelen exagerarlos, así que decides tú
+  # al leer el anuncio. Aquí van solo los requisitos imposibles de cumplir.
+  exclude:
+    - '\bsecurity clearance\b'
+    # Get on Board, Jobicy y Himalayas anteponen la seniority; "Semi Senior" (nivel 2) pasa
+    - '^seniority (senior|expert)\b'
+    - '\bus citizen(ship)?\b'
+
+location:
+  # Solo remoto: deja `local` vacío. Si también aceptas presencial, agrega tu ciudad o país, p. ej.
+  # - '\b(bogota|medellin|colombia)\b'
+  local: []
+  local_exclude: []
+  # Remoto aceptado solo si es elegible desde tu país (agrega el nombre de tu país)
+  remote_ok:
+    - '\b(latam|latin america|americas|anywhere|worldwide|global)\b'
+  remote_reject:
+    - '\b(us only|usa only|united states only|must reside in the us|uk only|eu only)\b'

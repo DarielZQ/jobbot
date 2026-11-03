@@ -1,0 +1,33 @@
+{
+  "data": [
+    {
+      "id": "client-onboarding-technical-support-acme-remote",
+      "type": "job",
+      "attributes": {
+        "title": "Client Onboarding & Technical Support",
+        "description": "<p>Help customers set up the product.</p>",
+        "functions": "<p>Answer tickets.</p>",
+        "countries": ["Remote"],
+        "remote_modality": "fully_remote",
+        "seniority": {"data": {"id": 2, "type": "seniority"}},
+        "published_at": 1792703301,
+        "company": {"data": {"id": "acme", "type": "company", "attributes": {"name": "Acme LATAM"}}}
+      },
+      "links": {"public_url": "https://www.getonbrd.com/jobs/client-onboarding-technical-support-acme-remote"}
+    },
+    {
+      "id": "soporte-ti-semi-senior-beta-santiago",
+      "type": "job",
+      "attributes": {
+        "title": "Soporte TI",
+        "description": "<p>Soporte en sitio.</p>",
+        "countries": ["Chile"],
+        "remote_modality": "remote_local",
+        "seniority": {"data": {"id": 3, "type": "seniority"}},
+        "published_at": null,
+        "company": {"data": {"id": "beta", "type": "company", "attributes": {"name": "Beta"}}}
+      }
+    }
+  ],
+  "meta": {"page": 1, "per_page": 50, "total_pages": 1}
+}

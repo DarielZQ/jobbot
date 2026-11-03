@@ -1,0 +1,29 @@
+{
+  "error": null,
+  "hits": 2,
+  "jobs": [
+    {
+      "id": "abc-1",
+      "id_icims": "10576514",
+      "title": "Support Engineer I - Ext, Partner Tech Engineering",
+      "normalized_location": "San Jose, San Jose, CRI",
+      "country_code": "CRI",
+      "job_path": "/en/jobs/10576514/support-engineer-i-ext-partner-tech-engineering",
+      "posted_date": "October 20, 2026",
+      "description": "Troubleshoot partner integrations.",
+      "basic_qualifications": "- 1+ years of technical support experience",
+      "preferred_qualifications": "- 3+ years of experience with AWS"
+    },
+    {
+      "id": "abc-2",
+      "id_icims": "10587151",
+      "title": " ACM Consultant (S), US Accommodations",
+      "normalized_location": "CRI",
+      "country_code": "CRI",
+      "job_path": "/en/jobs/10587151/acm-consultant",
+      "posted_date": "not a date",
+      "description": "",
+      "basic_qualifications": ""
+    }
+  ]
+}

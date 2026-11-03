@@ -1,0 +1,35 @@
+# Comportamiento de JobBot. Tus datos personales van en profile/, no aquí.
+
+# Dónde buscas trabajo. Las fuentes lo usan salvo que su entrada en targets.yaml diga otra cosa.
+# Complétalo con tu país (o deja que `jobbot grill setup-profile` lo haga). Ejemplo para Colombia:
+#   country: "Colombia", country_code: COL, country_slug: colombia, utc_offset: -5,
+#   timezone: America/Bogota
+region:
+  country: ""
+  country_code: ""           # ISO 3166-1 alfa-3
+  country_slug: ""           # como lo escriben las bolsas remotas (Jobicy)
+  utc_offset:                # muchas vacantes remotas se limitan por zona horaria
+  timezone: ""
+
+paths:
+  db: data/jobbot.db
+
+# Corrida diaria (`jobbot daily`): aviso de escritorio solo si hay vacantes nuevas o una fuente
+# necesita atención. Por ahora solo en Windows; en otros sistemas se ignora.
+notifications:
+  windows_toast: true
+
+# Panel local (`jobbot panel`): solo escucha en 127.0.0.1
+panel:
+  port: 8765
+
+# CV en PDF (`jobbot resumes`, extra "resumes"): avisa si un CV pasa de este máximo de páginas.
+resumes:
+  max_pages: 2
+
+http:
+  timeout_s: 30
+  min_interval_s: 2.0      # pausa mínima entre peticiones al mismo sitio
+  max_retries: 3
+  host_min_interval_s:
+    gmail.googleapis.com: 0.1   # API autenticada con cuota alta; no es un sitio de empleo

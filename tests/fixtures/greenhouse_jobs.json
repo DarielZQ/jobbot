@@ -1,0 +1,21 @@
+{
+  "jobs": [
+    {
+      "id": 4012345,
+      "title": "Technical Support Specialist",
+      "updated_at": "2026-10-20T10:00:00-04:00",
+      "location": { "name": "Remote - LATAM" },
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/4012345",
+      "content": "&lt;p&gt;1-2 years of experience in customer-facing technical support.&lt;/p&gt;"
+    },
+    {
+      "id": 4012346,
+      "title": "Support Engineer",
+      "updated_at": "2026-10-21T10:00:00-04:00",
+      "location": { "name": "Remote - US only" },
+      "absolute_url": "https://boards.greenhouse.io/acme/jobs/4012346",
+      "content": "&lt;p&gt;Great team.&lt;/p&gt;"
+    }
+  ],
+  "meta": { "total": 2 }
+}

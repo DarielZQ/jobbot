@@ -1,0 +1,80 @@
+# CV de soporte TI (familia it_support en search.yaml). EJEMPLO ficticio: reemplázalo con tu
+# contenido real, coherente con profile/facts.yaml. Genera los PDF con: uv run jobbot resumes
+# `checks.yaml` (en esta carpeta) bloquea afirmaciones que no puedes demostrar.
+status: draft   # draft | approved
+
+es:
+  headline: "Analista de Soporte TI | Mesa de Servicio"
+  availability: "Disponibilidad inmediata · Presencial, híbrido o remoto"
+  summary: >-
+    Profesional de soporte TI con experiencia en atención en sitio y servicio de campo. Manejo del
+    ciclo de tickets, Microsoft 365 y diagnóstico de hardware. Inglés B2.
+  sections:
+    - title: Experiencia
+      entries:
+        - title: "Analista de Soporte TI - Nivel 1"
+          org: "Acme Corp · Ciudad Ejemplo"
+          dates: "Mar 2024 – Ago 2025"
+          bullets:
+            - "Soporte en sitio a usuarios: hardware, impresoras y Microsoft 365."
+            - "Registro, seguimiento y cierre de incidentes en el sistema de tickets."
+        - title: "Técnico de Servicio de Campo"
+          org: "Ejemplo Servicios TI S.A."
+          dates: "Ene 2023 – Feb 2024"
+          bullets:
+            - "Reemplazo de componentes y despliegue de imágenes de sistema operativo."
+    - title: Formación
+      entries:
+        - title: "Diplomado en Informática"
+          org: "Universidad Ejemplo"
+          dates: "2020 – 2022"
+  certifications:
+    title: "Certificaciones y cursos"
+    text: "ITIL 4 Foundation: en preparación"
+  skills:
+    title: "Habilidades técnicas"
+    groups:
+      - label: "Soporte"
+        items: "Gestión de incidentes, hardware, impresoras, imágenes de SO"
+      - label: "Plataformas"
+        items: "Windows, Microsoft 365, ServiceNow"
+      - label: "Idiomas"
+        items: "Español (nativo) · Inglés (B2)"
+
+en:
+  headline: "IT Support Analyst | Service Desk"
+  availability: "Available immediately · On-site, hybrid or remote"
+  summary: >-
+    IT support professional with on-site and field service experience. Comfortable with the
+    ticket lifecycle, Microsoft 365 and hardware troubleshooting. English B2.
+  sections:
+    - title: Experience
+      entries:
+        - title: "IT Support Analyst - Level 1"
+          org: "Acme Corp · Ciudad Ejemplo"
+          dates: "Mar 2024 – Aug 2025"
+          bullets:
+            - "Provided on-site support: hardware, printers and Microsoft 365."
+            - "Logged, tracked and closed incidents in the ticketing system."
+        - title: "Field Service Technician"
+          org: "Ejemplo Servicios TI S.A."
+          dates: "Jan 2023 – Feb 2024"
+          bullets:
+            - "Replaced hardware components and deployed operating system images."
+    - title: Education
+      entries:
+        - title: "Diploma in Computer Science"
+          org: "Universidad Ejemplo"
+          dates: "2020 – 2022"
+  certifications:
+    title: "Certifications and courses"
+    text: "ITIL 4 Foundation: in preparation"
+  skills:
+    title: "Technical skills"
+    groups:
+      - label: "Support"
+        items: "Incident management, hardware, printers, OS imaging"
+      - label: "Platforms"
+        items: "Windows, Microsoft 365, ServiceNow"
+      - label: "Languages"
+        items: "Spanish (native) · English (B2)"

@@ -1,0 +1,66 @@
+# Tema de grill-me: configura tu perfil y tu búsqueda a punta de preguntas.
+# Cada pregunta: `id`, `ask`, y `options` (elige una) o `text: true` (respuesta libre).
+# `recommended` + `reason` solo en preferencias: los datos sobre ti no se recomiendan ni se inventan.
+# `depends_on`: se pregunta en una ronda posterior, cuando esas ya tienen respuesta.
+# `when`: solo si una respuesta previa fue esa. `apply`: qué archivo cambia (grill/apply.py).
+topic: setup-profile
+title: "Tu perfil y tu búsqueda"
+intro: >-
+  Voy a hacerte preguntas por rondas para configurar JobBot. Elige la letra de una opción o
+  escribe tu respuesta; Enter acepta la recomendada. Antes de guardar te muestro cada cambio.
+questions:
+  - id: country
+    ask: "¿En qué país vives y buscas trabajo?"
+    options: ["Costa Rica", "México", "Colombia", "Perú", "Chile", "Otro"]
+    other: "Otro"
+    apply: country
+
+  - id: families
+    ask: "¿Qué tipo de puesto buscas?"
+    options: ["Soporte TI", "Soporte TI y datos", "Solo datos"]
+    recommended: "Soporte TI"
+    reason: "Empieza por una familia: menos ruido en tus pendientes. Puedes sumar la otra después."
+    apply: families
+
+  - id: max_level
+    depends_on: [families]
+    ask: "¿Hasta qué nivel postulas?"
+    options: ["Solo nivel 1", "Hasta nivel 2", "Cualquiera salvo senior"]
+    recommended: "Hasta nivel 2"
+    reason: "Las empresas suelen pedir de más; el nivel 3 o senior casi nunca es alcanzable al empezar."
+    apply: max_level
+
+  - id: modality
+    ask: "¿Qué modalidad aceptas?"
+    options: ["Solo remoto", "Remoto, y presencial o híbrido en mi zona"]
+    recommended: "Remoto, y presencial o híbrido en mi zona"
+    reason: "Las vacantes presenciales de tu zona suelen tener menos competencia que las remotas."
+    apply: modality
+
+  - id: local_area
+    depends_on: [country, modality]
+    when: { modality: "Remoto, y presencial o híbrido en mi zona" }
+    ask: "¿En qué ciudades o cantones aceptas trabajar presencial? (separados por coma)"
+    text: true
+    apply: local_area
+
+  - id: languages
+    ask: "¿Qué idiomas hablas a nivel de trabajo?"
+    options: ["Español", "Español e inglés", "Español, inglés y portugués"]
+    apply: languages
+
+  - id: name
+    ask: "¿Qué nombre va en tu CV?"
+    text: true
+    apply: name
+
+  - id: email
+    ask: "¿Qué correo va en tu CV?"
+    text: true
+    apply: email
+
+  - id: phone
+    ask: "¿Qué teléfono va en tu CV? (Enter para dejarlo vacío)"
+    text: true
+    optional: true
+    apply: phone

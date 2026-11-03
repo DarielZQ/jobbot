@@ -1,0 +1,73 @@
+# CV de datos (familia data_ai en search.yaml). EJEMPLO ficticio: reemplázalo con tu contenido
+# real, o bórralo si no buscas puestos de datos (y quita la familia data_ai de search.yaml).
+status: draft   # draft | approved
+
+es:
+  headline: "Analista de Datos Junior | Reportes y SQL"
+  availability: "Disponibilidad inmediata · Presencial, híbrido o remoto"
+  summary: >-
+    Profesional en etapa inicial con base en soporte TI y trabajo práctico con datos: consultas
+    SQL, depuración de datos y reportes. Inglés B2.
+  sections:
+    - title: Proyectos de datos
+      entries:
+        - title: "Inventario de equipos"
+          org: "Proyecto personal · Python y SQL"
+          dates: "2025"
+          bullets:
+            - "Registro de 150 equipos con historial de asignaciones y reportes en SQL."
+    - title: Experiencia
+      entries:
+        - title: "Analista de Soporte TI - Nivel 1"
+          org: "Acme Corp · Ciudad Ejemplo"
+          dates: "Mar 2024 – Ago 2025"
+          bullets:
+            - "Registro y seguimiento de incidentes con documentación completa de cada caso."
+  certifications:
+    title: "Certificaciones y cursos"
+    text: "ITIL 4 Foundation: en preparación"
+  skills:
+    title: "Habilidades técnicas"
+    groups:
+      - label: "Datos"
+        items: "SQL, depuración de datos, reportes"
+      - label: "Programación (fundamentos)"
+        items: "Python, PowerShell"
+  languages:
+    title: "Idiomas"
+    text: "Español (nativo) · Inglés (B2)"
+
+en:
+  headline: "Junior Data Analyst | Reporting and SQL"
+  availability: "Available immediately · On-site, hybrid or remote"
+  summary: >-
+    Early-career professional with an IT support background and hands-on data work: SQL
+    queries, data cleanup and reporting. English B2.
+  sections:
+    - title: Data projects
+      entries:
+        - title: "IT asset inventory"
+          org: "Personal project · Python and SQL"
+          dates: "2025"
+          bullets:
+            - "Tracked 150 devices with assignment history and SQL reports."
+    - title: Experience
+      entries:
+        - title: "IT Support Analyst - Level 1"
+          org: "Acme Corp · Ciudad Ejemplo"
+          dates: "Mar 2024 – Aug 2025"
+          bullets:
+            - "Logged and tracked incidents with complete case documentation."
+  certifications:
+    title: "Certifications and courses"
+    text: "ITIL 4 Foundation: in preparation"
+  skills:
+    title: "Technical skills"
+    groups:
+      - label: "Data"
+        items: "SQL, data cleanup, reporting"
+      - label: "Programming (fundamentals)"
+        items: "Python, PowerShell"
+  languages:
+    title: "Languages"
+    text: "Spanish (native) · English (B2)"

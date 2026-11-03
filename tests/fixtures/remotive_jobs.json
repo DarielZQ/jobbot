@@ -1,0 +1,28 @@
+{
+  "0-legal-notice": "Please link back to Remotive.",
+  "job-count": 2,
+  "jobs": [
+    {
+      "id": 2101,
+      "url": "https://remotive.com/remote-jobs/customer-support/it-support-specialist-2101",
+      "title": "IT Support Specialist",
+      "company_name": "Gamma",
+      "category": "Customer Service",
+      "job_type": "full_time",
+      "publication_date": "2026-10-26T12:00:00",
+      "candidate_required_location": "LATAM",
+      "description": "<p>Entry level.</p>"
+    },
+    {
+      "id": 2102,
+      "url": "https://remotive.com/remote-jobs/customer-support/support-agent-2102",
+      "title": "Technical Support Agent",
+      "company_name": "Delta",
+      "category": "Customer Service",
+      "job_type": "contract",
+      "publication_date": "2026-10-25T08:30:00",
+      "candidate_required_location": "USA",
+      "description": "<p>US hours.</p>"
+    }
+  ]
+}

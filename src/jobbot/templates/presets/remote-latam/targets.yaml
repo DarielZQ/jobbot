@@ -1,0 +1,51 @@
+# Bolsas remotas abiertas a LATAM (preset remoto LATAM). El país sale de `region` en
+# settings.yaml: complétalo antes de la primera búsqueda.
+
+workday: []      # multinacionales de tu país: ver el preset costa-rica-it como ejemplo
+greenhouse: []   # { company, token }  -> token = parte final de boards.greenhouse.io/<token>
+lever: []        # { company, slug }   -> slug  = parte final de jobs.lever.co/<slug>
+
+# Get on Board: bolsa tech LATAM con API pública. Se filtra por seniority (search.yaml).
+getonboard:
+  queries: ["soporte", "support", "help desk", "mesa de ayuda", "service desk", "infraestructura", "sysadmin", "redes", "analista de datos", "data analyst"]
+  max_pages: 2
+
+# Remotive: remoto. Sus términos piden máx. ~4 consultas al día; el bot espera 6 h entre corridas.
+remotive:
+  categories: ["customer-support", "data"]
+  min_hours_between_runs: 6
+
+# Jobicy: remoto, API pública. Su filtro por país trae también lo abierto a LATAM y "Anywhere".
+# Uso justo: máx. 1 consulta por hora y conservar su enlace.
+jobicy:
+  min_hours_between_runs: 1
+
+# Himalayas: remoto, API pública de búsqueda. El bot descarta lo que no admite tu país o tu zona
+# horaria. Términos: postular por su enlace sin cambios, citarlo como fuente, no republicar.
+himalayas:
+  queries: ["technical support", "it support", "help desk", "service desk", "customer support", "system administrator", "data analyst"]
+  max_pages: 2
+  min_hours_between_runs: 6
+
+# Alertas de empleo y confirmaciones de postulación que llegan a tu Gmail (extra "gmail").
+# El bot solo LEE esos correos (permiso de solo lectura). Actívalo después de seguir
+# docs/platforms/email-alerts.md.
+email_alerts:
+  enabled: false
+  credentials_file: profile/private/gmail_credentials.json
+  token_file: profile/private/gmail_token.json
+  lookback_days: 14
+  max_messages: 50
+  linkedin:
+    query: "from:(jobalerts-noreply@linkedin.com OR jobs-noreply@linkedin.com)"
+    default_location: ""   # tu país, si tus alertas de LinkedIn son de un solo país
+  computrabajo:
+    query: "from:computrabajo.com"
+  indeed:
+    # Excluye confirmaciones de postulación (indeedapply@) y códigos de inicio de sesión (login@)
+    query: "from:indeed.com -from:indeedapply@indeed.com -from:login@indeed.com"
+    default_location: ""
+  confirmations:
+    linkedin: 'from:jobs-noreply@linkedin.com subject:"se ha enviado tu solicitud"'
+    indeed: "from:indeedapply@indeed.com"
+    computrabajo: 'from:postulaciones@computrabajo.com subject:"Seguimiento de tu candidatura"'

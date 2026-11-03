@@ -1,0 +1,32 @@
+{
+  "jobs": [
+    {
+      "data": {
+        "title": "Technical Support Engineer",
+        "slug": "50001",
+        "req_id": "50001",
+        "full_location": "Paraíso, Cartago, Costa Rica",
+        "country": "Costa Rica",
+        "country_code": "CR",
+        "location_type": "ONSITE",
+        "posted_date": "2026-10-20T10:00:00+0000",
+        "description": "<p>24/7 support for Initech business customers. No previous experience required.</p>",
+        "qualifications": "<p>English B2. Rotating shifts.</p>",
+        "apply_url": "https://careers.initech.example/jobs/50001/login"
+      }
+    },
+    {
+      "data": {
+        "title": "Security Operations Engineer",
+        "slug": "50002",
+        "req_id": "50002",
+        "full_location": "Lagos, Nigeria",
+        "country": "Nigeria",
+        "country_code": "NG",
+        "posted_date": "2026-10-22T11:54:00+0000",
+        "description": "<p>SOC.</p>"
+      }
+    }
+  ],
+  "totalCount": 2
+}

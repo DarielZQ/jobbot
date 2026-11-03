@@ -1,0 +1,17 @@
+[
+  {
+    "id": "a1b2c3d4-0000-0000-0000-000000000001",
+    "text": "Cloud Support Associate",
+    "categories": {
+      "location": "San José, Costa Rica",
+      "allLocations": ["San José, Costa Rica"],
+      "commitment": "Full-time",
+      "team": "Support"
+    },
+    "workplaceType": "hybrid",
+    "createdAt": 1792540800000,
+    "hostedUrl": "https://jobs.lever.co/acme/a1b2c3d4-0000-0000-0000-000000000001",
+    "descriptionPlain": "Help customers troubleshoot AWS workloads.",
+    "additionalPlain": "Requires 3+ years of experience with Linux."
+  }
+]

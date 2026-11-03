@@ -1,0 +1,220 @@
+{
+ "comments": "trimmed fixture",
+ "updatedAt": 1793188668,
+ "offset": 0,
+ "limit": 20,
+ "totalCount": 4,
+ "jobs": [
+  {
+   "title": "Product Support Associate (Tier 1) - Central America",
+   "excerpt": "Product Support Associate (Tier 1 Support) Location: Central America (UTC-6) About Nimbus CloudNimbus Cloud is a fictional company that builds scheduling software for small clinics, used here only as test data for the job search parser.",
+   "companyName": "Nimbus Cloud",
+   "companySlug": "nimbus-cloud",
+   "companyLogo": "",
+   "employmentType": "Full Time",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Entry-level"
+   ],
+   "currency": null,
+   "locationRestrictions": [
+    "Belize",
+    "Costa Rica",
+    "El Salvador",
+    "Guatemala",
+    "Honduras",
+    "Nicaragua",
+    "Panama"
+   ],
+   "timezoneRestrictions": [
+    -6,
+    -5
+   ],
+   "categories": [
+    "Product-Support-Associate",
+    "Global-Product-Support-Americas",
+    "Product-Support-Specialist",
+    "Product-Support-Analyst",
+    "Product-Support-Representative",
+    "Product-Support-Team-Member"
+   ],
+   "parentCategories": [],
+   "description": "<p>Product Support Associate (Tier 1 Support) Location: Central America (UTC-6) About Nimbus CloudNimbus Cloud is a fictional company that builds schedul</p>",
+   "pubDate": 1788925405,
+   "expiryDate": 1794109404,
+   "applicationLink": "https://himalayas.app/companies/nimbus-cloud/jobs/product-support-associate-tier-1-central-america?utm_source=api",
+   "guid": "https://himalayas.app/companies/nimbus-cloud/jobs/product-support-associate-tier-1-central-america"
+  },
+  {
+   "title": "Technical Support Specialist",
+   "excerpt": "The Technical Support Specialist answers questions from Initech customers and staff and solves their technical issues.",
+   "companyName": "Initech",
+   "companySlug": "initech",
+   "companyLogo": "",
+   "employmentType": "Full Time",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Entry-level",
+    "Mid-level"
+   ],
+   "currency": null,
+   "locationRestrictions": [],
+   "timezoneRestrictions": [
+    -11,
+    -10,
+    -9.5,
+    -9,
+    -8,
+    -7,
+    -6,
+    -5,
+    -4,
+    -3.5,
+    -3,
+    -2,
+    -1,
+    0,
+    1,
+    2,
+    3,
+    3.5,
+    4,
+    4.5,
+    5,
+    5.5,
+    5.75,
+    6,
+    6.5,
+    7,
+    8,
+    8.75,
+    9,
+    9.5,
+    10,
+    10.5,
+    11,
+    12,
+    12.75,
+    13,
+    14
+   ],
+   "categories": [
+    "Technical-Support",
+    "Customer-Support",
+    "IT-Support",
+    "Help-Desk",
+    "Technical-Support-Specialist",
+    "Technical-Support-Technician",
+    "Technology-Support-Specialist",
+    "Technical-Support-Representative",
+    "Technician-Support-Specialist",
+    "Technical-Helpdesk-Specialist",
+    "Technical-Support-Associate",
+    "Technical-Support-Analyst",
+    "User-Support-Specialist"
+   ],
+   "parentCategories": [
+    "Customer Service"
+   ],
+   "description": "<p>The Technical Support Specialist answers questions from Initech customers and staff and solves their technical issues.</p>",
+   "pubDate": 1790157811,
+   "expiryDate": 1795341809,
+   "applicationLink": "https://himalayas.app/companies/initech/jobs/technical-support-specialist?utm_source=api",
+   "guid": "https://himalayas.app/companies/initech/jobs/technical-support-specialist"
+  },
+  {
+   "title": "Service Desk Engineer Tier III- Remote (LATAM Preferred)",
+   "excerpt": "Tier III Service Desk Engineer(Remote – LATAM Preferred) Job Title:Tier III Service Desk Engineer Company: Globex Staffing (fictional Managed Service Provider) Applicants: Remote (Candidates preferred from Central America and Colombia) Hours: Full-Time, Monday through Friday Compensation: Competitive; Based on Experience Company Overview A fictional MSP.",
+   "companyName": "Globex Staffing",
+   "companySlug": "globex-staffing",
+   "companyLogo": "",
+   "employmentType": "Full Time",
+   "minSalary": 2500,
+   "maxSalary": 3000,
+   "salaryPeriod": "monthly",
+   "seniority": [
+    "Senior"
+   ],
+   "currency": "USD",
+   "locationRestrictions": [
+    "Argentina",
+    "Colombia",
+    "Costa Rica",
+    "Guatemala",
+    "Nicaragua"
+   ],
+   "timezoneRestrictions": [
+    -6,
+    -5,
+    -3
+   ],
+   "categories": [
+    "IT-Support-Engineer",
+    "ServiceDesk-Engineer",
+    "Technical-Support-Engineer",
+    "Help-Desk-Technician",
+    "IT-Technician",
+    "Tier-3-Support-Engineer",
+    "Senior-Help-Desk-Engineer",
+    "Help-Desk-Tier-III",
+    "3rd-Line-Technical-Support-Engineer"
+   ],
+   "parentCategories": [
+    "Developer"
+   ],
+   "description": "<p>Tier III Service Desk Engineer(Remote – LATAM Preferred) Job Title:Tier III Service Desk Engineer Company: Globex Staffing (fictional Managed Service Provider) </p>",
+   "pubDate": 1790985011,
+   "expiryDate": 1796131809,
+   "applicationLink": "https://himalayas.app/companies/globex-staffing/jobs/service-desk-engineer-tier-iii-remote-latam-preferred?utm_source=api",
+   "guid": "https://himalayas.app/companies/globex-staffing/jobs/service-desk-engineer-tier-iii-remote-latam-preferred"
+  },
+  {
+   "title": "Specialist Support (m/w/d)",
+   "excerpt": "deine aufgaben: • Annahme und Bearbeitung von Kundenanfragen zu den Lösungen der Acme GmbH • Erfassung und Dokumentation von Support-Tickets im Ticketsystem sowie Weiterleitung komplexer Anfragen • Lösung wiederkehrender Probleme nach definierten Prozessen und SLAs • Pflege der Wissensdatenbank das bringst du mit: • Abgeschlossene Ausbildung im Bereich IT (z.",
+   "companyName": "Acme GmbH",
+   "companySlug": "acme-gmbh",
+   "companyLogo": "",
+   "employmentType": "Full Time",
+   "minSalary": null,
+   "maxSalary": null,
+   "salaryPeriod": "annual",
+   "seniority": [
+    "Mid-level"
+   ],
+   "currency": null,
+   "locationRestrictions": [
+    "Germany"
+   ],
+   "timezoneRestrictions": [
+    1,
+    2
+   ],
+   "categories": [
+    "IT-Support",
+    "Technical-Support",
+    "Help-Desk",
+    "Customer-Support",
+    "Support-Specialist",
+    "ERP-Support",
+    "Service-Support-Specialist",
+    "Senior-Support-Specialist",
+    "Team-Support-Specialist",
+    "External-Support-Specialist",
+    "Support-Operations-Specialist",
+    "Admin-Support-Specialist"
+   ],
+   "parentCategories": [
+    "Customer Service"
+   ],
+   "description": "<p>deine aufgaben: • Annahme und Bearbeitung von Kundenanfragen zu den Lösungen der Acme GmbH • Erfassung und Dokumentation</p>",
+   "pubDate": 1788154930,
+   "expiryDate": 1793338929,
+   "applicationLink": "https://himalayas.app/companies/acme-gmbh/jobs/specialist-support-m-w-d?utm_source=api",
+   "guid": "https://himalayas.app/companies/acme-gmbh/jobs/specialist-support-m-w-d"
+  }
+ ]
+}

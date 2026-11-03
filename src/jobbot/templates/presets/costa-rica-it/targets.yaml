@@ -1,0 +1,120 @@
+# Empresas y portales a consultar (preset Costa Rica TI). El país sale de `region` en
+# settings.yaml salvo que una entrada diga otra cosa. Agregar una empresa de Workday:
+#   uv run python scripts/probe_workday.py <url del sitio de empleo>
+
+# Multinacionales con sitio de empleo en Workday y faceta de Costa Rica (verificadas en 2026).
+workday:
+  - { company: "Intel",            host: intel.wd1.myworkdayjobs.com,        tenant: intel,        site: External }
+  - { company: "Procter & Gamble", host: pg.wd5.myworkdayjobs.com,           tenant: pg,           site: "1000" }
+  - { company: "Kyndryl",          host: kyndryl.wd5.myworkdayjobs.com,      tenant: kyndryl,      site: KyndrylProfessionalCareers }
+  - { company: "HP",               host: hp.wd5.myworkdayjobs.com,           tenant: hp,           site: ExternalCareerSite }
+  - { company: "HPE",              host: hpe.wd5.myworkdayjobs.com,          tenant: hpe,          site: Jobsathpe }
+  - { company: "Equifax",          host: equifax.wd5.myworkdayjobs.com,      tenant: equifax,      site: External }
+  - { company: "Medtronic",        host: medtronic.wd1.myworkdayjobs.com,    tenant: medtronic,    site: MedtronicCareers }
+  - { company: "Abbott",           host: abbott.wd5.myworkdayjobs.com,       tenant: abbott,       site: abbottcareers }
+  - { company: "Baxter",           host: baxter.wd1.myworkdayjobs.com,       tenant: baxter,       site: baxter }
+  - { company: "Thermo Fisher",    host: thermofisher.wd5.myworkdayjobs.com, tenant: thermofisher, site: ThermoFisherCareers }
+  - { company: "Philips",          host: philips.wd3.myworkdayjobs.com,      tenant: philips,      site: jobs-and-careers }
+  - { company: "Citi",             host: citi.wd5.myworkdayjobs.com,         tenant: citi,         site: "2" }
+  - { company: "Pfizer",           host: pfizer.wd1.myworkdayjobs.com,       tenant: pfizer,       site: PfizerCareers }
+  - { company: "Edwards Lifesciences", host: edwards.wd5.myworkdayjobs.com,  tenant: edwards,      site: edwardscareers }
+  - { company: "Sysco",            host: sysco.wd5.myworkdayjobs.com,        tenant: sysco,        site: syscocareers }
+  - { company: "Smith+Nephew",     host: smithnephew.wd5.myworkdayjobs.com,  tenant: smithnephew,  site: External }
+  - { company: "Integer",          host: integer.wd1.myworkdayjobs.com,      tenant: integer,      site: External }
+  - { company: "TransUnion",       host: transunion.wd5.myworkdayjobs.com,   tenant: transunion,   site: TransUnion }
+
+# Sin URL de sitio verificada todavía (el probe dio 401/404/422 con el nombre adivinado):
+# Akamai, Boston Scientific, Western Union, TELUS Digital, Cognizant, Dell, Moody's, Hologic,
+# Cargill, AbbVie, ICU Medical. Sin faceta de Costa Rica: Broadcom, Fiserv, Zoetis.
+
+greenhouse: []   # { company, token }  -> token = parte final de boards.greenhouse.io/<token>
+lever: []        # { company, slug }   -> slug  = parte final de jobs.lever.co/<slug>
+
+# SAP SuccessFactors Career Site Builder: feed RSS público filtrado por el nombre del país.
+successfactors:
+  - { company: "Foundever", base_url: "https://jobs.foundever.com" }
+  - { company: "Wipro",     base_url: "https://careers.wipro.com" }
+
+# amazon.jobs (JSON público del sitio). Incluye AWS y sus centros de servicio.
+amazon:
+  - { company: "Amazon" }
+
+# Recruitee (API pública <subdominio>.recruitee.com/api/offers/)
+recruitee:
+  - { company: "GSB Solutions", subdomain: gsbsolutions1 }
+
+# Get on Board: bolsa tech LATAM con API pública. Se filtra por seniority (search.yaml).
+getonboard:
+  queries: ["soporte", "support", "help desk", "mesa de ayuda", "service desk", "infraestructura", "sysadmin", "redes", "analista de datos", "data analyst"]
+  max_pages: 2
+
+# Remotive: remoto. Sus términos piden máx. ~4 consultas al día; el bot espera 6 h entre corridas.
+remotive:
+  categories: ["customer-support", "data"]
+  min_hours_between_runs: 6
+
+# Jobicy: remoto, API pública. Su filtro por país trae también lo abierto a LATAM y "Anywhere".
+# Uso justo: máx. 1 consulta por hora y conservar su enlace.
+jobicy:
+  min_hours_between_runs: 1
+
+# Himalayas: remoto, API pública de búsqueda. El bot descarta lo que no admite tu país o tu zona
+# horaria. Términos: postular por su enlace sin cambios, citarlo como fuente, no republicar.
+himalayas:
+  queries: ["technical support", "it support", "help desk", "service desk", "customer support", "system administrator", "data analyst"]
+  max_pages: 2
+  min_hours_between_runs: 6
+
+# elempleo Costa Rica: listados públicos de búsqueda (robots.txt lo permite). Máx. cada 12 h.
+# Cada búsqueda es la parte final de https://www.elempleo.com/cr/ofertas-empleo/<búsqueda>
+elempleo:
+  searches:
+    - trabajo-soporte-tecnico
+    - trabajo-help-desk
+    - trabajo-mesa-de-ayuda
+    - trabajo-service-desk
+    - trabajo-informatica
+    - tecnologia-soporte-prog-web
+    - trabajo-analista-de-datos
+    - trabajo-infraestructura-ti
+    - trabajo-tecnico-en-informatica
+  min_hours_between_runs: 12
+
+jibe: []   # { company, host } -> API pública /api/jobs de sitios Jibe (<empresa>.jibeapply.com)
+
+# Alertas de empleo y confirmaciones de postulación que llegan a tu Gmail (extra "gmail").
+# El bot solo LEE esos correos (permiso de solo lectura); nunca entra a LinkedIn ni a CompuTrabajo.
+# Actívalo después de seguir docs/platforms/email-alerts.md.
+email_alerts:
+  enabled: false
+  credentials_file: profile/private/gmail_credentials.json
+  token_file: profile/private/gmail_token.json
+  lookback_days: 14
+  max_messages: 50
+  linkedin:
+    query: "from:(jobalerts-noreply@linkedin.com OR jobs-noreply@linkedin.com)"
+    default_location: "Costa Rica"   # crea tus alertas de LinkedIn para Costa Rica
+  computrabajo:
+    query: "from:computrabajo.com"
+  indeed:
+    # Excluye confirmaciones de postulación (indeedapply@), para no reingresar vacantes ya
+    # aplicadas, y códigos de inicio de sesión (login@), que no deben guardarse en las muestras
+    query: "from:indeed.com -from:indeedapply@indeed.com -from:login@indeed.com"
+    default_location: "Costa Rica"   # alertas creadas en cr.indeed.com
+  elempleo:
+    # Las confirmaciones de postulación y de alerta creada no traen vacantes
+    query: 'from:elempleo.com -subject:"Aplicaste exitosamente" -subject:"alerta creada"'
+    default_location: "Costa Rica"
+  # Confirmaciones de postulación: la vacante confirmada pasa a postulada (ADR-018).
+  # elempleo no se incluye: su confirmación no dice a qué vacante se postuló.
+  confirmations:
+    linkedin: 'from:jobs-noreply@linkedin.com subject:"se ha enviado tu solicitud"'
+    indeed: "from:indeedapply@indeed.com"
+    computrabajo: 'from:postulaciones@computrabajo.com subject:"Seguimiento de tu candidatura"'
+
+# Agencias y BPO revisados, sin fuente automática:
+# - Concentrix: jobs.concentrix.com (Phenom). Sin endpoint público.
+# - TELUS Digital: responde 403 a clientes automatizados (no se fuerza).
+# - Teleperformance CR: portal sin verificar.
+# - ManpowerGroup / Experis CR: postulaciones solo por WhatsApp (canal manual).
+# - TEKsystems: careers.teksystems.com (Phenom). Sin endpoint público verificado.

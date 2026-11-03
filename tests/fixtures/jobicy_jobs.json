@@ -1,0 +1,81 @@
+{
+ "apiVersion": "2.2.19",
+ "jobCount": 4,
+ "hasMore": false,
+ "nextCursor": null,
+ "success": true,
+ "jobs": [
+  {
+   "id": 900101,
+   "url": "https://jobicy.com/jobs/900101-database-support-engineer-amer",
+   "jobSlug": "900101-database-support-engineer-amer",
+   "jobTitle": "Database Support Engineer (AMER)",
+   "companyName": "Nimbus Cloud",
+   "jobIndustry": [
+    "Technical Support"
+   ],
+   "jobType": [
+    "Full-Time"
+   ],
+   "jobGeo": "LATAM,  Canada,  USA",
+   "jobLevel": "Entry-Level, Junior",
+   "jobExcerpt": "About Nimbus Cloud Nimbus Cloud is a fictional database hosting company used as test data. We run managed Postgres, backups and monitoring for small teams. About the Role We’re looking for a Database Support Engineer to join our Support Team and&hellip;",
+   "jobDescription": "<p>About Nimbus Cloud Nimbus Cloud is a fictional database hosting company used as test data. We run managed Postgres, backups</p>",
+   "pubDate": "2026-10-26T04:15:18+00:00"
+  },
+  {
+   "id": 900102,
+   "url": "https://jobicy.com/jobs/900102-customer-support-specialist-bilingual-spanish-contract",
+   "jobSlug": "900102-customer-support-specialist-bilingual-spanish-contract",
+   "jobTitle": "Customer Support Specialist, Bilingual (Spanish), Contract",
+   "companyName": "Acme Corp",
+   "jobIndustry": [
+    "Customer Support & Success"
+   ],
+   "jobType": [
+    "Contract"
+   ],
+   "jobGeo": "LATAM",
+   "jobLevel": "Any",
+   "jobExcerpt": "At Acme Corp, we’re obsessed with our customers. This fictional company answers their questions by chat and email in English and Spanish, and turns their feedback into better products. We are looking for a bilingual specialist to help them and&hellip;",
+   "jobDescription": "<p>At Acme Corp, we’re obsessed with our customers. This fictional company answers their questions by chat and email in English</p>",
+   "pubDate": "2026-10-25T10:46:41+00:00"
+  },
+  {
+   "id": 900103,
+   "url": "https://jobicy.com/jobs/900103-customer-support-specialist-3",
+   "jobSlug": "900103-customer-support-specialist-3",
+   "jobTitle": "Customer Support Specialist",
+   "companyName": "Initech",
+   "jobIndustry": [
+    "Technical Support"
+   ],
+   "jobType": [
+    "Contract"
+   ],
+   "jobGeo": "LATAM,  Bulgaria,  Canada,  Philippines,  Poland",
+   "jobLevel": "Senior",
+   "jobExcerpt": "About Initech Initech is a fictional software company used as test data. Our support team helps thousands of users of our reporting tools every day, from small businesses to large enterprises. We are looking for an experienced specialist who&hellip;",
+   "jobDescription": "<p>About Initech Initech is a fictional software company used as test data. Our support team helps thousands of users of our</p>",
+   "pubDate": "2026-10-22T15:48:33+00:00"
+  },
+  {
+   "id": 900104,
+   "url": "https://jobicy.com/jobs/900104-analista-de-customer-service-warehouse-customer-support",
+   "jobSlug": "900104-analista-de-customer-service-warehouse-customer-support",
+   "jobTitle": "Analista de Customer Service, Warehouse Customer Support",
+   "companyName": "Globex Logistics",
+   "jobIndustry": [
+    "Customer Support & Success"
+   ],
+   "jobType": [
+    "Full-Time"
+   ],
+   "jobGeo": "Brazil",
+   "jobLevel": "Midweight",
+   "jobExcerpt": "This is a full-time, permanent, non-remote position based in a Globex Logistics warehouse in Brazil and does not offer relocation benefits. Applicants must be located and legally authorized to work in Brazil.As a Warehouse Customer Service Associate, you will help customers with their deliveries&hellip;",
+   "jobDescription": "<p>This is a full-time, permanent, non-remote position based in a Globex Logistics warehouse in Brazil and does not offer</p>",
+   "pubDate": "2026-10-27T03:25:07+00:00"
+  }
+ ]
+}

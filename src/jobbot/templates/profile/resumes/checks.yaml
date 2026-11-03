@@ -1,0 +1,13 @@
+# Verificación del CV: `jobbot resumes` no genera un PDF que rompa estas reglas.
+# Sirve para que una afirmación que no puedes demostrar no se cuele en tus CV.
+# Los patrones son expresiones regulares y no distinguen mayúsculas.
+
+# Frases que ningún CV puede contener (p. ej., una certificación que aún no apruebas).
+forbidden:
+  - pattern: '\bITIL\b(?![^.\n·]*(preparaci[oó]n|preparation))'
+    reason: "ITIL todavía no está aprobada: solo puede aparecer como en preparación."
+  - pattern: '\bsenior\b'
+    reason: "Todavía no tienes experiencia de nivel senior."
+
+# Frases que cada CV debe contener al menos una vez.
+required: []

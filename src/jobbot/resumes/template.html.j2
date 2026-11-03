@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="{{ lang }}">
+<head>
+<meta charset="utf-8">
+<title>{{ name }} - CV</title>
+<style>
+  @page { size: Letter; margin: 0.4in 0.5in; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Segoe UI", Calibri, Arial, sans-serif;
+    font-size: 9.3pt;
+    line-height: 1.25;
+    color: #1d232b;
+  }
+  header { border-bottom: 2px solid #1f4e79; padding-bottom: 6px; margin-bottom: 7px; }
+  h1 { margin: 0; font-size: 20pt; letter-spacing: 0.5px; color: #1f4e79; }
+  .headline { font-size: 10.5pt; font-weight: 600; color: #2e75b6; margin-top: 1px; }
+  .contact, .availability { font-size: 8.8pt; color: #3a4350; margin-top: 2px; }
+  .availability { font-style: italic; }
+  h2 {
+    font-size: 10pt;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #1f4e79;
+    border-bottom: 1px solid #c9d6e3;
+    margin: 7px 0 3px;
+    padding-bottom: 1px;
+  }
+  p { margin: 0; }
+  .entry { margin-bottom: 4px; }
+  .entry-head { display: flex; justify-content: space-between; gap: 12px; }
+  .entry-title { font-weight: 700; }
+  .entry-dates { white-space: nowrap; color: #3a4350; font-size: 9pt; }
+  .entry-org { color: #3a4350; font-size: 9pt; }
+  ul { margin: 1px 0 0 0; padding-left: 15px; }
+  li { margin: 0 0 1px; }
+  .skills p { margin-bottom: 1px; }
+  .label { font-weight: 700; }
+</style>
+</head>
+<body>
+<header>
+  <h1>{{ name }}</h1>
+  <div class="headline">{{ c.headline }}</div>
+  <div class="contact">{{ contact_line }}</div>
+  <div class="availability">{{ c.availability }}</div>
+</header>
+
+<h2>{{ summary_title }}</h2>
+<p>{{ c.summary }}</p>
+
+{% for section in c.sections %}
+<h2>{{ section.title }}</h2>
+{% for e in section.entries %}
+<div class="entry">
+  <div class="entry-head">
+    <span class="entry-title">{{ e.title }}</span>
+    <span class="entry-dates">{{ e.dates }}</span>
+  </div>
+  <div class="entry-org">{{ e.org }}</div>
+  {% if e.bullets %}
+  <ul>{% for b in e.bullets %}<li>{{ b }}</li>{% endfor %}</ul>
+  {% endif %}
+</div>
+{% endfor %}
+{% endfor %}
+
+<h2>{{ c.certifications.title }}</h2>
+<p>{{ c.certifications.text }}</p>
+
+<h2>{{ c.skills.title }}</h2>
+<div class="skills">
+{% for g in c.skills.groups %}<p><span class="label">{{ g["label"] }}:</span> {{ g["items"] }}</p>{% endfor %}
+</div>
+
+{% if c.languages %}
+<h2>{{ c.languages.title }}</h2>
+<p>{{ c.languages.text }}</p>
+{% endif %}
+</body>
+</html>
