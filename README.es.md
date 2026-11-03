@@ -6,6 +6,8 @@ JobBot es una herramienta local para buscar empleo de soporte TI. Revisa sitios 
 
 Trae presets para Costa Rica (presencial, híbrido y remoto) y para trabajo remoto en Latinoamérica. Otros países se agregan como presets nuevos.
 
+![Panel de JobBot con vacantes pendientes](docs/images/panel-pendientes.png)
+
 ## Qué hace
 
 - **Descubre vacantes en fuentes públicas:** sitios de empleo de empresas en Workday, SAP SuccessFactors, Greenhouse, Lever, Recruitee, Jibe y amazon.jobs; las bolsas Get on Board, Remotive, Jobicy y Himalayas; los listados públicos de elempleo.
@@ -103,7 +105,15 @@ Se corren como `uv run jobbot <comando>` desde la carpeta del proyecto.
 
 ## Capturas
 
-_Pronto se agregarán capturas de pantalla._
+Todas las capturas usan empresas y enlaces ficticios; no son vacantes reales.
+
+**Pestaña Decisiones.** JobBot te hace preguntas cortas cuando algo necesita tu criterio: una fuente que sigue fallando, una postulación sin novedades después de tres semanas o una habilidad que piden muchas vacantes y tu perfil no menciona.
+
+![Pestaña Decisiones](docs/images/panel-decisiones.png)
+
+**Informe diario.** La corrida programada genera un informe HTML agrupado por familia de puesto, con el CV a subir y un aviso cuando ya postulaste a la misma vacante.
+
+![Informe diario](docs/images/informe-diario.png)
 
 ## Aviso legal
 

@@ -6,6 +6,8 @@ JobBot is a local job-search helper for IT support roles. It checks public caree
 
 It ships with presets for Costa Rica (on-site, hybrid and remote) and for remote work across Latin America. Other countries can be added as presets.
 
+![JobBot panel with pending jobs](docs/images/panel-pendientes.png)
+
 ## Features
 
 - **Discovery from public sources:** company career sites on Workday, SAP SuccessFactors, Greenhouse, Lever, Recruitee, Jibe and amazon.jobs; the Get on Board, Remotive, Jobicy and Himalayas job boards; elempleo public listings.
@@ -103,7 +105,15 @@ Run them as `uv run jobbot <command>` from the project folder.
 
 ## Screenshots
 
-_Screenshots will be added soon._
+All screenshots use fictitious companies and links; they are not real postings.
+
+**Decisions tab.** JobBot asks short questions when something needs your call: a source that keeps failing, an application with no news after three weeks, or a skill that many postings ask for and your profile does not mention.
+
+![Decisions tab](docs/images/panel-decisiones.png)
+
+**Daily report.** The scheduled run writes an HTML report grouped by role family, with the resume to upload and a warning when you already applied to the same opening.
+
+![Daily report](docs/images/informe-diario.png)
 
 ## Legal notice
 
