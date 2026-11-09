@@ -92,7 +92,11 @@ def job_dict(
     new_since: str,
     where: str = "",
     twin: JobRow | None = None,
+    fresh_hours: float = 24,
 ) -> dict:
+    """`new`: posted within `fresh_hours`, or first seen since `new_since` when the date is
+    unknown."""
+    fresh = daily.is_fresh(row, fresh_hours)
     cv = None
     if advice is not None:
         cv = {
@@ -113,7 +117,11 @@ def job_dict(
         "reason": row.status_reason,
         "first_seen": row.first_seen_at,
         "updated": row.updated_at,
-        "new": row.status == Status.DISCOVERED and row.first_seen_at >= new_since,
+        "new": row.status == Status.DISCOVERED
+        and (fresh or (row.posted_at is None and row.first_seen_at >= new_since)),
+        "fresh": fresh,
+        "posted": daily.posted_text(row),
+        "notes": daily.job_notes(row),
         "place": where,
         "cv": cv,
         # An opening already applied to under another source or location (applied_twins).
@@ -123,17 +131,23 @@ def job_dict(
 
 def list_view(conn: sqlite3.Connection, view: str) -> list[dict]:
     rows = [r for s in VIEWS[view] for r in db.list_jobs(conn, status=s, limit=5000)]
-    if view != "pending":  # pending: newest first (list_jobs order); the rest: latest change
-        rows.sort(key=lambda r: r.updated_at, reverse=True)
     search_rules = load_search_rules()
+    if view == "pending":
+        rows = daily.by_freshness(rows, search_rules.fresh_hours)
+    else:  # latest change first
+        rows.sort(key=lambda r: r.updated_at, reverse=True)
     advice = daily.resume_advice(conn, search_rules, rows) if view in _VIEWS_WITH_CV else {}
     twins = applied_twins(rows, db.applied_jobs(conn)) if view == "pending" else {}
     since = _since_24h()
     rules = RuleSet(search_rules)
-    return [job_dict(r, advice.get(r.id), since, place(r, rules), twins.get(r.id)) for r in rows]
+    return [
+        job_dict(r, advice.get(r.id), since, place(r, rules), twins.get(r.id), rules.fresh_hours)
+        for r in rows
+    ]
 
 
 def summary(conn: sqlite3.Connection) -> dict:
+    rules = load_search_rules()
     counts = db.count_by_status(conn)
     last = db.last_search_at(conn)
     return {
@@ -142,9 +156,13 @@ def summary(conn: sqlite3.Connection) -> dict:
             "decisions": len(signals.pending(conn)),
         },
         "new": len(db.new_matches_since(conn, _since_24h())),
+        "fresh": len(daily.fresh_pending(conn, rules)),
+        "fresh_hours": rules.fresh_hours,
         "last_search": last.isoformat() if last else None,
         # Filter chips of the page, in search.yaml order
-        "families": daily.family_labels(),
+        "families": daily.family_labels(rules),
+        # LinkedIn searches for the last fresh_hours: links the candidate opens (ADR-020)
+        "linkedin": [{"label": k, "url": u} for k, u in daily.linkedin_links(rules=rules)],
     }
 
 

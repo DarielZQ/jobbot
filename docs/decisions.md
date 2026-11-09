@@ -185,3 +185,21 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - Cualquier persona puede usarlo eligiendo un preset, y agregar su país con un preset nuevo.
   - Actualizar (`git pull` + `uv sync`) no toca los datos del usuario, y el respaldo es copiar una carpeta.
   - Las opciones nuevas de las plantillas no llegan solas a archivos que el usuario ya tiene: `init` solo agrega los que faltan.
+
+## ADR-020 — Vacantes recientes primero
+
+- **Fecha:** 2026-11-09.
+- **Contexto:** postular en las primeras horas de una vacante aumenta las chances, pero JobBot no mostraba la fecha de publicación. «Nueva» significaba «JobBot la vio hace menos de 24 h», así que una vacante de hace meses podía salir como nueva. Además, los correos de LinkedIn mezclan dos cosas: las alertas guardadas, que traen solo vacantes publicadas desde la alerta anterior (su enlace «ver todos» lleva `f_TPR=a<hora de la alerta anterior>`), y las recomendaciones («Nuevos empleos similares a…», las sugerencias bajo una confirmación de postulación, o una alerta sin resultados que manda similares), que pueden ser viejas.
+- **Decisión:**
+  - **Fecha de publicación en todo:** el panel y el informe muestran «publicada hace X». Si el sitio solo da una edad relativa, la fecha lleva «~»: Workday («Posted 3 Days Ago»), y LinkedIn, donde se usa la fecha del correo de la alerta guardada. Sin fecha: «fecha de publicación desconocida». Columnas nuevas `posted_approx` y `recommended` (migración 4).
+  - **`fresh_hours`** en `search.yaml` (24 por defecto) define qué cuenta como reciente:
+    - «Nueva» pasa a significar publicada en ese plazo; si la fecha es desconocida, vista por primera vez en las últimas 24 h.
+    - el panel suma el filtro «Últimas 24 h», y las pendientes se ordenan por fecha de publicación;
+    - el informe abre con «Publicadas en las últimas 24 h»;
+    - el aviso de Windows dice cuántas hay.
+  - **Recomendaciones de LinkedIn:** se siguen leyendo, con la marca «Recomendada por LinkedIn, puede ser vieja», y van al final de las pendientes. Si una alerta guardada lista la misma vacante, pierde la marca y toma la fecha de la alerta.
+  - **Etiqueta de seniority de las bolsas:** pasa de `description.exclude` a `description.seniority`. Una vacante publicada menos de `fresh_hours` antes de verla pasa igual, con motivo `fresh_seniority` y la marca «La bolsa la marca senior». Los títulos con Senior, Lead o L3 siguen fuera. `rescreen` mide la frescura contra la primera vez que se vio la vacante.
+  - **Búsquedas de LinkedIn de las últimas 24 h:** `targets.yaml: linkedin_searches` (palabras clave y `geo_id`) arma enlaces a la búsqueda de LinkedIn con `f_TPR=r<segundos>` y `sortBy=DD`, sin filtro de nivel. Aparecen como botones en el panel y como enlaces en el informe. JobBot nunca los abre: los abre el candidato en su navegador (ADR-005).
+- **Consecuencias:**
+  - Con fecha confiable quedan las bolsas remotas, Amazon, elempleo, SuccessFactors y Recruitee; con fecha aproximada, Workday y las alertas de LinkedIn. Indeed y CompuTrabajo por correo siguen sin fecha.
+  - Una instalación anterior conserva su `search.yaml` y su `targets.yaml`: para tener el filtro aflojado y los botones, hay que copiar `fresh_hours`, `description.seniority` y `linkedin_searches` desde el preset.

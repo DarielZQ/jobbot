@@ -30,6 +30,7 @@ Tres condiciones mandan sobre todo lo demás:
 | FR-14 | `jobbot grill setup-profile`: entrevista que llena el perfil y la búsqueda sin inventar datos, mostrando el cambio y pidiendo confirmación antes de escribir. | Disponible |
 | FR-15 | Detectores de grill-me después de cada corrida diaria, con un máximo de 3 preguntas nuevas por día que nunca se repiten; se responden en el panel o con `jobbot grill pendientes`. | Disponible |
 | FR-16 | Generar los CV en PDF desde YAML y no generar ninguno si alguno incumple `profile/resumes/checks.yaml`. | Disponible (extra `resumes`) |
+| FR-17 | Mostrar cuándo se publicó cada vacante, poner primero las de las últimas `fresh_hours`, marcar las recomendaciones de LinkedIn y ofrecer enlaces a la búsqueda de LinkedIn de ese plazo (ADR-020). | Disponible |
 | FR-17 | Desactivar una fuente sin borrarla de `targets.yaml` (`settings.yaml: disabled_sources`). | Disponible |
 | FR-18 | Reporte semanal del embudo: descubiertas → postuladas → respuestas → entrevistas. | Planeado |
 

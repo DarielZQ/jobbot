@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 
-from jobbot.core.models import Job
+from jobbot.core.models import Job, as_utc
 from jobbot.core.state import InvalidTransition, Status, check_transition
 
 MIGRATIONS: list[str] = [
@@ -61,6 +61,11 @@ MIGRATIONS: list[str] = [
     );
     CREATE INDEX idx_source_runs ON source_runs (source, ran_at);
     """,
+    # ADR-020: how sure the posting date is, and LinkedIn's suggestions (they can be months old)
+    """
+    ALTER TABLE jobs ADD COLUMN posted_approx INTEGER NOT NULL DEFAULT 0;
+    ALTER TABLE jobs ADD COLUMN recommended INTEGER NOT NULL DEFAULT 0;
+    """,
 ]
 
 
@@ -78,11 +83,17 @@ class JobRow:
     first_seen_at: str
     updated_at: str = ""
     remote: bool = False  # 100 % remote; hybrid jobs are False
+    posted_at: str | None = None
+    posted_approx: bool = False
+    recommended: bool = False
+
+    def posted(self) -> datetime | None:
+        return as_utc(datetime.fromisoformat(self.posted_at)) if self.posted_at else None
 
 
 _ROW_COLUMNS = (
     "id, source, company, title, location, url, status, status_reason, role_family, "
-    "first_seen_at, updated_at, remote"
+    "first_seen_at, updated_at, remote, posted_at, posted_approx, recommended"
 )
 # Reasons set by the candidate (`jobbot applied`, panel): `rescreen` never overrides them.
 APPLIED_MANUALLY = "applied_manually"
@@ -97,7 +108,8 @@ def _now() -> str:
 
 
 def _job_row(row: sqlite3.Row) -> JobRow:
-    return JobRow(**{**dict(row), "status": Status(row["status"]), "remote": bool(row["remote"])})
+    flags = {name: bool(row[name]) for name in ("remote", "posted_approx", "recommended")}
+    return JobRow(**{**dict(row), "status": Status(row["status"]), **flags})
 
 
 utc_now = _now
@@ -136,6 +148,24 @@ def touch_seen(conn: sqlite3.Connection, ats: str, ats_job_id: str) -> bool:
     return bool(updated)
 
 
+def note_posting(conn: sqlite3.Connection, job: Job) -> None:
+    """A known job seen again: keep the first date a source gave for it (jobs stored before the
+    source had dates get one), and drop the "recommended" mark once a saved alert lists it."""
+    with conn:
+        if job.posted_at:
+            conn.execute(
+                "UPDATE jobs SET posted_at = ?, posted_approx = ? "
+                "WHERE ats = ? AND ats_job_id = ? AND posted_at IS NULL",
+                (job.posted_at.isoformat(), int(job.posted_approx), job.ats, job.ats_job_id),
+            )
+        if not job.recommended:
+            conn.execute(
+                "UPDATE jobs SET recommended = 0 "
+                "WHERE ats = ? AND ats_job_id = ? AND recommended = 1",
+                (job.ats, job.ats_job_id),
+            )
+
+
 def open_without_details(conn: sqlite3.Connection, ats: str, ats_job_id: str) -> int | None:
     """Id of a known open job whose details were never fetched (reopened offline by rescreen).
 
@@ -171,9 +201,10 @@ def insert_job(
         cursor = conn.execute(
             """
             INSERT INTO jobs (source, ats, ats_job_id, company, title, location, url, remote,
-                              posted_at, description, dedupe_key, status, status_reason,
-                              role_family, first_seen_at, last_seen_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                              posted_at, posted_approx, recommended, description, dedupe_key,
+                              status, status_reason, role_family, first_seen_at, last_seen_at,
+                              updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 job.source,
@@ -185,6 +216,8 @@ def insert_job(
                 job.url,
                 int(job.remote),
                 job.posted_at.isoformat() if job.posted_at else None,
+                int(job.posted_approx),
+                int(job.recommended),
                 job.description,
                 dedupe_key,
                 status.value,
@@ -232,8 +265,9 @@ def set_status(
         )
 
 
-def screenable_jobs(conn: sqlite3.Connection) -> list[tuple[int, Status, str, Job]]:
-    """Jobs whose screening can be redone: discovered, or skipped by a filter.
+def screenable_jobs(conn: sqlite3.Connection) -> list[tuple[int, Status, str, Job, datetime]]:
+    """Jobs whose screening can be redone: discovered, or skipped by a filter, with the time
+    each was first seen (how fresh a posting was is judged at that moment).
 
     Duplicates and the candidate's own decisions (not interested, reopened) are left alone.
     """
@@ -262,8 +296,12 @@ def screenable_jobs(conn: sqlite3.Connection) -> list[tuple[int, Status, str, Jo
                 location=r["location"],
                 url=r["url"],
                 remote=bool(r["remote"]),
+                posted_at=r["posted_at"],
+                posted_approx=bool(r["posted_approx"]),
+                recommended=bool(r["recommended"]),
                 description=r["description"],
             ),
+            datetime.fromisoformat(r["first_seen_at"]),
         )
         for r in rows
     ]

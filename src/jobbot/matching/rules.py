@@ -4,16 +4,21 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
+from datetime import datetime
 
 from jobbot.config import RoleFamily, SearchRules
-from jobbot.core.models import Job
+from jobbot.core.models import Job, posted_within
 from jobbot.matching.normalize import normalize_text
+
+# A fresh posting that a board's seniority label would have excluded (ADR-020): it passes with
+# this reason, so the panel can say why.
+FRESH_SENIORITY = "fresh_seniority"
 
 
 @dataclass(frozen=True)
 class RuleResult:
     ok: bool
-    reason: str = ""
+    reason: str = ""  # why it was excluded; for one that passes, a note (FRESH_SENIORITY)
     role_family: str = ""
 
 
@@ -49,6 +54,8 @@ class RuleSet:
         self._families = [_compile_family(name, family) for name, family in ordered]
         self._title_exclude = _compile(rules.title.exclude)
         self._description_exclude = _compile(rules.description.exclude)
+        self._description_seniority = _compile(rules.description.seniority)
+        self.fresh_hours = rules.fresh_hours
         self._location_local = _compile(rules.location.local)
         self._location_local_exclude = _compile(rules.location.local_exclude)
         self._remote_ok = _compile(rules.location.remote_ok)
@@ -67,7 +74,8 @@ class RuleSet:
     def in_local_area(self, location: str) -> bool:
         return _first_match(self._location_local, normalize_text(location)) is not None
 
-    def evaluate(self, job: Job) -> RuleResult:
+    def evaluate(self, job: Job, seen_at: datetime | None = None) -> RuleResult:
+        """`seen_at`: when the job was first seen (now, unless given); freshness counts from it."""
         family = self.classify(job.title)
         if family is None:
             return RuleResult(False, "title_not_target_role")
@@ -80,6 +88,10 @@ class RuleSet:
 
         description = normalize_text(job.description)
         if hit := _first_match(self._description_exclude, description):
+            return RuleResult(False, f"description_excluded: {hit}", family)
+        if hit := _first_match(self._description_seniority, description):
+            if posted_within(job.posted_at, self.fresh_hours, seen_at):
+                return RuleResult(True, f"{FRESH_SENIORITY}: {hit}", family)
             return RuleResult(False, f"description_excluded: {hit}", family)
 
         return RuleResult(True, role_family=family)

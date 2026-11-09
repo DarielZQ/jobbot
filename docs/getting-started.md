@@ -201,7 +201,7 @@ Se abre en tu navegador, en `http://127.0.0.1:8765`. Solo funciona en tu computa
 
 | Pestaña | Para qué | Botones |
 | :--- | :--- | :--- |
-| **Pendientes** | Vacantes que encajan y no has resuelto; "Nueva" = de las últimas 24 h | **Ya postulé**, **No me interesa** |
+| **Pendientes** | Vacantes que encajan y no has resuelto, las publicadas más recientemente primero | **Ya postulé**, **No me interesa** |
 | **Postuladas** | A las que ya postulaste | **Me llamaron**, **Rechazo / sin respuesta**, **Deshacer** |
 | **Entrevistas** | Empresas que te llamaron | **Rechazo** |
 | **Cerradas** | Rechazos o sin respuesta | |
@@ -211,7 +211,12 @@ Se abre en tu navegador, en `http://127.0.0.1:8765`. Solo funciona en tu computa
 - **Postular:** el título abre la vacante. "CV a subir" abre el PDF recomendado y **copiar ruta** copia su ubicación: en la ventana de subir archivo del sitio, pega con Ctrl+V y Enter.
 - **"Ya postulaste: #N":** aparece si una vacante abierta se parece a una a la que ya postulaste (misma empresa y título desde otra fuente o ubicación).
 - **Buscar ahora:** busca en todas las fuentes en ese momento y muestra el avance.
-- **Filtros:** por familia de roles; **100 % remoto** o **Nacionales** (presencial o híbrido en tu país); y una búsqueda por puesto, empresa o lugar que no distingue tildes.
+- **Filtros:** por familia de roles; **100 % remoto** o **Nacionales** (presencial o híbrido en tu país); **Últimas 24 h** (solo las publicadas hace poco); y una búsqueda por puesto, empresa o lugar que no distingue tildes.
+- **Fecha de publicación:** cada vacante dice "publicada hace X". Con "~", la fecha es aproximada: Workday solo da una edad ("hace 3 días") y en las alertas de LinkedIn se usa la fecha del correo. Indeed y CompuTrabajo por correo no traen fecha: "fecha de publicación desconocida".
+- **"Nueva":** publicada en las últimas 24 h (`fresh_hours`). Si la fecha es desconocida, vista por primera vez en las últimas 24 h.
+- **"Recomendada por LinkedIn, puede ser vieja":** llegó en un correo de LinkedIn que no es de tus alertas guardadas (empleos similares, sugerencias bajo una confirmación). Mira la fecha en el anuncio antes de postular. Estas van al final de la lista.
+- **"La bolsa la marca senior":** Get on Board, Jobicy o Himalayas la etiquetaron senior, pero se publicó hace poco y el título no lo dice, así que pasa igual. Lee los requisitos y decide.
+- **Buscar en LinkedIn, últimas 24 h:** botones que abren en tu navegador la búsqueda de LinkedIn de cada palabra clave, solo con lo publicado en las últimas 24 h y lo más nuevo primero. JobBot no entra a LinkedIn: solo arma el enlace. Las palabras clave están en `targets.yaml: linkedin_searches`.
 - **Si te equivocas:** después de cada acción aparece **Deshacer** durante unos segundos.
 - **Cierre:** el panel se apaga solo 10 minutos después de que cierres la pestaña. Si la página dice que se cerró, ábrelo de nuevo.
 
@@ -406,6 +411,8 @@ Los patrones son expresiones regulares que no distinguen mayúsculas ni tildes (
 | `role_families.<familia>.include` / `exclude` | El título debe coincidir con algún `include` y con ningún `exclude` |
 | `title.exclude` | Exclusiones para todas las familias: seniority (Senior, Lead, Manager), nivel 3 o más, ventas |
 | `description.exclude` | Requisitos imposibles en la descripción (autorización de seguridad, ciudadanía de EE. UU.) |
+| `description.seniority` | Etiqueta de seniority que ponen Get on Board, Jobicy y Himalayas. Descarta la vacante, salvo que se haya publicado hace menos de `fresh_hours` |
+| `fresh_hours` | Horas para que una vacante cuente como reciente (24): filtro **Últimas 24 h**, sección del informe y búsquedas de LinkedIn |
 | `location.local` | Lugares donde aceptas presencial o híbrido |
 | `location.local_exclude` | Lugares dentro de esa zona que no aceptas |
 | `location.remote_ok` / `remote_reject` | Regiones de remoto elegibles o no para ti |
@@ -449,6 +456,8 @@ Para agregar una empresa:
    - Contiene `jobs.lever.co/<slug>` → agrégala bajo `lever:` con ese slug.
    - URLs tipo `/go/<nombre>/<id>/` → probablemente es **SuccessFactors**; ver [`docs/platforms/successfactors.md`](platforms/successfactors.md).
    - Otro sistema → abre un issue para proponer una fuente nueva.
+
+Los botones **Buscar en LinkedIn, últimas 24 h** del panel salen de `linkedin_searches`: una lista de `keywords` y el `geo_id` de tu país en LinkedIn. Para encontrar el `geo_id`, busca empleos en LinkedIn, elige tu país en el filtro de ubicación y copia el número que aparece después de `geoId=` en la URL. El de Costa Rica es `101739942`.
 
 ## 13. Linux y macOS
 

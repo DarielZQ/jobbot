@@ -73,6 +73,9 @@ class TitleRules(BaseModel):
 
 class DescriptionRules(BaseModel):
     exclude: list[str] = Field(default_factory=list)
+    # Seniority labels some boards put in the description: they exclude a posting unless it
+    # was posted less than `fresh_hours` before it was seen (ADR-020)
+    seniority: list[str] = Field(default_factory=list)
 
 
 class LocationRules(BaseModel):
@@ -84,6 +87,8 @@ class LocationRules(BaseModel):
 
 
 class SearchRules(BaseModel):
+    # A posting is fresh when it was posted less than this many hours ago (ADR-020)
+    fresh_hours: float = 24
     role_families: dict[str, RoleFamily] = Field(default_factory=dict)
     title: TitleRules = TitleRules()
     description: DescriptionRules = DescriptionRules()
@@ -189,6 +194,15 @@ class EmailAlertsTarget(BaseModel):
     confirmations: dict[str, str] = Field(default_factory=dict)
 
 
+class LinkedInSearches(BaseModel):
+    """Links to LinkedIn's own job search, last `fresh_hours`, newest first (ADR-020). JobBot
+    never opens them: the candidate does, in their browser (ADR-005)."""
+
+    keywords: list[str] = Field(default_factory=list)
+    geo_id: str = ""  # LinkedIn's id for the place, e.g. 101739942 (Costa Rica)
+    location: str = ""  # from `region.country` unless set here
+
+
 class Targets(BaseModel):
     workday: list[WorkdayTarget] = Field(default_factory=list)
     greenhouse: list[GreenhouseTarget] = Field(default_factory=list)
@@ -203,6 +217,7 @@ class Targets(BaseModel):
     elempleo: ElempleoTarget | None = None
     jibe: list[JibeTarget] = Field(default_factory=list)
     email_alerts: EmailAlertsTarget | None = None
+    linkedin_searches: LinkedInSearches | None = None
 
 
 resolve = paths.resolve
@@ -248,4 +263,6 @@ def with_region(targets: Targets, region: Region) -> Targets:
         _fill(targets.jobicy, geo=region.country_slug)
     if targets.himalayas:
         _fill(targets.himalayas, country=region.country, utc_offset=region.utc_offset)
+    if targets.linkedin_searches:
+        _fill(targets.linkedin_searches, location=region.country)
     return targets

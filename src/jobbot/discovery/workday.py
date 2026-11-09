@@ -7,7 +7,9 @@ See docs/platforms/workday.md.
 
 from __future__ import annotations
 
+import re
 from collections.abc import Iterable, Iterator
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from jobbot.config import WorkdayTarget
@@ -18,6 +20,22 @@ from jobbot.matching.normalize import normalize_text
 
 PAGE_SIZE = 20  # Workday rejects larger pages
 MAX_PAGES = 25
+_DAYS = re.compile(r"\b(\d+)\b")
+
+
+def posted_on(text: str, now: datetime) -> datetime | None:
+    """The day of a relative age: "Posted Today", "Posted Yesterday", "Posted 3 Days Ago",
+    "Posted 30+ Days Ago" (30 or more), or the same in Spanish ("Publicado hace 3 días")."""
+    folded = normalize_text(text)
+    if "today" in folded or "hoy" in folded:
+        days = 0
+    elif "yesterday" in folded or "ayer" in folded:
+        days = 1
+    elif match := _DAYS.search(folded):
+        days = int(match.group(1))
+    else:
+        return None
+    return now - timedelta(days=days)
 
 
 def find_country_facet(facets: list[dict[str, Any]], country: str) -> tuple[str, list[str]] | None:
@@ -107,6 +125,7 @@ class WorkdaySource(Source):
         if facet_applied and normalize_text(self.target.country) not in normalize_text(location):
             # e.g. "2 Locations": the facet already guarantees the country.
             location = f"{location} | {self.target.country}".strip(" |")
+        posted = posted_on(posting.get("postedOn", ""), datetime.now(UTC))
         return Job(
             source=self.name,
             ats="workday",
@@ -116,4 +135,6 @@ class WorkdaySource(Source):
             location=location,
             url=f"{self._public}{external_path}",
             remote="remote" in normalize_text(posting.get("remoteType", "")),
+            posted_at=posted,
+            posted_approx=posted is not None,
         )

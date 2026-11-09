@@ -10,20 +10,22 @@ import html
 import sqlite3
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
+from urllib.parse import urlencode
 
 from jobbot import paths
-from jobbot.config import SearchRules, load_search_rules, load_settings, load_targets
+from jobbot.config import SearchRules, Targets, load_search_rules, load_settings, load_targets
 from jobbot.core import db
 from jobbot.core.db import JobRow
 from jobbot.core.http import HttpClient
+from jobbot.core.models import as_utc, posted_within
 from jobbot.core.state import Status
 from jobbot.discovery.pipeline import SourceReport, build_sources, run_source
 from jobbot.grill import signals
 from jobbot.matching.dedupe import applied_twins
 from jobbot.matching.language import ResumeAdvice, recommend_resume
-from jobbot.matching.rules import RuleSet
+from jobbot.matching.rules import FRESH_SENIORITY, RuleSet
 
 # PowerShell's own AppUserModelID: lets a script show toasts without registering an app.
 _TOAST_APP_ID = r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
@@ -44,6 +46,77 @@ def resume_advice(
     return {
         j.id: recommend_resume(rules, j.role_family, j.title, texts.get(j.id, "")) for j in jobs
     }
+
+
+def posted_text(row: JobRow, now: datetime | None = None) -> str:
+    """How long ago it was posted ("~" when the site gave only a rough age), or that nobody
+    said: email alerts other than LinkedIn's saved ones carry no date."""
+    posted = row.posted()
+    if posted is None:
+        return "fecha de publicación desconocida"
+    hours = max(0.0, ((now or datetime.now(UTC)) - posted).total_seconds() / 3600)
+    about = "~" if row.posted_approx else ""
+    if hours < 1 and not about:
+        age = "menos de 1 h"
+    elif hours < 24:
+        age = f"{about}{max(1, int(hours))} h"
+    elif about and hours >= 30 * 24:
+        age = "30+ días"  # Workday's "Posted 30+ Days Ago"
+    else:
+        days = int(hours // 24)
+        age = f"{about}{days} {'día' if days == 1 else 'días'}"
+    return f"publicada hace {age}"
+
+
+def job_notes(row: JobRow) -> list[str]:
+    """Warnings shown next to a job, in the panel and in the report (ADR-020)."""
+    notes = []
+    if row.recommended:
+        notes.append("Recomendada por LinkedIn, puede ser vieja")
+    if row.status_reason.startswith(FRESH_SENIORITY):
+        notes.append("La bolsa la marca senior")
+    return notes
+
+
+def is_fresh(row: JobRow, hours: float) -> bool:
+    return posted_within(row.posted(), hours)
+
+
+def by_freshness(rows: Sequence[JobRow], hours: float) -> list[JobRow]:
+    """Jobs posted within `hours` first, newest first. Then the rest: a job without a date goes
+    by when JobBot first saw it, which says nothing about when it was posted, so it never
+    passes a fresh one. LinkedIn's suggestions go last."""
+
+    def key(row: JobRow) -> tuple[bool, bool, float]:
+        moment = row.posted() or as_utc(datetime.fromisoformat(row.first_seen_at))
+        return row.recommended, not is_fresh(row, hours), -moment.timestamp()
+
+    return sorted(rows, key=key)
+
+
+def fresh_pending(conn: sqlite3.Connection, rules: SearchRules | None = None) -> list[JobRow]:
+    """Open jobs posted within the last `fresh_hours`, newest first."""
+    hours = (rules or load_search_rules()).fresh_hours
+    pending = db.list_jobs(conn, status=Status.DISCOVERED, limit=100_000)
+    return by_freshness([j for j in pending if is_fresh(j, hours)], hours)
+
+
+def linkedin_links(
+    targets: Targets | None = None, rules: SearchRules | None = None
+) -> list[tuple[str, str]]:
+    """(keywords, url) of LinkedIn searches limited to the last `fresh_hours`, newest first.
+    Only links: the candidate opens them in their browser (ADR-005, ADR-020)."""
+    searches = (targets or load_targets()).linkedin_searches
+    if searches is None:
+        return []
+    seconds = int((rules or load_search_rules()).fresh_hours * 3600)
+    place = {"geoId": searches.geo_id, "location": searches.location}
+    links = []
+    for keywords in searches.keywords:
+        params = {"keywords": keywords, **{k: v for k, v in place.items() if v}}
+        params |= {"f_TPR": f"r{seconds}", "sortBy": "DD"}
+        links.append((keywords, f"https://www.linkedin.com/jobs/search/?{urlencode(params)}"))
+    return links
 
 
 def _cv_cell(advice: ResumeAdvice | None) -> str:
@@ -70,13 +143,31 @@ def family_labels(rules: SearchRules | None = None) -> dict[str, str]:
     return {name: family.label or name for name, family in rules.role_families.items()}
 
 
+def _table(
+    jobs: Sequence[JobRow], advice: Mapping[int, ResumeAdvice], twins: Mapping[int, JobRow]
+) -> str:
+    esc = html.escape
+    rows = "\n".join(
+        f'<tr><td class="muted">{j.id}</td><td><a href="{esc(j.url)}">{esc(j.title)}</a>'
+        f'<div class="age">{esc(" · ".join([posted_text(j), *job_notes(j)]))}</div>'
+        f"{_twin_note(twins.get(j.id))}</td>"
+        f"<td>{esc(j.company)}</td><td>{esc(j.location)}</td>"
+        f'<td class="cv">{_cv_cell(advice.get(j.id))}</td>'
+        f'<td class="muted">{esc(j.source)}</td></tr>'
+        for j in jobs
+    )
+    return (
+        "<table><thead><tr><th>#</th><th>Vacante</th><th>Empresa</th><th>Ubicación</th>"
+        f"<th>CV a subir</th><th>Fuente</th></tr></thead><tbody>\n{rows}\n</tbody></table>"
+    )
+
+
 def _family_tables(
     jobs: Sequence[JobRow],
     advice: Mapping[int, ResumeAdvice],
     twins: Mapping[int, JobRow] | None = None,
     labels: Mapping[str, str] | None = None,
 ) -> list[str]:
-    esc = html.escape
     twins = twins or {}
     labels = family_labels() if labels is None else labels
     # Families in config order; jobs of a family since removed from the config, and jobs
@@ -85,21 +176,9 @@ def _family_tables(
     tables = []
     for family in [*labels, *leftover]:
         group = [j for j in jobs if (j.role_family or "") == family]
-        if not group:
-            continue
-        rows = "\n".join(
-            f'<tr><td class="muted">{j.id}</td><td><a href="{esc(j.url)}">{esc(j.title)}</a>'
-            f"{_twin_note(twins.get(j.id))}</td>"
-            f"<td>{esc(j.company)}</td><td>{esc(j.location)}</td>"
-            f'<td class="cv">{_cv_cell(advice.get(j.id))}</td>'
-            f'<td class="muted">{esc(j.source)}</td></tr>'
-            for j in group
-        )
-        tables.append(
-            f"<h2>{esc(labels.get(family) or family or 'Otras')} ({len(group)})</h2>\n"
-            "<table><thead><tr><th>#</th><th>Vacante</th><th>Empresa</th><th>Ubicación</th>"
-            f"<th>CV a subir</th><th>Fuente</th></tr></thead><tbody>\n{rows}\n</tbody></table>"
-        )
+        if group:
+            name = html.escape(labels.get(family) or family or "Otras")
+            tables.append(f"<h2>{name} ({len(group)})</h2>\n{_table(group, advice, twins)}")
     return tables
 
 
@@ -113,17 +192,31 @@ def render_report(
     twins: Mapping[int, JobRow] | None = None,
     labels: Mapping[str, str] | None = None,
     decisions: int = 0,
+    fresh_hours: float = 24,
+    linkedin: Sequence[tuple[str, str]] = (),
 ) -> str:
     """`pending`: every open job (new ones included). Empty `results` = regenerated offline.
     `twins`: open jobs that look like one already applied to (applied_twins).
-    `decisions`: grill-me questions waiting for an answer."""
+    `decisions`: grill-me questions waiting for an answer.
+    `linkedin`: (keywords, url) of LinkedIn searches for the last `fresh_hours`.
+    Open jobs posted within `fresh_hours` go first, in a section of their own."""
     esc = html.escape
     labels = family_labels() if labels is None else labels
-    body = "\n".join(_family_tables(new_jobs, advice, twins, labels))
+    twins = twins or {}
+    fresh = by_freshness([j for j in pending if is_fresh(j, fresh_hours)], fresh_hours)
+    fresh_ids = {j.id for j in fresh}
+    body = ""
+    if fresh:
+        body = (
+            f"<h2>Publicadas en las últimas {fresh_hours:g} h ({len(fresh)})</h2>\n"
+            f"{_table(fresh, advice, twins)}\n"
+        )
+    new_rest = [j for j in new_jobs if j.id not in fresh_ids]
+    body += "\n".join(_family_tables(new_rest, advice, twins, labels))
     body = body or '<p class="empty">No hay vacantes nuevas que encajen.</p>'
 
     new_ids = {j.id for j in new_jobs}
-    older = [j for j in pending if j.id not in new_ids]
+    older = [j for j in pending if j.id not in new_ids and j.id not in fresh_ids]
     if older:
         opened = "" if new_jobs else " open"
         body += (
@@ -143,6 +236,14 @@ def render_report(
         warnings += (
             f'<div class="warn"><p>Tienes {decisions} {noun}: respóndelas en la pestaña '
             "Decisiones del panel o con <code>jobbot grill pendientes</code>.</p></div>"
+        )
+
+    searches = ""
+    if linkedin:
+        anchors = " · ".join(f'<a href="{esc(url)}">{esc(label)}</a>' for label, url in linkedin)
+        searches = (
+            f'<p class="links">Buscar en LinkedIn, publicadas en las últimas {fresh_hours:g} h '
+            f"(se abre en tu navegador): {anchors}</p>"
         )
 
     if results:
@@ -183,6 +284,9 @@ def render_report(
   .empty {{ background:var(--card); border:1px solid var(--line); padding:16px; }}
   .twin {{ display:inline-block; margin-top:4px; padding:1px 8px; font-size:13px;
           background:var(--warn-bg); border:1px solid var(--warn-line); }}
+  .age {{ font-size:13px; color:var(--muted); margin-top:2px; }}
+  .links {{ background:var(--card); border:1px solid var(--line); padding:8px 14px;
+           margin-top:16px; }}
   @media (max-width:640px) {{
     th:nth-child(1), td:nth-child(1), th:nth-child(6), td:nth-child(6) {{ display:none; }}
   }}
@@ -191,8 +295,10 @@ def render_report(
 <body><main>
 <h1>Vacantes nuevas: {len(new_jobs)}</h1>
 <p class="meta">{generated_at:%d/%m/%Y %H:%M} · {checked_text} ·
-{len(pending)} pendientes de postular · {applied_total} postuladas</p>
+{len(pending)} pendientes de postular · {applied_total} postuladas ·
+{len(fresh)} publicadas en las últimas {fresh_hours:g} h</p>
 {warnings}
+{searches}
 {body}
 <p class="meta">CV a subir: el de la familia del puesto, en el idioma del anuncio; clic para abrir
 el PDF. Para marcar a cuáles postulaste, abre el panel con el acceso directo
@@ -223,6 +329,8 @@ def write_report(
         applied_twins(pending, db.applied_jobs(conn)),
         family_labels(rules),
         len(signals.pending(conn)),
+        rules.fresh_hours,
+        linkedin_links(rules=rules),
     )
     reports_dir.mkdir(parents=True, exist_ok=True)
     if results:
@@ -260,11 +368,15 @@ def notification(
     new_jobs: Sequence[JobRow],
     results: Sequence[tuple[str, SourceReport]],
     labels: Mapping[str, str] | None = None,
+    fresh: int = 0,
+    fresh_hours: float = 24,
 ) -> tuple[str, str] | None:
-    """(title, body) for the toast, or None when there is nothing worth interrupting for."""
+    """(title, body) for the toast, or None when there is nothing worth interrupting for.
+    `fresh`: open jobs posted within the last `fresh_hours`, new to this run or not."""
     issues = attention_needed(results)
     if not new_jobs and not issues:
         return None
+    lines = [f"{fresh} publicadas en las últimas {fresh_hours:g} h"] if fresh else []
     if new_jobs:
         labels = family_labels() if labels is None else labels
         counts = [
@@ -275,12 +387,11 @@ def notification(
         noun = "vacante nueva" if len(new_jobs) == 1 else "vacantes nuevas"
         title = f"JobBot: {len(new_jobs)} {noun}"
         title += f" ({', '.join(counts)})" if counts else ""
-        lines = [f"{j.title} · {j.company}" for j in new_jobs[:3]]
+        lines += [f"{j.title} · {j.company}" for j in new_jobs[:3]]
         if len(new_jobs) > 3:
             lines.append(f"y {len(new_jobs) - 3} más")
     else:
         title = "JobBot: hoy no hay vacantes nuevas"
-        lines = []
     if issues:
         lines.append(f"Atención: {issues[0][0]} ({issues[0][1][:60]})")
     return title, "\n".join(lines)

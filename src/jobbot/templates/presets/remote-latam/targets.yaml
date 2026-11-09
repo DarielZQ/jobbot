@@ -49,3 +49,10 @@ email_alerts:
     linkedin: 'from:jobs-noreply@linkedin.com subject:"se ha enviado tu solicitud"'
     indeed: "from:indeedapply@indeed.com"
     computrabajo: 'from:postulaciones@computrabajo.com subject:"Seguimiento de tu candidatura"'
+
+# Búsquedas de LinkedIn de las últimas `fresh_hours` (search.yaml): botones del panel y enlaces
+# del informe (ADR-020). geo_id es el número que LinkedIn pone en la URL al elegir tu país; ver el
+# preset costa-rica-it.
+# linkedin_searches:
+#   geo_id: ""
+#   keywords: [help desk, service desk, IT support]

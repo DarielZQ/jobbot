@@ -1,6 +1,10 @@
 # Filtros duros. Los patrones son expresiones regulares, sin distinguir mayúsculas ni tildes
 # (el texto se normaliza antes de comparar: "Técnico" -> "tecnico").
 
+# Horas desde la publicación para que una vacante cuente como reciente: filtro «Últimas 24 h» del
+# panel, primera sección del informe y búsquedas de LinkedIn (ADR-020).
+fresh_hours: 24
+
 # Familias de roles (ADR-009). El título debe coincidir con el `include` de alguna familia y con
 # ninguno de su `exclude`. Se evalúan en orden: primero las `primary`. `cv` es el prefijo del PDF
 # en profile/resumes/ (<cv>_<es|en>.pdf) y `label`, el nombre que muestran el informe y el panel.
@@ -143,9 +147,12 @@ description:
   # al leer el anuncio. Aquí van solo los requisitos imposibles de cumplir.
   exclude:
     - '\bsecurity clearance\b'
-    # Get on Board, Jobicy y Himalayas anteponen la seniority; "Semi Senior" (nivel 2) pasa
-    - '^seniority (senior|expert)\b'
     - '\bus citizen(ship)?\b'
+  # Get on Board, Jobicy y Himalayas anteponen la seniority; "Semi Senior" (nivel 2) pasa. Una
+  # vacante publicada hace menos de `fresh_hours` pasa igual, con la marca «La bolsa la marca
+  # senior», porque esa etiqueta suele estar mal puesta (ADR-020).
+  seniority:
+    - '^seniority (senior|expert)\b'
 
 location:
   # Solo remoto: deja `local` vacío. Si también aceptas presencial, agrega tu ciudad o país, p. ej.

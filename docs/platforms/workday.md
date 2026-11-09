@@ -35,5 +35,6 @@ workday:
 - `total` solo es confiable en la primera página; se toma de ahí.
 - `locationsText` puede decir `"2 Locations"`: si se aplicó la faceta de país, se le agrega `| <país>`.
 - `bulletFields[0]` suele ser el ID de requisición; se usa como `ats_job_id` junto con el tenant.
+- `postedOn` da una edad relativa ("Posted Today", "Posted 3 Days Ago", "Posted 30+ Days Ago", o en español "Publicado hace 3 días"). `posted_on` la convierte en una fecha aproximada (ADR-020); "30+" queda como 30 días.
 - Algunas empresas devuelven **422** o **404** cuando el `site` adivinado no es el correcto. Hay que copiar la URL real desde su página de empleos y probarla con `probe_workday.py`.
 - Algunas empresas no tienen faceta para el país: en ese caso se busca por texto con el nombre del país y deciden los filtros de ubicación.

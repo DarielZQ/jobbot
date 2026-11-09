@@ -9,6 +9,7 @@ from __future__ import annotations
 import base64
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote
@@ -28,6 +29,7 @@ class MailMessage:
     sender: str
     text: str
     html: str
+    received_at: datetime | None = None  # when Gmail got it
 
 
 MISSING_EXTRA = "falta el extra de Gmail: instálalo con `uv sync --extra gmail`"
@@ -116,12 +118,14 @@ class GmailClient:
         headers = {h["name"].lower(): h["value"] for h in payload.get("headers") or []}
         parts: dict[str, list[str]] = {"text/plain": [], "text/html": []}
         _collect_parts(payload, parts)
+        received = data.get("internalDate")  # epoch milliseconds, as a string
         return MailMessage(
             id=message_id,
             subject=headers.get("subject", ""),
             sender=headers.get("from", ""),
             text="\n".join(parts["text/plain"]),
             html="\n".join(parts["text/html"]),
+            received_at=datetime.fromtimestamp(int(received) / 1000, UTC) if received else None,
         )
 
 

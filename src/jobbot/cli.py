@@ -90,10 +90,13 @@ def cmd_daily(_: argparse.Namespace) -> int:
             conn, client, lambda name, report, *_: print(report_line(name, report))
         )
     open_total = len(db.list_jobs(conn, status=Status.DISCOVERED, limit=100_000))
+    rules = load_search_rules()
+    fresh = len(daily.fresh_pending(conn, rules))
     print(f"\nVacantes nuevas que encajan: {len(new_jobs)} (pendientes en total: {open_total})")
+    print(f"Publicadas en las últimas {rules.fresh_hours:g} h: {fresh}")
     print(f"Informe: {path}")
     if settings.notifications.windows_toast and sys.platform == "win32":
-        message = daily.notification(new_jobs, results)
+        message = daily.notification(new_jobs, results, fresh=fresh, fresh_hours=rules.fresh_hours)
         if message and not daily.notify_windows(*message, launch=path):
             print("No se pudo mostrar la notificación de Windows.")
     return 0

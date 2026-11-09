@@ -65,7 +65,12 @@
            background:var(--ok-soft); color:var(--ok); vertical-align:1px; }
   .badge.remote { background:var(--accent-soft); color:var(--accent); }
   .badge.national, .badge.abroad { background:var(--hover); color:var(--muted); }
-  .badge.twin { background:var(--warn-bg); color:var(--fg); border:1px solid var(--warn-line); }
+  .badge.twin, .badge.old { background:var(--warn-bg); color:var(--fg); border:1px solid var(--warn-line); }
+  .badge.note { background:var(--hover); color:var(--muted); }
+  .linkedin { margin:-4px 0 12px; font-size:13px; color:var(--muted); }
+  .linkedin a { display:inline-block; margin:2px 4px 2px 0; padding:2px 10px; border:1px solid var(--line);
+                border-radius:14px; color:var(--accent); text-decoration:none; background:var(--card); }
+  .linkedin a:hover { background:var(--accent-soft); }
   .meta { color:var(--muted); font-size:13px; margin-top:2px; }
   .cv { font-size:13px; margin-top:4px; }
   .cv a { color:var(--accent); font-family:Consolas, monospace; }
@@ -116,8 +121,12 @@
       <button data-place="remote" title="Solo trabajos 100 % desde casa (sin híbridos)">100 % remoto</button>
       <button data-place="national" title="Presencial o híbrido en tu zona (location.local)">Nacionales</button>
     </div>
+    <div class="chips">
+      <button id="fresh" title="Solo las publicadas hace poco (las de fecha desconocida no entran)">Últimas 24 h</button>
+    </div>
     <input type="search" id="q" placeholder="Buscar por puesto, empresa o lugar" aria-label="Buscar">
   </div>
+  <div class="linkedin" id="linkedin" hidden></div>
 
   <ul class="jobs" id="list"></ul>
   <button class="more" id="more" hidden>Mostrar más</button>
@@ -146,11 +155,12 @@ const DONE_TEXT = {
 };
 
 const PLACES = { remote: "100 % remoto", national: "Nacional", abroad: "Otro país" };
-const state = { view: "pending", family: "", place: "", query: "", jobs: [], decisions: [], shown: PAGE, polling: null, wasRunning: false };
+const state = { view: "pending", family: "", place: "", fresh: false, freshHours: 24, linkedin: [], query: "", jobs: [], decisions: [], shown: PAGE, polling: null, wasRunning: false };
 try {
   state.view = localStorage.getItem("jobbot.view") || "pending";
   state.family = localStorage.getItem("jobbot.family") || "";
   state.place = localStorage.getItem("jobbot.place") || "";
+  state.fresh = localStorage.getItem("jobbot.fresh") === "1";
 } catch (e) { /* storage blocked: defaults */ }
 if (!["pending", "applied", "interview", "closed", "skipped", "decisions"].includes(state.view)) state.view = "pending";
 
@@ -286,7 +296,7 @@ function row(job) {
   const title = url
     ? el("a", { class: "title", href: url, target: "_blank", rel: "noopener noreferrer" }, job.title)
     : el("span", { class: "title" }, job.title);
-  const meta = [job.company, job.location, job.source].filter(Boolean).join(" · ");
+  const meta = [job.company, job.location, job.source, job.posted].filter(Boolean).join(" · ");
   let detail = null;
   if (state.view === "skipped") detail = el("div", { class: "meta" }, `Motivo: ${reasonText(job.reason)}`);
   else if (state.view !== "pending") {
@@ -298,6 +308,12 @@ function row(job) {
       el("div", {}, title,
         PLACES[job.place] ? el("span", { class: `badge ${job.place}` }, PLACES[job.place]) : null,
         job.new ? el("span", { class: "badge" }, "Nueva") : null,
+        ...(job.notes || []).map((note) => el("span", {
+          class: note.startsWith("Recomendada") ? "badge old" : "badge note",
+          title: note.startsWith("Recomendada")
+            ? "LinkedIn la sugirió en un correo que no es de tus alertas guardadas: mira la fecha en el anuncio."
+            : "Publicada hace poco: pasa aunque la bolsa de empleo la marque senior.",
+        }, note)),
         job.twin ? el("span", {
           class: "badge twin",
           title: `Parece la misma que #${job.twin.id} (${job.twin.title} · ${job.twin.company}), a la que ya postulaste.`,
@@ -315,6 +331,7 @@ function visibleJobs() {
   return state.jobs.filter((job) =>
     (!state.family || job.family === state.family) &&
     (!state.place || job.place === state.place) &&
+    (!state.fresh || job.fresh) &&
     (!query || fold(`${job.title} ${job.company} ${job.location}`).includes(query)));
 }
 
@@ -352,8 +369,22 @@ function renderDecisions() {
   $("more").hidden = true;
 }
 
+function showLinkedIn() {
+  // LinkedIn's own search for the last fresh_hours, newest first: JobBot never opens it (ADR-005).
+  const bar = $("linkedin");
+  bar.hidden = state.view !== "pending" || !state.linkedin.length;
+  const key = JSON.stringify([state.freshHours, state.linkedin]);
+  if (bar.hidden || bar.dataset.key === key) return;
+  bar.dataset.key = key;
+  bar.replaceChildren(`Buscar en LinkedIn, últimas ${state.freshHours} h: `,
+    ...state.linkedin.map(({ label, url }) => el("a", {
+      href: url, target: "_blank", rel: "noopener noreferrer", title: "Se abre en tu navegador",
+    }, label)));
+}
+
 function render() {
   document.querySelector(".filters").hidden = state.view === "decisions";
+  showLinkedIn();
   for (const button of document.querySelectorAll("#tabs button"))
     button.classList.toggle("on", button.dataset.view === state.view);
   if (state.view === "decisions") return renderDecisions();
@@ -380,6 +411,8 @@ function render() {
     }
     button.classList.toggle("on", place === state.place);
   }
+  $("fresh").textContent = `Últimas ${state.freshHours} h (${state.jobs.filter((job) => job.fresh).length})`;
+  $("fresh").classList.toggle("on", state.fresh);
 }
 
 async function load() {
@@ -436,7 +469,11 @@ async function refreshSummary() {
     for (const [view, count] of Object.entries(data.counts))
       document.querySelector(`[data-count="${view}"]`).textContent = count;
     const last = data.last_search ? `Última búsqueda: ${when(data.last_search)}` : "Todavía no hay búsquedas";
-    $("last").textContent = `${last} · nuevas en 24 h: ${data.new}`;
+    $("last").textContent =
+      `${last} · publicadas en las últimas ${data.fresh_hours} h: ${data.fresh} · vistas por primera vez en 24 h: ${data.new}`;
+    state.freshHours = data.fresh_hours;
+    state.linkedin = data.linkedin || [];
+    showLinkedIn();
     showFamilies(data.families || {});
     showDiscovery(data.discovery);
   } catch (e) {
@@ -480,6 +517,12 @@ $("places").addEventListener("click", (event) => {
   state.place = button.dataset.place;
   state.shown = PAGE;
   try { localStorage.setItem("jobbot.place", state.place); } catch (e) { /* ignore */ }
+  render();
+});
+$("fresh").addEventListener("click", () => {
+  state.fresh = !state.fresh;
+  state.shown = PAGE;
+  try { localStorage.setItem("jobbot.fresh", state.fresh ? "1" : "0"); } catch (e) { /* ignore */ }
   render();
 });
 $("q").addEventListener("input", (event) => { state.query = event.target.value; state.shown = PAGE; render(); });

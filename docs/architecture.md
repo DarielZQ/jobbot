@@ -218,6 +218,8 @@ Tabla `jobs` (una fila por vacante y fuente):
 | `status`, `status_reason` | Estado actual y motivo (p. ej. `title_excluded: senior`) |
 | `role_family` | Familia de roles (`it_support`, `data_ai`); migración 2 |
 | `first_seen_at`, `last_seen_at`, `updated_at` | UTC ISO-8601 |
+| `posted_approx` | `posted_at` sale de una edad relativa (Workday) o de la fecha del correo de una alerta de LinkedIn; migración 4 (ADR-020) |
+| `recommended` | Sugerida por LinkedIn fuera de las alertas guardadas: puede ser vieja; migración 4 |
 
 Migración 3 (ADR-019):
 

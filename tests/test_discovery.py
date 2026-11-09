@@ -55,6 +55,8 @@ def test_workday_source_applies_country_facet_and_builds_jobs(load_fixture, make
     # "2 Locations" gets the country appended because the facet guarantees it.
     assert jobs[2].location == "2 Locations | Costa Rica"
     assert source.enrich(jobs[0]).description == "<p>Hi</p>"
+    # "Posted Today" / "Posted 3 Days Ago": a date, marked as approximate
+    assert all(j.posted_at is not None and j.posted_approx for j in jobs)
 
 
 def test_greenhouse_source(load_fixture, make_client) -> None:

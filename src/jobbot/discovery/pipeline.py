@@ -108,18 +108,18 @@ def rescreen(conn: sqlite3.Connection, rules: RuleSet) -> Counter[str]:
     title and location only.
     """
     changes: Counter[str] = Counter()
-    for job_id, status, reason, job in db.screenable_jobs(conn):
-        result = rules.evaluate(job)
+    for job_id, status, reason, job, seen_at in db.screenable_jobs(conn):
+        result = rules.evaluate(job, seen_at)
         if result.ok and status is Status.SKIPPED:
             key = dedupe_key(job)
             original = db.find_by_dedupe_key(conn, key)
             if original is None:
-                db.set_status(conn, job_id, Status.DISCOVERED, "", result.role_family)
+                db.set_status(conn, job_id, Status.DISCOVERED, result.reason, result.role_family)
                 changes["reopened"] += 1
         elif not result.ok and status is Status.DISCOVERED:
             db.set_status(conn, job_id, Status.SKIPPED, result.reason, result.role_family)
             changes["newly_skipped"] += 1
-        elif not result.ok and result.reason != reason:
+        elif result.reason != reason:  # another exclusion, or a note on one that passes
             with conn:
                 conn.execute(
                     "UPDATE jobs SET status_reason = ?, role_family = ? WHERE id = ?",
@@ -179,6 +179,7 @@ def run_source(source: Source, conn: sqlite3.Connection, rules: RuleSet) -> Sour
         for job in source.fetch():
             if db.touch_seen(conn, job.ats, job.ats_job_id):
                 report.seen += 1
+                db.note_posting(conn, job)
                 _complete_details(source, conn, rules, job, report)
                 continue
 
@@ -190,7 +191,7 @@ def run_source(source: Source, conn: sqlite3.Connection, rules: RuleSet) -> Sour
                 result = rules.evaluate(job)
 
             key = dedupe_key(job)
-            status, reason = Status.DISCOVERED, ""
+            status, reason = Status.DISCOVERED, result.reason
             if not result.ok:
                 status, reason = Status.SKIPPED, result.reason
             elif (original := db.find_by_dedupe_key(conn, key)) is not None:

@@ -78,7 +78,12 @@ Cuando llegue la primera, corre `uv run jobbot alerts-sample --feed linkedin` pa
 
 ## Particularidades por sitio
 
-- **LinkedIn** (`email:linkedin`): primero lee la parte de texto, en bloques `título / empresa / ubicación / View job: <url>`. Si no hay texto, usa los enlaces `jobs/view/<id>` del HTML, con `default_location`. El ID de LinkedIn evita duplicados.
+- **LinkedIn** (`email:linkedin`):
+  - Primero lee la parte de texto, en bloques `título / empresa / ubicación / [datos extra] / Ver anuncio de empleo: <url>`. Si no hay texto, usa los enlaces `jobs/view/<id>` del HTML, con `default_location`. El ID de LinkedIn evita duplicados.
+  - Cada bloque se lee desde el final, porque a veces hay un encabezado de sección antes del título ("Tus otros empleos guardados"). Las líneas que LinkedIn agrega después de la ubicación ("Esta empresa busca personal activamente", "N personas estudiaron en la misma institución educativa que tú", "Solicitar con perfil y CV") están en `_NOISE`. Si LinkedIn agrega una línea nueva y los campos se corren, va a esa lista.
+  - **Alertas guardadas y recomendaciones (ADR-020):**
+    - Un correo de una alerta guardada lleva en su enlace "ver todos" `f_TPR=a<hora de la alerta anterior>`: sus vacantes son recientes y toman la fecha del correo como fecha aproximada.
+    - Los demás correos ("Nuevos empleos similares a…", las sugerencias bajo una confirmación, o una alerta sin resultados que manda similares) pueden traer vacantes de meses. Se marcan como recomendadas y quedan sin fecha.
 - **CompuTrabajo** (`email:computrabajo`):
   - Cada oferta es un enlace de redirección que trae la URL real codificada (`.../oferta-de-trabajo-de-<título>-en-<lugar>-<ID hex de 32>`) y el ID.
   - El texto de la tarjeta mezcla etiquetas ("Se precisa Urgente · Empleo destacado"), título, nota de la empresa, empresa, ubicación y salario. El lector corta el título donde terminan las palabras del slug de la URL y toma como empresa lo que queda entre la nota y la ubicación.

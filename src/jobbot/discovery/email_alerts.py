@@ -43,7 +43,18 @@ _NOISE = re.compile(
     r"solicitar|postularme|post[uú]late( ahora| hoy)?|easy apply|"
     r"solicitud sencilla|actively recruiting|contratando activamente|be an early applicant|"
     r"s[eé] de los primeros en solicitar|promoted|promocionado|new|nuevo|"
-    r".*\b(connections?|contactos?|alumni|applicants?|solicitantes|school|escuela)\b.*)$",
+    r".*\b(connections?|contactos?|alumni|applicants?|solicitantes|school|escuela|"
+    r"instituci[oó]n educativa|busca personal activamente|actively hiring|perfil y cv)\b.*)$",
+    re.I,
+)
+# A saved-search alert lists only jobs posted since the previous alert: its "see all" link
+# carries f_TPR=a<time of that alert>. Other LinkedIn emails (similar jobs, the suggestions under
+# an application confirmation) can bring postings that are months old. So can an alert with no
+# new matches, which sends similar jobs instead.
+_LINKEDIN_ALERT = re.compile(r"f_TPR=a\d+|\b(your job alert for|tu alerta de empleo para)\b", re.I)
+_LINKEDIN_SIMILAR = re.compile(
+    r"no hay resultados para tu alerta|empleos similares a tu alerta|"
+    r"no (new )?results for your (job )?alert|jobs similar to your alert",
     re.I,
 )
 
@@ -78,14 +89,29 @@ def _with_country(location: str, country: str) -> str:
 
 def parse_linkedin(message: MailMessage, source: str, default_location: str) -> list[Job]:
     jobs = _linkedin_from_text(message.text) or _linkedin_from_html(message.html)
+    body = f"{message.text}\n{message.html}"
+    alert = bool(_LINKEDIN_ALERT.search(body)) and not _LINKEDIN_SIMILAR.search(body)
+    # LinkedIn's emails carry no posting date: an alert's jobs are about as old as the email.
+    posted = message.received_at if alert else None
     return [
-        _linkedin_job(job_id, title, company, location or default_location, source)
+        _linkedin_job(job_id, title, company, location or default_location, source).model_copy(
+            update={
+                "posted_at": posted,
+                "posted_approx": posted is not None,
+                "recommended": not alert,
+            }
+        )
         for job_id, (title, company, location) in jobs.items()
     ]
 
 
 def _linkedin_from_text(text: str) -> dict[str, tuple[str, str, str]]:
-    """Blocks of `title / company / location / View job: <url>` (the plain-text alert layout)."""
+    """Blocks of `title / company / location / [insights] / View job: <url>` (plain-text layout).
+
+    Section headings can come before the title ("Tus otros empleos guardados"), so a block is
+    read from the end. The insight lines LinkedIn adds after the location now and then
+    ("N personas estudiaron…") must be in _NOISE, or they shift the fields.
+    """
     jobs: dict[str, tuple[str, str, str]] = {}
     pending: list[str] = []
     for raw in text.splitlines():
@@ -101,8 +127,7 @@ def _linkedin_from_text(text: str) -> dict[str, tuple[str, str, str]]:
                 pending.append(line)
             continue
         if pending and match.group(1) not in jobs:
-            fields = pending[-3:]
-            title, company, location = (fields + ["", ""])[:3] if len(fields) < 3 else fields
+            title, company, location = (pending[-3:] + ["", ""])[:3]
             jobs[match.group(1)] = (title, company, location)
         pending = []
     return jobs
@@ -363,13 +388,28 @@ class EmailAlertSource(Source):
 
     def fetch(self) -> Iterable[Job]:
         # The same job shows up in several emails; some only carry a "Postúlate" button.
-        # Keep the richest version: one with a real company over a "(placeholder)".
         best: dict[str, Job] = {}
         for message_id in self._mail.search(self._query, self._max_messages):
             for job in self._parser(self._mail.get(message_id), self.name, self._default_location):
                 current = best.get(job.ats_job_id)
-                if current is None or (
-                    current.company.startswith("(") and not job.company.startswith("(")
-                ):
-                    best[job.ats_job_id] = job
+                best[job.ats_job_id] = job if current is None else _merge(current, job)
         yield from best.values()
+
+
+def _merge(current: Job, other: Job) -> Job:
+    """One job listed by several emails: the copy with a real company over a "(placeholder)",
+    and the date of the earliest saved alert that listed it."""
+    keep = current
+    if current.company.startswith("(") and not other.company.startswith("("):
+        keep = other
+    alerts = [j for j in (current, other) if not j.recommended]
+    if not alerts:
+        return keep
+    dates = [j.posted_at for j in alerts if j.posted_at]
+    return keep.model_copy(
+        update={
+            "recommended": False,
+            "posted_at": min(dates) if dates else None,
+            "posted_approx": any(j.posted_approx for j in alerts),
+        }
+    )
