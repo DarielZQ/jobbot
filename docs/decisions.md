@@ -203,3 +203,20 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
 - **Consecuencias:**
   - Con fecha confiable quedan las bolsas remotas, Amazon, elempleo, SuccessFactors y Recruitee; con fecha aproximada, Workday y las alertas de LinkedIn. Indeed y CompuTrabajo por correo siguen sin fecha.
   - Una instalación anterior conserva su `search.yaml` y su `targets.yaml`: para tener el filtro aflojado y los botones, hay que copiar `fresh_hours`, `description.seniority` y `linkedin_searches` desde el preset.
+
+## ADR-021 — Empresas remotas: Ashby y `remote_scope`
+
+- **Fecha:** 2026-11-10.
+- **Contexto:** varias empresas 100 % remotas contratan en Latinoamérica, pero no publican en las bolsas que JobBot ya lee. Revisión del 2026-11-10 de GitLab, Automattic, Deel, Remote.com, Hubstaff, Buffer, Civo y Loka:
+  - **Greenhouse:** GitLab (`gitlab`), Automattic (`automatticcareers`) y Loka (`lokainc`). Según su handbook, GitLab contrata en Costa Rica por PEO y solo para ciertos puestos. Ya publicó soporte AMER con «Remote, Costa Rica».
+  - **Ashby:** Hubstaff y Buffer.
+  - **Teamtailor (RSS público):** Civo. Su soporte es presencial y vende en India, así que no se agrega.
+  - **Página propia:** Deel (`deel.com/careers`, con el país de cada vacante dentro de la página) y Remote.com (`remote.com/openings`, solo títulos). Sus tableros en Ashby y Greenhouse están vacíos.
+  - Automattic publica «Remote» sin país aunque contrata en cualquiera; para los filtros eso es `remote_region_unknown`.
+- **Decisión:**
+  - **Fuente nueva `ashby`** (`discovery/ashby.py`): API pública `posting-api/job-board/{board}`, sin clave, una consulta por empresa.
+  - **`remote_scope`** por empresa en Greenhouse y Ashby: qué significa un «Remote» sin lugar (p. ej. `Worldwide`). Solo cambia esa ubicación exacta; las que nombran un lugar quedan igual.
+  - «IT Engineer» y «Happiness Engineer» (soporte de Automattic) entran a la familia de soporte TI. Senior, Lead y nivel 3 siguen fuera.
+  - Deel y Remote.com quedan en modo asistido: alertas de LinkedIn con el nombre de la empresa y revisión manual de su página.
+  - Civo no se agrega.
+- **Consecuencias:** las tres APIs son gratuitas y públicas. Con empresas remotas grandes (GitLab tiene más de 250 vacantes), casi todo se descarta por título o ubicación. El valor es enterarse el día que abren algo para el perfil y el país.

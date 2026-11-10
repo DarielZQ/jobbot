@@ -44,6 +44,9 @@ def rules_gam_only() -> RuleSet:
         "Technical Support Engineer L2",
         "Tecnico TI Mesa de ayuda n2",
         "Mid Support Engineer",
+        # Empresas remotas (ADR-021): TI interna y el soporte de Automattic
+        "IT Engineer | LATAM",
+        "Happiness Engineer",
         "Technical Support Engineer Intern",
         "IT Intern",
         "IT Infrastructure Internship",
@@ -166,6 +169,7 @@ def test_it_support_family_wins_over_data_family(rules: RuleSet) -> None:
     ("title", "reason_prefix"),
     [
         ("Senior IT Support Analyst", "title_excluded"),
+        ("Senior IT Engineer", "title_excluded"),
         ("Sr. Service Desk Analyst", "title_excluded"),
         ("Help Desk Manager", "title_excluded"),
         ("Gerente de Soporte", "title_excluded"),

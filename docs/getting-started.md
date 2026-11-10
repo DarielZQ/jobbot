@@ -454,6 +454,8 @@ Para agregar una empresa:
      Si responde, copia la línea que imprime y pégala bajo `workday:`.
    - Contiene `boards.greenhouse.io/<token>` → agrégala bajo `greenhouse:` con ese token.
    - Contiene `jobs.lever.co/<slug>` → agrégala bajo `lever:` con ese slug.
+   - Contiene `jobs.ashbyhq.com/<board>` → agrégala bajo `ashby:` con ese board.
+   - Si la empresa publica «Remote» sin país y contrata en cualquiera, agrega `remote_scope: "Worldwide"` (ver [`docs/platforms/greenhouse-lever.md`](platforms/greenhouse-lever.md)).
    - URLs tipo `/go/<nombre>/<id>/` → probablemente es **SuccessFactors**; ver [`docs/platforms/successfactors.md`](platforms/successfactors.md).
    - Otro sistema → abre un issue para proponer una fuente nueva.
 

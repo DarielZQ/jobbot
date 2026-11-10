@@ -2,14 +2,22 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
+from datetime import UTC, datetime
 
 import httpx
 
 from conftest import FIXTURES, make_job
-from jobbot.config import GreenhouseTarget, LeverTarget, SuccessFactorsTarget, WorkdayTarget
+from jobbot.config import (
+    AshbyTarget,
+    GreenhouseTarget,
+    LeverTarget,
+    SuccessFactorsTarget,
+    WorkdayTarget,
+)
 from jobbot.core import db
 from jobbot.core.models import Job
 from jobbot.core.state import Status
+from jobbot.discovery.ashby import AshbySource
 from jobbot.discovery.base import Source
 from jobbot.discovery.greenhouse import GreenhouseSource
 from jobbot.discovery.lever import LeverSource
@@ -67,6 +75,41 @@ def test_greenhouse_source(load_fixture, make_client) -> None:
     assert [j.ats_job_id for j in jobs] == ["acme:4012345", "acme:4012346"]
     assert jobs[0].remote and jobs[0].location == "Remote - LATAM"
     assert jobs[0].posted_at is not None
+
+
+def test_greenhouse_reads_a_bare_remote_as_the_company_scope(load_fixture, make_client) -> None:
+    payload = load_fixture("greenhouse_jobs.json")
+    payload["jobs"][0]["location"]["name"] = "Remote"
+    client = make_client(lambda request: httpx.Response(200, json=payload))
+    target = GreenhouseTarget(company="Acme", token="acme", remote_scope="Worldwide")
+
+    first, second = GreenhouseSource(client, target).fetch()
+
+    assert first.location == "Remote - Worldwide"
+    assert second.location == "Remote - US only"  # a location with a place is kept
+
+
+def test_ashby_source(load_fixture, make_client, rules) -> None:
+    payload = load_fixture("ashby_board.json")
+    urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        urls.append(str(request.url))
+        return httpx.Response(200, json=payload)
+
+    target = AshbyTarget(company="Acme", board="acme", remote_scope="Worldwide")
+    jobs = list(AshbySource(make_client(handler), target).fetch())
+
+    assert urls == ["https://api.ashbyhq.com/posting-api/job-board/acme"]
+    # The unlisted posting is left out
+    assert [j.ats_job_id for j in jobs] == ["acme:a1b2c3d4-0001", "acme:a1b2c3d4-0002"]
+    support, engineer = jobs
+    assert support.title == "Customer Support Specialist"
+    assert support.location == "Remote - Worldwide" and support.remote
+    assert support.posted_at == datetime(2026, 11, 1, 12, tzinfo=UTC)
+    assert engineer.location == "Mexico, Costa Rica" and engineer.remote  # workplaceType
+    assert engineer.url == "https://jobs.ashbyhq.com/acme/a1b2c3d4-0002"
+    assert all(rules.evaluate(j).ok for j in jobs)
 
 
 def test_lever_source(load_fixture, make_client) -> None:

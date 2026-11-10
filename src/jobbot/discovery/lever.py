@@ -1,4 +1,4 @@
-"""Lever public Postings API (no auth). See docs/platforms/lever.md."""
+"""Lever public Postings API (no auth). See docs/platforms/greenhouse-lever.md."""
 
 from __future__ import annotations
 

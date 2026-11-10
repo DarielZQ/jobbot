@@ -1,4 +1,4 @@
-"""Greenhouse public Job Board API (no auth). See docs/platforms/greenhouse.md."""
+"""Greenhouse public Job Board API (no auth). See docs/platforms/greenhouse-lever.md."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from datetime import datetime
 from jobbot.config import GreenhouseTarget
 from jobbot.core.http import HttpClient
 from jobbot.core.models import Job
-from jobbot.discovery.base import Source
+from jobbot.discovery.base import Source, scoped_remote
 from jobbot.matching.normalize import normalize_text
 
 
@@ -23,6 +23,7 @@ class GreenhouseSource(Source):
         data = self.client.get_json(url)
         for posting in data.get("jobs", []):
             location = (posting.get("location") or {}).get("name", "")
+            location = scoped_remote(location, self.target.remote_scope)
             updated = posting.get("updated_at")
             yield Job(
                 source=self.name,

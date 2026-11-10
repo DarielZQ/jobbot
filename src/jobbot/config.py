@@ -106,11 +106,19 @@ class WorkdayTarget(BaseModel):
 class GreenhouseTarget(BaseModel):
     company: str
     token: str
+    # What a bare "Remote" means at this company, e.g. "Worldwide" (ADR-021)
+    remote_scope: str = ""
 
 
 class LeverTarget(BaseModel):
     company: str
     slug: str
+
+
+class AshbyTarget(BaseModel):
+    company: str
+    board: str = Field(description="jobs.ashbyhq.com/<board>")
+    remote_scope: str = ""  # as in GreenhouseTarget
 
 
 class SuccessFactorsTarget(BaseModel):
@@ -207,6 +215,7 @@ class Targets(BaseModel):
     workday: list[WorkdayTarget] = Field(default_factory=list)
     greenhouse: list[GreenhouseTarget] = Field(default_factory=list)
     lever: list[LeverTarget] = Field(default_factory=list)
+    ashby: list[AshbyTarget] = Field(default_factory=list)
     successfactors: list[SuccessFactorsTarget] = Field(default_factory=list)
     amazon: list[AmazonTarget] = Field(default_factory=list)
     recruitee: list[RecruiteeTarget] = Field(default_factory=list)

@@ -18,6 +18,7 @@ from jobbot.core.models import Job
 from jobbot.core.state import Status
 from jobbot.discovery.amazon import AmazonSource
 from jobbot.discovery.applications import ConfirmationSource
+from jobbot.discovery.ashby import AshbySource
 from jobbot.discovery.base import Source, SourceNotConfigured
 from jobbot.discovery.elempleo import ElempleoSource
 from jobbot.discovery.email_alerts import PARSERS, EmailAlertSource
@@ -60,6 +61,7 @@ def build_sources(targets: Targets, client: HttpClient) -> list[Source]:
     sources += [WorkdaySource(client, t) for t in targets.workday]
     sources += [GreenhouseSource(client, t) for t in targets.greenhouse]
     sources += [LeverSource(client, t) for t in targets.lever]
+    sources += [AshbySource(client, t) for t in targets.ashby]
     sources += [SuccessFactorsSource(client, t) for t in targets.successfactors]
     sources += [AmazonSource(client, t) for t in targets.amazon]
     sources += [RecruiteeSource(client, t) for t in targets.recruitee]

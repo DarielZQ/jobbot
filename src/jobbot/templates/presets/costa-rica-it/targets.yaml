@@ -29,6 +29,7 @@ workday:
 
 greenhouse: []   # { company, token }  -> token = parte final de boards.greenhouse.io/<token>
 lever: []        # { company, slug }   -> slug  = parte final de jobs.lever.co/<slug>
+ashby: []        # { company, board }  -> board = parte final de jobs.ashbyhq.com/<board>
 
 # SAP SuccessFactors Career Site Builder: feed RSS público filtrado por el nombre del país.
 successfactors:

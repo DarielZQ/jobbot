@@ -6,6 +6,7 @@ from collections.abc import Iterable
 
 from jobbot.core.http import HttpClient
 from jobbot.core.models import Job
+from jobbot.matching.normalize import normalize_text
 
 
 class SourceNotConfigured(Exception):
@@ -16,6 +17,14 @@ def require(value: object, setting: str) -> None:
     """Sources that search by country stop with a clear message when none is configured."""
     if value in ("", None):
         raise SourceNotConfigured(f"falta {setting} (completa `region` en config/settings.yaml)")
+
+
+def scoped_remote(location: str, scope: str) -> str:
+    """A bare "Remote" says nothing about where: `scope` is what it means at that company
+    (`remote_scope` in targets.yaml, e.g. "Worldwide"). Any other location stays as it is."""
+    if scope and normalize_text(location) in ("", "remote", "remoto", "fully remote"):
+        return f"Remote - {scope}"
+    return location
 
 
 class Source:

@@ -1,0 +1,62 @@
+{
+  "apiVersion": "1",
+  "jobs": [
+    {
+      "id": "a1b2c3d4-0001",
+      "title": "Customer Support Specialist ",
+      "department": "Support",
+      "team": "Support",
+      "employmentType": "FullTime",
+      "location": "Remote",
+      "secondaryLocations": [],
+      "publishedAt": "2026-11-01T12:00:00.000+00:00",
+      "isListed": true,
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "address": { "postalAddress": {} },
+      "jobUrl": "https://jobs.ashbyhq.com/acme/a1b2c3d4-0001",
+      "applyUrl": "https://jobs.ashbyhq.com/acme/a1b2c3d4-0001/application",
+      "descriptionHtml": "<p>Help our customers by email and chat.</p>",
+      "descriptionPlain": "Help our customers by email and chat."
+    },
+    {
+      "id": "a1b2c3d4-0002",
+      "title": "Technical Support Engineer",
+      "department": "Support",
+      "team": "Support",
+      "employmentType": "FullTime",
+      "location": "Mexico",
+      "secondaryLocations": [
+        { "location": "Costa Rica", "address": { "postalAddress": { "addressCountry": "Costa Rica" } } },
+        { "location": "Mexico", "address": { "postalAddress": { "addressCountry": "Mexico" } } }
+      ],
+      "publishedAt": "2026-11-02T08:30:00.000+00:00",
+      "isListed": true,
+      "isRemote": false,
+      "workplaceType": "Remote",
+      "address": { "postalAddress": { "addressCountry": "Mexico" } },
+      "jobUrl": "https://jobs.ashbyhq.com/acme/a1b2c3d4-0002",
+      "applyUrl": "https://jobs.ashbyhq.com/acme/a1b2c3d4-0002/application",
+      "descriptionHtml": "<p>Troubleshoot product issues.</p>",
+      "descriptionPlain": "Troubleshoot product issues."
+    },
+    {
+      "id": "a1b2c3d4-0003",
+      "title": "Internal Referral Only",
+      "department": "People",
+      "team": "People",
+      "employmentType": "FullTime",
+      "location": "Remote",
+      "secondaryLocations": [],
+      "publishedAt": "2026-11-03T08:30:00.000+00:00",
+      "isListed": false,
+      "isRemote": true,
+      "workplaceType": "Remote",
+      "address": { "postalAddress": {} },
+      "jobUrl": "https://jobs.ashbyhq.com/acme/a1b2c3d4-0003",
+      "applyUrl": "https://jobs.ashbyhq.com/acme/a1b2c3d4-0003/application",
+      "descriptionHtml": "",
+      "descriptionPlain": ""
+    }
+  ]
+}
