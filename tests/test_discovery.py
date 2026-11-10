@@ -9,6 +9,7 @@ import httpx
 from conftest import FIXTURES, make_job
 from jobbot.config import (
     AshbyTarget,
+    DeelTarget,
     GreenhouseTarget,
     LeverTarget,
     SuccessFactorsTarget,
@@ -19,6 +20,7 @@ from jobbot.core.models import Job
 from jobbot.core.state import Status
 from jobbot.discovery.ashby import AshbySource
 from jobbot.discovery.base import Source
+from jobbot.discovery.deel import DeelSource
 from jobbot.discovery.greenhouse import GreenhouseSource
 from jobbot.discovery.lever import LeverSource
 from jobbot.discovery.pipeline import run_source
@@ -110,6 +112,38 @@ def test_ashby_source(load_fixture, make_client, rules) -> None:
     assert engineer.location == "Mexico, Costa Rica" and engineer.remote  # workplaceType
     assert engineer.url == "https://jobs.ashbyhq.com/acme/a1b2c3d4-0002"
     assert all(rules.evaluate(j).ok for j in jobs)
+
+
+def test_deel_reads_the_jobs_inside_its_careers_page(make_client, rules) -> None:
+    page = (FIXTURES / "deel_careers.html").read_text(encoding="utf-8")
+    urls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        urls.append(str(request.url))
+        return httpx.Response(200, text=page)
+
+    jobs = list(DeelSource(make_client(handler), DeelTarget()).fetch())
+
+    assert urls == ["https://www.deel.com/careers/"]
+    # The second job spans two payload chunks; the unlisted one is left out
+    assert [j.title for j in jobs] == [
+        "Customer Support Specialist | LATAM",
+        "Account Executive | Brazil",
+    ]
+    latam, brazil = jobs
+    assert latam.location == "Mexico, Costa Rica" and latam.remote
+    assert latam.url == "https://www.deel.com/careers/position/?ashby_jid=00000000-0001"
+    assert latam.posted_at == datetime(2026, 11, 5, 10, tzinfo=UTC)
+    # Only the one open to Costa Rica passes the preset's location filters
+    assert rules.evaluate(latam).ok and not rules.evaluate(brazil).ok
+
+
+def test_deel_page_without_jobs_is_an_error(conn, rules, make_client) -> None:
+    client = make_client(lambda request: httpx.Response(200, text="<html>Careers</html>"))
+
+    report = run_source(DeelSource(client, DeelTarget()), conn, rules)
+
+    assert "ya no trae las vacantes" in report.error
 
 
 def test_lever_source(load_fixture, make_client) -> None:

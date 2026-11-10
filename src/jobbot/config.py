@@ -175,6 +175,12 @@ class ElempleoTarget(BaseModel):
     min_hours_between_runs: float = 12
 
 
+class DeelTarget(BaseModel):
+    # Its own careers page: every listed job with the countries it can be done from (ADR-021)
+    url: str = "https://www.deel.com/careers/"
+    min_hours_between_runs: float = 12  # the page weighs over 1 MB
+
+
 class JibeTarget(BaseModel):
     company: str
     host: str = Field(description="e.g. <company>.jibeapply.com")
@@ -224,6 +230,7 @@ class Targets(BaseModel):
     jobicy: JobicyTarget | None = None
     himalayas: HimalayasTarget | None = None
     elempleo: ElempleoTarget | None = None
+    deel: DeelTarget | None = None
     jibe: list[JibeTarget] = Field(default_factory=list)
     email_alerts: EmailAlertsTarget | None = None
     linkedin_searches: LinkedInSearches | None = None

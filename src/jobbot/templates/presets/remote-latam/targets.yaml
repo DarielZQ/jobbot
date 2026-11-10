@@ -57,3 +57,7 @@ email_alerts:
 # linkedin_searches:
 #   geo_id: ""
 #   keywords: [help desk, service desk, IT support]
+
+# Deel: su página de empleos trae cada vacante con los países desde donde se puede hacer; los
+# filtros dejan las de tu país (ADR-021). Una consulta cada 12 h. Quita el # para activarla.
+# deel: {}

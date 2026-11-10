@@ -81,6 +81,10 @@ elempleo:
     - trabajo-tecnico-en-informatica
   min_hours_between_runs: 12
 
+# Deel: su página de empleos trae cada vacante con los países desde donde se puede hacer; los
+# filtros dejan las de tu país (ADR-021). Una consulta cada 12 h. Quita el # para activarla.
+# deel: {}
+
 jibe: []   # { company, host } -> API pública /api/jobs de sitios Jibe (<empresa>.jibeapply.com)
 
 # Alertas de empleo y confirmaciones de postulación que llegan a tu Gmail (extra "gmail").

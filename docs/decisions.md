@@ -204,7 +204,7 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - Con fecha confiable quedan las bolsas remotas, Amazon, elempleo, SuccessFactors y Recruitee; con fecha aproximada, Workday y las alertas de LinkedIn. Indeed y CompuTrabajo por correo siguen sin fecha.
   - Una instalación anterior conserva su `search.yaml` y su `targets.yaml`: para tener el filtro aflojado y los botones, hay que copiar `fresh_hours`, `description.seniority` y `linkedin_searches` desde el preset.
 
-## ADR-021 — Empresas remotas: Ashby y `remote_scope`
+## ADR-021 — Empresas remotas: Ashby, Deel y `remote_scope`
 
 - **Fecha:** 2026-11-10.
 - **Contexto:** varias empresas 100 % remotas contratan en Latinoamérica, pero no publican en las bolsas que JobBot ya lee. Revisión del 2026-11-10 de GitLab, Automattic, Deel, Remote.com, Hubstaff, Buffer, Civo y Loka:
@@ -217,6 +217,7 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - **Fuente nueva `ashby`** (`discovery/ashby.py`): API pública `posting-api/job-board/{board}`, sin clave, una consulta por empresa.
   - **`remote_scope`** por empresa en Greenhouse y Ashby: qué significa un «Remote» sin lugar (p. ej. `Worldwide`). Solo cambia esa ubicación exacta; las que nombran un lugar quedan igual.
   - «IT Engineer» y «Happiness Engineer» (soporte de Automattic) entran a la familia de soporte TI. Senior, Lead y nivel 3 siguen fuera.
-  - Deel y Remote.com quedan en modo asistido: alertas de LinkedIn con el nombre de la empresa y revisión manual de su página.
+  - **Fuente nueva `deel`** (`discovery/deel.py`): lee las vacantes que trae su propia página de empleos, con los países de cada una. `robots.txt` lo permite; corre cada 12 h.
+  - Remote.com no se agrega: su lista no dice el país, así que no se puede saber cuáles son para Costa Rica.
   - Civo no se agrega.
 - **Consecuencias:** las tres APIs son gratuitas y públicas. Con empresas remotas grandes (GitLab tiene más de 250 vacantes), casi todo se descarta por título o ubicación. El valor es enterarse el día que abren algo para el perfil y el país.
