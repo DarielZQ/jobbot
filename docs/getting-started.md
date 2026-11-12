@@ -289,7 +289,7 @@ Ver la sección [13](#13-linux-y-macos).
 
 ## 10. Alertas por correo (opcional)
 
-JobBot puede leer las alertas de empleo que LinkedIn, CompuTrabajo, Indeed y elempleo te envían a Gmail, y las confirmaciones de postulación de esos sitios. Solo lee: **no puede enviar, borrar, marcar como leído ni modificar nada**. La configuración toma unos 15 minutos y se hace una sola vez.
+JobBot puede leer las alertas de empleo que LinkedIn, CompuTrabajo, Indeed, elempleo y Torre te envían a Gmail, y las confirmaciones de postulación de esos sitios. Solo lee: **no puede enviar, borrar, marcar como leído ni modificar nada**. La configuración toma unos 15 minutos y se hace una sola vez.
 
 ### 10.1 Instalar el extra
 

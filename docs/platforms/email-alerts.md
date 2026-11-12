@@ -1,10 +1,10 @@
 # Alertas por correo (Gmail, solo lectura)
 
-LinkedIn, CompuTrabajo, Indeed y elempleo, más las confirmaciones de postulación.
+LinkedIn, CompuTrabajo, Indeed, elempleo y Torre, más las confirmaciones de postulación.
 
 **Estado:** disponible con el extra `gmail` (`uv sync --extra gmail`). Viene apagado: se activa con `email_alerts.enabled: true` en `targets.yaml`. La configuración de Google Cloud, `jobbot gmail-login` y la activación se explican en la [guía de inicio, sección 10](../getting-started.md#10-alertas-por-correo-opcional).
 
-El preset `costa-rica-it` trae consultas para LinkedIn, CompuTrabajo, Indeed y elempleo; `remote-latam`, para LinkedIn, CompuTrabajo e Indeed. Los dos traen las consultas de confirmaciones.
+El preset `costa-rica-it` trae consultas para LinkedIn, CompuTrabajo, Indeed y elempleo; `remote-latam`, para LinkedIn, CompuTrabajo e Indeed. Los dos traen las consultas de confirmaciones, y la de Torre comentada: se activa después de pedir sus correos en la cuenta.
 
 ## Cómo funciona
 
@@ -93,6 +93,14 @@ Cuando llegue la primera, corre `uv run jobbot alerts-sample --feed linkedin` pa
   - La consulta excluye las confirmaciones de postulación (para no reingresar vacantes ya postuladas) y los códigos de inicio de sesión (para no guardarlos nunca en las muestras).
   - Si un enlace trae el ID de la vacante (`jk=`), se usa la URL canónica `viewjob?jk=…`.
   - Si solo hay enlaces de rastreo, JobBot **nunca los abre**. Título, empresa y ubicación salen del texto del correo (alerta diaria o vacante recomendada) y el ID se arma con esos tres datos, así que la misma vacante en varios correos se guarda una sola vez. El enlace guardado lo abre el usuario, no JobBot.
+- **Torre** (`email:torre`):
+  - Llegan dos formatos, cada uno con una vacante. El código de `https://torre.ai/s/<código>` es el ID de la vacante.
+    - **"Emma of Torre.ai"** (`emma@torre.ai`): una lista con título, empresa, `Job location: …`, `Proficient in: …` y el pago, y después `Here's all the info: <enlace>`.
+    - **Alertas de `torre@torre.ai`**, con asunto `<tipo> (<modalidad>): <puesto> at <empresa>`: una tarjeta con el título y la empresa como enlaces, filas marcadas por íconos (`alt="Star icon"` para la coincidencia, `Briefcase icon` para el tipo, `Cash icon` para el pago y `Marker icon` para el lugar) y el botón **View details**, cuyo enlace es el de la vacante.
+  - La consulta excluye por asunto los correos de cuenta de `torre@torre.ai`: los códigos de verificación y los avisos «ACTION REQUIRED». No se guardan muestras de esos correos.
+  - Torre manda solo lo que según su filtro te sirve, así que `remote_scope: "Worldwide"` hace que su "Remote" sin país cuente como remoto elegible. Sin eso, la regla lo descarta como `remote_region_unknown`.
+  - JobBot nunca abre el enlace: los términos de Torre prohíben recorrer el sitio (ADR-023).
+  - Para activarlo: en torre.ai, **Preferences → Notification settings → Job matches' email frequency → Daily**.
 - **elempleo** (`email:elempleo`): enlaces `elempleo.com/cr/ofertas-trabajo/<slug>/<id>`, con el mismo ID que el listado directo. La consulta excluye por asunto las confirmaciones de postulación y de alerta creada, que no traen vacantes y solo gastan cuota de Gmail.
 
 ## Confirmaciones de postulación (ADR-018)

@@ -11,7 +11,7 @@ It ships with presets for Costa Rica (on-site, hybrid and remote) and for remote
 ## Features
 
 - **Discovery from public sources:** company career sites on Workday, SAP SuccessFactors, Greenhouse, Lever, Ashby, Recruitee, iCIMS, Jibe and amazon.jobs, plus Deel's own careers page; the Get on Board, Remotive, Jobicy and Himalayas job boards; elempleo public listings.
-- **Email alerts (optional):** reads the job alerts that LinkedIn, CompuTrabajo, Indeed and elempleo send to your Gmail, with a read-only permission. Application confirmations from those sites mark the job as applied.
+- **Email alerts (optional):** reads the job alerts that LinkedIn, CompuTrabajo, Indeed, elempleo and Torre send to your Gmail, with a read-only permission. Application confirmations from those sites mark the job as applied.
 - **Filters with a reason:** role families (IT support, data), seniority, location and hard blockers such as security clearance. Every discarded job keeps the reason, and you can bring it back.
 - **Duplicate detection** across sources, plus a warning when an open job looks like one you already applied to.
 - **Newest first:** each job shows when it was posted, the panel can show only the last 24 hours, and the daily report opens with them. LinkedIn's suggestions, which can be months old, are marked. One click opens LinkedIn's own search for the last 24 hours in your browser, in your country or remote across Latin America. Nothing older than 30 days stays in your lists.

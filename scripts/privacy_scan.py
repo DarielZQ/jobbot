@@ -29,6 +29,7 @@ ALLOWED_EMAIL_DOMAINS = (
     "computrabajo.com",
     "elempleo.com",
     "correoelempleo.com",
+    "torre.ai",
     "users.noreply.github.com",
 )
 # The local part starts with a letter or digit: "+@pytest.mark" in a diff is not an address.

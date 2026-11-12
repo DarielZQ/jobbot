@@ -477,7 +477,9 @@ def build_parser() -> argparse.ArgumentParser:
         "alerts-sample", help="Guardar correos de alerta recientes y probar el lector"
     )
     sample.add_argument(
-        "--feed", choices=["linkedin", "computrabajo", "indeed", "elempleo"], default="linkedin"
+        "--feed",
+        choices=["linkedin", "computrabajo", "indeed", "elempleo", "torre"],
+        default="linkedin",
     )
     sample.add_argument("--limit", type=int, default=1)
     sample.set_defaults(func=cmd_alerts_sample)

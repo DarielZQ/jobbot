@@ -94,6 +94,7 @@ def build_sources(targets: Targets, client: HttpClient) -> list[Source]:
                         lookback_days=alerts.lookback_days,
                         max_messages=alerts.max_messages,
                         default_location=feed.default_location,
+                        remote_scope=feed.remote_scope,
                     )
                 )
         if alerts.confirmations:  # last: it can mark jobs the alert feeds just listed

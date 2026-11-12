@@ -204,6 +204,9 @@ class EmailAlertFeed(BaseModel):
     query: str = Field(description="Gmail search, e.g. from:(jobalerts-noreply@linkedin.com)")
     # Used when the email does not say where the job is (the alert was set up for one place).
     default_location: str = ""
+    # What a bare "Remote" means in this feed, e.g. "Worldwide" for a site that only sends jobs
+    # it matched to the candidate's country (Torre)
+    remote_scope: str = ""
 
 
 class EmailAlertsTarget(BaseModel):
@@ -217,6 +220,7 @@ class EmailAlertsTarget(BaseModel):
     computrabajo: EmailAlertFeed | None = None
     indeed: EmailAlertFeed | None = None
     elempleo: EmailAlertFeed | None = None
+    torre: EmailAlertFeed | None = None
     # Gmail query per site whose application confirmations mark jobs as applied (ADR-018)
     confirmations: dict[str, str] = Field(default_factory=dict)
 

@@ -114,6 +114,11 @@ email_alerts:
     # Las confirmaciones de postulación y de alerta creada no traen vacantes
     query: 'from:elempleo.com -subject:"Aplicaste exitosamente" -subject:"alerta creada"'
     default_location: "Costa Rica"
+  # Torre (torre.ai): activa en tu cuenta los correos diarios de vacantes (Preferences ->
+  # Notification settings) y quita los # de abajo. Torre filtra por tu país antes de mandarlas.
+  # torre:
+  #   query: 'from:(emma@torre.ai OR torre@torre.ai) -subject:"verification code" -subject:"ACTION REQUIRED"'
+  #   remote_scope: "Worldwide"
   # Confirmaciones de postulación: la vacante confirmada pasa a postulada (ADR-018).
   # elempleo no se incluye: su confirmación no dice a qué vacante se postuló.
   confirmations:

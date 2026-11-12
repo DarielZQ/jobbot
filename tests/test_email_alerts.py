@@ -20,6 +20,7 @@ from jobbot.discovery.email_alerts import (
     parse_computrabajo,
     parse_indeed,
     parse_linkedin,
+    parse_torre,
 )
 from jobbot.discovery.pipeline import run_source
 from jobbot.mail.gmail import GmailClient, MailMessage, access_token
@@ -193,6 +194,59 @@ def test_email_alert_source_prefers_version_with_company(conn, rules) -> None:
     (job,) = source.fetch()
 
     assert (job.title, job.company) == ("Analista de Soporte", "Empresa Dos")
+
+
+# --- Torre --------------------------------------------------------------------------------------
+
+
+def test_torre_match_email_is_one_job_with_its_short_link() -> None:
+    message = _message(html=_fixture("email_torre_match.html"))
+
+    (job,) = parse_torre(message, "email:torre", "Costa Rica")  # the signature list is skipped
+
+    assert (job.ats, job.ats_job_id) == ("torre", "AbC123xyz")
+    assert (job.title, job.company, job.location) == (
+        "IT Support Specialist",
+        "Acme Remote",
+        "Remote",
+    )
+    assert job.url == "https://torre.ai/s/AbC123xyz"
+    assert job.remote
+    assert "USD 12 - 18/hour" in job.description and "Microsoft 365" in job.description
+
+
+def test_torre_alert_card_reads_title_company_rows_and_details_link(rules) -> None:
+    message = _message(html=_fixture("email_torre_alert.html"))
+
+    (job,) = parse_torre(message, "email:torre", "")
+
+    assert (job.ats_job_id, job.url) == ("Job7Card1", "https://torre.ai/s/Job7Card1")
+    assert (job.title, job.company, job.location) == (
+        "Analista de Soporte TI",
+        "Globex Soporte",
+        "Heredia, Costa Rica",
+    )
+    assert not job.remote
+    assert "Match: 70-100%." in job.description and "CRC 500K - 650K /month" in job.description
+    assert rules.evaluate(job).ok
+
+
+def test_a_feed_remote_scope_makes_a_bare_remote_eligible(rules) -> None:
+    mail = FakeMail({"t": _message(html=_fixture("email_torre_match.html"))})
+    plain = EmailAlertSource("torre", mail, "from:emma@torre.ai", lookback_days=14, max_messages=5)
+    scoped = EmailAlertSource(
+        "torre",
+        mail,
+        "from:emma@torre.ai",
+        lookback_days=14,
+        max_messages=5,
+        remote_scope="Worldwide",
+    )
+
+    (unscoped,), (job,) = list(plain.fetch()), list(scoped.fetch())
+
+    assert rules.evaluate(unscoped).reason == "remote_region_unknown"  # English, bare "Remote"
+    assert job.location == "Remote - Worldwide" and rules.evaluate(job).ok
 
 
 # --- Source and pipeline ------------------------------------------------------------------------

@@ -1,6 +1,6 @@
 """Job alerts read from the candidate's own Gmail (ADR-005, ADR-012).
 
-Feeds: LinkedIn, CompuTrabajo, Indeed and elempleo. The bot never visits those sites: it only
+Feeds: LinkedIn, CompuTrabajo, Indeed, elempleo and Torre. The bot never visits those sites: it only
 reads alert emails they already sent, and lists the jobs for the candidate to apply manually
 (assisted mode).
 
@@ -18,7 +18,7 @@ from typing import Protocol
 from urllib.parse import unquote
 
 from jobbot.core.models import Job
-from jobbot.discovery.base import Source
+from jobbot.discovery.base import Source, scoped_remote
 from jobbot.mail.gmail import MailMessage
 from jobbot.matching.normalize import strip_accents
 
@@ -355,6 +355,105 @@ def parse_elempleo(message: MailMessage, source: str, default_location: str) -> 
     return jobs
 
 
+# --- Torre ------------------------------------------------------------------------------------
+# Two layouts, one job each so far (2026-11-12):
+# - "Emma of Torre.ai" (emma@): a list with title, company, "Job location: …", "Proficient in: …"
+#   and pay, then "Here's all the info: https://torre.ai/s/<code>".
+# - Job alerts from torre@: a card with the title and company as links, rows marked by icons
+#   (match, job type, pay, location) and a "View details" button.
+# The bot never opens those links (Torre's terms forbid crawling the site); the candidate does.
+
+TORRE_JOB = re.compile(r"https?://(?:www\.)?torre\.ai/(?:s|post)/([\w-]+)", re.I)
+_LIST = re.compile(r"<ul\b[^>]*>(.*?)</ul>", re.I | re.S)
+_ITEM = re.compile(r"<li\b[^>]*>(.*?)</li>", re.I | re.S)
+_TORRE_PLACE = re.compile(r"^job location:\s*", re.I)
+_TORRE_BUTTONS = {"view details", "apply through torre"}
+_TORRE_ROW = r'alt="{}"[\s\S]*?<td\b[^>]*cell-content[^>]*>([\s\S]*?)</td>'
+
+
+def parse_torre(message: MailMessage, source: str, default_location: str) -> list[Job]:
+    found = {job.ats_job_id: job for job in _torre_cards(message, source, default_location)}
+    for job in _torre_lists(message, source, default_location):
+        found.setdefault(job.ats_job_id, job)
+    return list(found.values())
+
+
+def _torre_job(
+    code: str, title: str, company: str, location: str, details: list[str], source: str
+) -> Job:
+    return Job(
+        source=source,
+        ats="torre",
+        ats_job_id=code,
+        company=company or "(Torre)",
+        title=title,
+        location=location,
+        url=f"https://torre.ai/s/{code}",
+        remote="remote" in location.lower() or "remoto" in location.lower(),
+        # Match, job type, skills asked for and pay, as the email gives them
+        description=" · ".join(d for d in details if d),
+    )
+
+
+def _torre_cards(message: MailMessage, source: str, default_location: str) -> list[Job]:
+    anchors = [
+        (m.start(), *pair)
+        for m, pair in zip(_ANCHOR.finditer(message.html), _anchors(message.html), strict=True)
+    ]
+    jobs = []
+    for start, href, text in anchors:
+        link = TORRE_JOB.search(href)
+        if not link or text.lower() != "view details":
+            continue
+        # The title is the earlier link to the same job; the company is the next link after it
+        before = [(s, h, t) for s, h, t in anchors if s < start and t]
+        titled = [
+            i
+            for i, (_, h, t) in enumerate(before)
+            if TORRE_JOB.search(h)
+            and TORRE_JOB.search(h).group(1) == link.group(1)
+            and t.lower() not in _TORRE_BUTTONS
+        ]
+        if not titled:
+            continue
+        title_at, title = before[titled[0]][0], before[titled[0]][2]
+        company = before[titled[0] + 1][2] if titled[0] + 1 < len(before) else ""
+        company = "" if company.lower() in _TORRE_BUTTONS else company
+        card = message.html[title_at:start]
+
+        def row(icon: str, card: str = card) -> str:
+            match = re.search(_TORRE_ROW.format(re.escape(icon)), card, re.I)
+            return _clean(match.group(1)) if match else ""
+
+        location = row("Marker icon") or default_location
+        jobs.append(
+            _torre_job(
+                link.group(1),
+                title,
+                company,
+                location,
+                [row("Star icon"), row("Briefcase icon"), row("Cash icon")],
+                source,
+            )
+        )
+    return jobs
+
+
+def _torre_lists(message: MailMessage, source: str, default_location: str) -> list[Job]:
+    jobs = []
+    for block in _LIST.finditer(message.html):
+        items = [_clean(item) for item in _ITEM.findall(block.group(1))]
+        place = next((item for item in items if _TORRE_PLACE.match(item)), None)
+        link = TORRE_JOB.search(message.html, block.end())
+        if place is None or link is None or len(items) < 2 or _TORRE_PLACE.match(items[0]):
+            continue
+        company = "" if _TORRE_PLACE.match(items[1]) else items[1]
+        location = _TORRE_PLACE.sub("", place) or default_location
+        details = [i for i in items[2:] if i is not place]
+        jobs.append(_torre_job(link.group(1), items[0], company, location, details, source))
+    return jobs
+
+
 # --- Source -----------------------------------------------------------------------------------
 
 PARSERS: dict[str, Parser] = {
@@ -362,6 +461,7 @@ PARSERS: dict[str, Parser] = {
     "computrabajo": parse_computrabajo,
     "indeed": parse_indeed,
     "elempleo": parse_elempleo,
+    "torre": parse_torre,
 }
 
 
@@ -377,6 +477,7 @@ class EmailAlertSource(Source):
         lookback_days: int,
         max_messages: int,
         default_location: str = "",
+        remote_scope: str = "",
     ) -> None:
         super().__init__(None)
         self.name = f"email:{feed}"
@@ -385,12 +486,16 @@ class EmailAlertSource(Source):
         self._query = f"({query}) newer_than:{lookback_days}d"
         self._max_messages = max_messages
         self._default_location = default_location
+        self._remote_scope = remote_scope
 
     def fetch(self) -> Iterable[Job]:
         # The same job shows up in several emails; some only carry a "Postúlate" button.
         best: dict[str, Job] = {}
         for message_id in self._mail.search(self._query, self._max_messages):
             for job in self._parser(self._mail.get(message_id), self.name, self._default_location):
+                if self._remote_scope:  # a bare "Remote" from a site that already filters
+                    location = scoped_remote(job.location, self._remote_scope)
+                    job = job.model_copy(update={"location": location})
                 current = best.get(job.ats_job_id)
                 best[job.ats_job_id] = job if current is None else _merge(current, job)
         yield from best.values()

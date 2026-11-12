@@ -255,4 +255,5 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
     - filtro "En español", con el idioma detectado del anuncio;
     - en Descartadas, solo lo del último `max_age_days` y el botón "Quitar de la lista". Columna `hidden`, migración 5; `rescreen` no toca las ocultas.
   - **Torre.ai no se lee:** sus términos prohíben recorrer y extraer el sitio, y su `robots.txt` bloquea la búsqueda. Las vías legítimas son su API para profesionales, con clave del usuario, o sus correos de alertas.
+  - **Actualización 2026-11-12:** se eligió el correo. El feed `email:torre` lee los correos de vacantes de Torre (`emma@torre.ai` y las alertas de `torre@torre.ai`). La opción `remote_scope` del feed, la misma de Greenhouse y Ashby, hace que su "Remote" sin país cuente como elegible, porque Torre ya filtró por el país del candidato.
 - **Consecuencias:** la nota de "Remoto sin país" puede dejar pasar vacantes que en realidad son de otro país; por eso se marca. Las vacantes de correo sin fecha duran como máximo `max_age_days` desde que llegaron.

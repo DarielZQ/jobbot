@@ -50,6 +50,11 @@ email_alerts:
     # Excluye confirmaciones de postulación (indeedapply@) y códigos de inicio de sesión (login@)
     query: "from:indeed.com -from:indeedapply@indeed.com -from:login@indeed.com"
     default_location: ""
+  # Torre (torre.ai): activa en tu cuenta los correos diarios de vacantes (Preferences ->
+  # Notification settings) y quita los # de abajo. Torre filtra por tu país antes de mandarlas.
+  # torre:
+  #   query: 'from:(emma@torre.ai OR torre@torre.ai) -subject:"verification code" -subject:"ACTION REQUIRED"'
+  #   remote_scope: "Worldwide"
   confirmations:
     linkedin: 'from:jobs-noreply@linkedin.com subject:"se ha enviado tu solicitud"'
     indeed: "from:indeedapply@indeed.com"
