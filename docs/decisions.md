@@ -221,3 +221,13 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - Remote.com no se agrega: su lista no dice el país, así que no se puede saber cuáles son para Costa Rica.
   - Civo no se agrega.
 - **Consecuencias:** las tres APIs son gratuitas y públicas. Con empresas remotas grandes (GitLab tiene más de 250 vacantes), casi todo se descarta por título o ubicación. El valor es enterarse el día que abren algo para el perfil y el país.
+
+## ADR-022 — Portales iCIMS y empresas donde sirve cualquier puesto
+
+- **Fecha:** 2026-11-11.
+- **Contexto:** varias empresas con oficinas en Costa Rica publican solo en su portal iCIMS (`jobs-<empresa>.icims.com`), que no tiene API pública, pero sí una búsqueda pública que el `robots.txt` permite. Además, a veces lo que interesa es entrar a una empresa concreta, en el puesto que sea, y los filtros por familia de roles descartaban todo lo que no fuera de TI o datos.
+- **Decisión:**
+  - **Fuente nueva `icims`** (`discovery/icims.py`): lee la búsqueda del portal con `in_iframe=1`, página por página, filtrada por lo que el usuario copia de la URL (`search`). La ficha de cada vacante, con su JSON-LD (`datePosted`, `description`), se pide solo para las que pasan título y ubicación.
+  - **`any_role_companies`** en `search.yaml`: las vacantes de esas empresas pasan sin familia de roles. `title.exclude` (seniority), la ubicación y la descripción siguen aplicando. Quedan sin familia: el informe las agrupa en "Otras" y reciben el CV de la primera familia.
+  - Las empresas concretas viven en la configuración de cada usuario. Los presets traen las dos claves vacías.
+- **Consecuencias:** cuando cambie el formato del portal, la fuente deja de encontrar tarjetas sin dar error, así que conviene revisar la línea de la fuente en la salida de la búsqueda. El sitemap del portal (`/sitemap.xml`) es una alternativa si hace falta.

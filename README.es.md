@@ -10,7 +10,7 @@ Trae presets para Costa Rica (presencial, híbrido y remoto) y para trabajo remo
 
 ## Qué hace
 
-- **Descubre vacantes en fuentes públicas:** sitios de empleo de empresas en Workday, SAP SuccessFactors, Greenhouse, Lever, Ashby, Recruitee, Jibe y amazon.jobs, más la página de empleos de Deel; las bolsas Get on Board, Remotive, Jobicy y Himalayas; los listados públicos de elempleo.
+- **Descubre vacantes en fuentes públicas:** sitios de empleo de empresas en Workday, SAP SuccessFactors, Greenhouse, Lever, Ashby, Recruitee, iCIMS, Jibe y amazon.jobs, más la página de empleos de Deel; las bolsas Get on Board, Remotive, Jobicy y Himalayas; los listados públicos de elempleo.
 - **Alertas por correo (opcional):** lee las alertas de empleo que LinkedIn, CompuTrabajo, Indeed y elempleo envían a tu Gmail, con permiso de solo lectura. Las confirmaciones de postulación de esos sitios marcan la vacante como postulada.
 - **Filtros con motivo:** familias de roles (soporte TI, datos), seniority, ubicación y requisitos excluyentes como autorización de seguridad. Cada vacante descartada guarda el motivo y puedes recuperarla.
 - **Detecta duplicados** entre fuentes y avisa si una vacante abierta se parece a una a la que ya postulaste.

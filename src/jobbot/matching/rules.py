@@ -60,6 +60,7 @@ class RuleSet:
         self._location_local_exclude = _compile(rules.location.local_exclude)
         self._remote_ok = _compile(rules.location.remote_ok)
         self._remote_reject = _compile(rules.location.remote_reject)
+        self._any_role = {normalize_text(c) for c in rules.any_role_companies}
 
     def classify(self, title: str) -> str | None:
         """Name of the first role family whose include matches and exclude does not."""
@@ -78,7 +79,9 @@ class RuleSet:
         """`seen_at`: when the job was first seen (now, unless given); freshness counts from it."""
         family = self.classify(job.title)
         if family is None:
-            return RuleResult(False, "title_not_target_role")
+            if normalize_text(job.company) not in self._any_role:
+                return RuleResult(False, "title_not_target_role")
+            family = ""  # any_role_companies: no family; the report lists it under "Otras"
         if hit := _first_match(self._title_exclude, normalize_text(job.title)):
             return RuleResult(False, f"title_excluded: {hit}", family)
 

@@ -44,6 +44,10 @@ amazon:
 recruitee:
   - { company: "GSB Solutions", subdomain: gsbsolutions1 }
 
+# iCIMS (portales jobs-<empresa>.icims.com, ADR-022): búsqueda pública, sin API. `search` es lo
+# que sigue a /jobs/search?ss=1& en la URL después de filtrar el portal por tu país.
+icims: []   # { company, host, search }
+
 # Get on Board: bolsa tech LATAM con API pública. Se filtra por seniority (search.yaml).
 getonboard:
   queries: ["soporte", "support", "help desk", "mesa de ayuda", "service desk", "infraestructura", "sysadmin", "redes", "analista de datos", "data analyst"]

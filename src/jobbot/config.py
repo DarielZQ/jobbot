@@ -90,6 +90,9 @@ class SearchRules(BaseModel):
     # A posting is fresh when it was posted less than this many hours ago (ADR-020)
     fresh_hours: float = 24
     role_families: dict[str, RoleFamily] = Field(default_factory=dict)
+    # Companies where any role will do: their jobs pass without a role family; title.exclude,
+    # location and description rules still apply (ADR-022)
+    any_role_companies: list[str] = Field(default_factory=list)
     title: TitleRules = TitleRules()
     description: DescriptionRules = DescriptionRules()
     location: LocationRules = LocationRules()
@@ -175,6 +178,13 @@ class ElempleoTarget(BaseModel):
     min_hours_between_runs: float = 12
 
 
+class ICimsTarget(BaseModel):
+    company: str
+    host: str = Field(description="e.g. jobs-<company>.icims.com")
+    # What follows /jobs/search?ss=1& once the portal is filtered, e.g. searchLocation=<id>-<Place>
+    search: str = ""
+
+
 class DeelTarget(BaseModel):
     # Its own careers page: every listed job with the countries it can be done from (ADR-021)
     url: str = "https://www.deel.com/careers/"
@@ -225,6 +235,7 @@ class Targets(BaseModel):
     successfactors: list[SuccessFactorsTarget] = Field(default_factory=list)
     amazon: list[AmazonTarget] = Field(default_factory=list)
     recruitee: list[RecruiteeTarget] = Field(default_factory=list)
+    icims: list[ICimsTarget] = Field(default_factory=list)
     getonboard: GetOnBoardTarget | None = None
     remotive: RemotiveTarget | None = None
     jobicy: JobicyTarget | None = None

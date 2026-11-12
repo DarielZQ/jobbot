@@ -26,6 +26,7 @@ from jobbot.discovery.email_alerts import PARSERS, EmailAlertSource
 from jobbot.discovery.getonboard import GetOnBoardSource
 from jobbot.discovery.greenhouse import GreenhouseSource
 from jobbot.discovery.himalayas import HimalayasSource
+from jobbot.discovery.icims import ICimsSource
 from jobbot.discovery.jibe import JibeSource
 from jobbot.discovery.jobicy import JobicySource
 from jobbot.discovery.lever import LeverSource
@@ -66,6 +67,7 @@ def build_sources(targets: Targets, client: HttpClient) -> list[Source]:
     sources += [SuccessFactorsSource(client, t) for t in targets.successfactors]
     sources += [AmazonSource(client, t) for t in targets.amazon]
     sources += [RecruiteeSource(client, t) for t in targets.recruitee]
+    sources += [ICimsSource(client, t) for t in targets.icims]
     if targets.getonboard:
         sources.append(GetOnBoardSource(client, targets.getonboard))
     if targets.remotive:

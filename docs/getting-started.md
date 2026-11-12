@@ -409,6 +409,7 @@ Los patrones son expresiones regulares que no distinguen mayúsculas ni tildes (
 | `role_families.<familia>.priority` | `primary` o `secondary`. Si un título encaja en dos familias, gana la principal |
 | `role_families.<familia>.cv` | Variante de CV de esa familia |
 | `role_families.<familia>.include` / `exclude` | El título debe coincidir con algún `include` y con ningún `exclude` |
+| `any_role_companies` | Empresas donde te sirve cualquier puesto: sus vacantes pasan sin familia (la seniority y la ubicación siguen aplicando) |
 | `title.exclude` | Exclusiones para todas las familias: seniority (Senior, Lead, Manager), nivel 3 o más, ventas |
 | `description.exclude` | Requisitos imposibles en la descripción (autorización de seguridad, ciudadanía de EE. UU.) |
 | `description.seniority` | Etiqueta de seniority que ponen Get on Board, Jobicy y Himalayas. Descarta la vacante, salvo que se haya publicado hace menos de `fresh_hours` |
@@ -455,6 +456,7 @@ Para agregar una empresa:
    - Contiene `boards.greenhouse.io/<token>` → agrégala bajo `greenhouse:` con ese token.
    - Contiene `jobs.lever.co/<slug>` → agrégala bajo `lever:` con ese slug.
    - Contiene `jobs.ashbyhq.com/<board>` → agrégala bajo `ashby:` con ese board.
+   - Contiene `icims.com` → **iCIMS**: filtra el portal por tu país y agrégala bajo `icims:`; ver [`docs/platforms/icims.md`](platforms/icims.md).
    - Si la empresa publica «Remote» sin país y contrata en cualquiera, agrega `remote_scope: "Worldwide"` (ver [`docs/platforms/greenhouse-lever.md`](platforms/greenhouse-lever.md)).
    - URLs tipo `/go/<nombre>/<id>/` → probablemente es **SuccessFactors**; ver [`docs/platforms/successfactors.md`](platforms/successfactors.md).
    - Otro sistema → abre un issue para proponer una fuente nueva.

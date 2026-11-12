@@ -131,6 +131,11 @@ role_families:
       - '\bdata\s+(privacy|protection)\b'
       - '\bdigitador\b'
 
+# Empresas donde te sirve cualquier puesto (ADR-022): sus vacantes pasan aunque el título no sea
+# de ninguna familia. Siguen aplicando title.exclude (seniority), la ubicación y la descripción.
+# Se escriben como el nombre de la empresa en targets.yaml, p. ej. ["Acme"].
+any_role_companies: []
+
 title:
   # Exclusiones globales: aplican a todas las familias
   exclude:

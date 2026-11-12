@@ -11,9 +11,11 @@ from jobbot.config import (
     AshbyTarget,
     DeelTarget,
     GreenhouseTarget,
+    ICimsTarget,
     LeverTarget,
     SuccessFactorsTarget,
     WorkdayTarget,
+    load_search_rules,
 )
 from jobbot.core import db
 from jobbot.core.models import Job
@@ -22,10 +24,12 @@ from jobbot.discovery.ashby import AshbySource
 from jobbot.discovery.base import Source
 from jobbot.discovery.deel import DeelSource
 from jobbot.discovery.greenhouse import GreenhouseSource
+from jobbot.discovery.icims import ICimsSource
 from jobbot.discovery.lever import LeverSource
 from jobbot.discovery.pipeline import run_source
 from jobbot.discovery.successfactors import SuccessFactorsSource
 from jobbot.discovery.workday import WorkdaySource, find_country_facet
+from jobbot.matching.rules import RuleSet
 
 WORKDAY = WorkdayTarget(
     company="Acme",
@@ -144,6 +148,71 @@ def test_deel_page_without_jobs_is_an_error(conn, rules, make_client) -> None:
     report = run_source(DeelSource(client, DeelTarget()), conn, rules)
 
     assert "ya no trae las vacantes" in report.error
+
+
+def _icims_client(make_client, requested: list[str]):
+    pages = {
+        name: (FIXTURES / f"{name}.html").read_text(encoding="utf-8")
+        for name in ("icims_search_p0", "icims_search_p1", "icims_job")
+    }
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        requested.append(str(request.url))
+        if "/jobs/search" in request.url.path:
+            # Past the last page the portal shows the last page again
+            page = "icims_search_p0" if request.url.params["pr"] == "0" else "icims_search_p1"
+            return httpx.Response(200, text=pages[page])
+        return httpx.Response(200, text=pages["icims_job"])
+
+    return make_client(handler)
+
+
+ICIMS = ICimsTarget(company="Acme", host="jobs-acme.icims.com", search="searchLocation=1-2-Place")
+
+
+def test_icims_reads_search_pages_until_nothing_is_new(make_client) -> None:
+    requested: list[str] = []
+    source = ICimsSource(_icims_client(make_client, requested), ICIMS)
+
+    jobs = list(source.fetch())
+
+    assert source.name == "icims:acme"
+    assert [(j.ats_job_id, j.title) for j in jobs] == [
+        ("acme:1201", "Service Desk Analyst L1"),
+        ("acme:1202", "Payroll Specialist"),
+        ("acme:1150", "Senior Accountant"),
+    ]
+    assert jobs[1].location == "CR-H-Costa Rica | CO-Bogotá"
+    assert jobs[0].url == "https://jobs-acme.icims.com/jobs/1201/service-desk-analyst-l1/job"
+    assert requested == [
+        "https://jobs-acme.icims.com/jobs/search?ss=1&searchLocation=1-2-Place&in_iframe=1&pr=0",
+        "https://jobs-acme.icims.com/jobs/search?ss=1&searchLocation=1-2-Place&in_iframe=1&pr=1",
+        "https://jobs-acme.icims.com/jobs/search?ss=1&searchLocation=1-2-Place&in_iframe=1&pr=2",
+    ]
+
+    detailed = source.enrich(jobs[0])
+    assert detailed.posted_at == datetime(2026, 11, 11, 5, tzinfo=UTC)
+    assert "escalate to tier 2" in detailed.description
+    assert requested[-1] == f"{jobs[0].url}?in_iframe=1"
+
+
+def test_any_role_companies_pass_without_a_family(make_client) -> None:
+    jobs = list(ICimsSource(_icims_client(make_client, []), ICIMS).fetch())
+    search = load_search_rules()
+    usual = RuleSet(search)
+    search.any_role_companies = ["ACME"]  # compared without case or accents
+    any_role = RuleSet(search)
+
+    assert [usual.evaluate(j).reason for j in jobs] == [
+        "",
+        "title_not_target_role",
+        "title_not_target_role",
+    ]
+    assert [(r.ok, r.reason, r.role_family) for r in map(any_role.evaluate, jobs)] == [
+        (True, "", "it_support"),
+        (True, "", ""),  # any role at that company
+        (False, "title_excluded: senior", ""),  # seniority still applies
+    ]
 
 
 def test_lever_source(load_fixture, make_client) -> None:
