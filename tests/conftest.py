@@ -34,6 +34,15 @@ def rules() -> RuleSet:
 
 
 @pytest.fixture
+def rules_any_age() -> RuleSet:
+    """The preset without its age limit, for fixtures with fixed past dates (the limit has
+    tests of its own)."""
+    search = load_search_rules()
+    search.max_age_days = 0
+    return RuleSet(search)
+
+
+@pytest.fixture
 def conn():
     connection = db.connect(":memory:")
     yield connection

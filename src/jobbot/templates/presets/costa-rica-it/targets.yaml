@@ -132,11 +132,11 @@ email_alerts:
 # botones del panel y enlaces del informe (ADR-020). JobBot no entra a LinkedIn: los abres tú en
 # tu navegador. Sin filtro de nivel, porque muchos reclutadores dejan «Intermedio-alto» por defecto.
 linkedin_searches:
-  geo_id: "101739942"   # Costa Rica en LinkedIn (el número de la URL al elegir el lugar)
-  keywords:
-    - help desk
-    - service desk
-    - IT support
-    - soporte técnico
-    - cloud support
-    - analista de datos
+  - label: "Costa Rica"
+    geo_id: "101739942"   # Costa Rica en LinkedIn (el número de la URL al elegir el lugar)
+    keywords: [help desk, service desk, IT support, soporte técnico, cloud support, analista de datos]
+  # Remoto en Latinoamérica, en español (ADR-023). `location` va como texto: LinkedIn lo resuelve.
+  - label: "Latinoamérica remoto"
+    location: "Latinoamérica"
+    remote_only: true
+    keywords: [soporte técnico, mesa de ayuda, soporte TI, analista de datos]

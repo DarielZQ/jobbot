@@ -145,7 +145,8 @@ def test_jobicy_follows_the_cursor(make_client) -> None:
     assert urls[1].endswith("&cursor=abc%3D%3D")
 
 
-def test_himalayas_source(load_fixture, make_client, rules) -> None:
+def test_himalayas_source(load_fixture, make_client, rules_any_age) -> None:
+    rules = rules_any_age
     urls: list[str] = []
     payload = load_fixture("himalayas_search.json")
 
@@ -175,7 +176,8 @@ def test_himalayas_source(load_fixture, make_client, rules) -> None:
     assert not rules.evaluate(senior).ok
 
 
-def test_recruitee_source(load_fixture, make_client, rules) -> None:
+def test_recruitee_source(load_fixture, make_client, rules_any_age) -> None:
+    rules = rules_any_age
     client = make_client(_serve(load_fixture("recruitee_offers.json")))
     target = RecruiteeTarget(company="Globex Soporte S.A.", subdomain="globex1")
     heredia, mexico = RecruiteeSource(client, target).fetch()

@@ -131,7 +131,9 @@ def test_workday_relative_ages() -> None:
     assert posted_on("Posted Today", RECEIVED) == RECEIVED
     assert posted_on("Posted Yesterday", RECEIVED) == RECEIVED - timedelta(days=1)
     assert posted_on("Posted 3 Days Ago", RECEIVED) == RECEIVED - timedelta(days=3)
-    assert posted_on("Posted 30+ Days Ago", RECEIVED) == RECEIVED - timedelta(days=30)
+    assert posted_on("Posted 30+ Days Ago", RECEIVED) == RECEIVED - timedelta(
+        days=31
+    )  # more than 30
     assert posted_on("Publicado hace 5 días", RECEIVED) == RECEIVED - timedelta(days=5)
     assert posted_on("Publicado hoy", RECEIVED) == RECEIVED
     assert posted_on("", RECEIVED) is None
@@ -153,7 +155,7 @@ def test_a_fresh_posting_passes_a_board_seniority_label(rules) -> None:
 
 
 def test_rescreen_judges_freshness_when_the_job_was_first_seen(conn, rules) -> None:
-    first_seen = datetime(2026, 10, 1, tzinfo=UTC)
+    first_seen = datetime.now(UTC) - timedelta(days=5)  # fresh then, not today
     job = _board_job(first_seen - timedelta(hours=2))
     db.insert_job(
         conn,
@@ -190,8 +192,10 @@ def test_posted_text() -> None:
 
 
 def test_linkedin_links_cover_the_last_fresh_hours_newest_first() -> None:
-    label, url = daily.linkedin_links()[0]
+    (group, links), *_ = daily.linkedin_links()
+    label, url = links[0]
 
+    assert group == "Costa Rica"
     assert label == "help desk"
     assert url.startswith("https://www.linkedin.com/jobs/search/?")
     assert parse_qs(urlparse(url).query) == {
@@ -227,7 +231,9 @@ def test_report_lists_fresh_jobs_first_once_with_age_notes_and_linkedin(conn) ->
     )
     _insert(conn, "suggested", "Help Desk Technician", recommended=True)
     pending = db.list_jobs(conn, status=Status.DISCOVERED)
-    links = [("help desk", "https://www.linkedin.com/jobs/search/?keywords=help+desk")]
+    links = [
+        ("Costa Rica", [("help desk", "https://www.linkedin.com/jobs/search/?keywords=help+desk")])
+    ]
 
     page = daily.render_report(pending, [], pending, {}, datetime.now(), linkedin=links)
 
@@ -270,4 +276,4 @@ def test_pending_view_sorts_by_posting_date_and_leaves_suggestions_last(conn) ->
     assert suggested["notes"] == ["Recomendada por LinkedIn, puede ser vieja"]
     page = summary(conn)
     assert page["fresh"] == 1 and page["fresh_hours"] == 24
-    assert page["linkedin"][0]["label"] == "help desk"
+    assert page["linkedin"][0]["links"][0]["label"] == "help desk"

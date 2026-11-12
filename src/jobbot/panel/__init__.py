@@ -26,10 +26,11 @@ from pathlib import Path
 from urllib.parse import parse_qs
 
 from jobbot import daily, paths
-from jobbot.config import load_search_rules
+from jobbot.config import load_search_rules, load_settings
 from jobbot.core import db
 from jobbot.core.db import JobRow
 from jobbot.core.http import HttpClient
+from jobbot.core.models import as_utc
 from jobbot.core.state import InvalidTransition, Status
 from jobbot.grill import signals
 from jobbot.matching.dedupe import applied_twins
@@ -60,6 +61,9 @@ ACTIONS: dict[str, Callable[[sqlite3.Connection, int], JobRow]] = {
     "reopen": db.reopen,
     "interview": lambda conn, job_id: db.set_outcome(conn, job_id, Status.INTERVIEW),
     "rejected": lambda conn, job_id: db.set_outcome(conn, job_id, Status.REJECTED),
+    # Descartadas: off the list once reviewed (ADR-023), and its undo
+    "hide": db.set_hidden,
+    "unhide": lambda conn, job_id: db.set_hidden(conn, job_id, hidden=False),
 }
 
 
@@ -93,9 +97,11 @@ def job_dict(
     where: str = "",
     twin: JobRow | None = None,
     fresh_hours: float = 24,
+    lang: str = "",
+    country: str = "",
 ) -> dict:
     """`new`: posted within `fresh_hours`, or first seen since `new_since` when the date is
-    unknown."""
+    unknown. `lang`: the posting's language ("es" | "en"). `country`: for the notes."""
     fresh = daily.is_fresh(row, fresh_hours)
     cv = None
     if advice is not None:
@@ -121,7 +127,13 @@ def job_dict(
         and (fresh or (row.posted_at is None and row.first_seen_at >= new_since)),
         "fresh": fresh,
         "posted": daily.posted_text(row),
-        "notes": daily.job_notes(row),
+        # What "Ordenar por fecha de publicación" sorts on: the posting date, else first seen
+        "posted_at": (
+            row.posted() or as_utc(datetime.fromisoformat(row.first_seen_at))
+        ).isoformat(),
+        "recommended": row.recommended,
+        "lang": lang,
+        "notes": daily.job_notes(row, country),
         "place": where,
         "cv": cv,
         # An opening already applied to under another source or location (applied_twins).
@@ -129,19 +141,36 @@ def job_dict(
     }
 
 
+def reviewable(row: JobRow, rules: RuleSet) -> bool:
+    """A discarded job worth a second look: not taken off the list, and not older than
+    `max_age_days` (posted or, without a date, first seen; ADR-023)."""
+    first_seen = datetime.fromisoformat(row.first_seen_at)
+    return not row.hidden and not rules.too_old(row.posted(), first_seen)
+
+
 def list_view(conn: sqlite3.Connection, view: str) -> list[dict]:
-    rows = [r for s in VIEWS[view] for r in db.list_jobs(conn, status=s, limit=5000)]
+    rows = [r for s in VIEWS[view] for r in db.list_jobs(conn, status=s, limit=100_000)]
     search_rules = load_search_rules()
-    if view == "pending":
-        rows = daily.by_freshness(rows, search_rules.fresh_hours)
-    else:  # latest change first
-        rows.sort(key=lambda r: r.updated_at, reverse=True)
-    advice = daily.resume_advice(conn, search_rules, rows) if view in _VIEWS_WITH_CV else {}
+    rules = RuleSet(search_rules)
+    if view == "skipped":
+        rows = [r for r in rows if reviewable(r, rules)]
+    # Newest posting first; the page can sort otherwise ("Ordenar por")
+    rows = daily.by_freshness(rows, search_rules.fresh_hours)
+    advice = daily.resume_advice(conn, search_rules, rows)
     twins = applied_twins(rows, db.applied_jobs(conn)) if view == "pending" else {}
     since = _since_24h()
-    rules = RuleSet(search_rules)
+    country = load_settings().region.country
     return [
-        job_dict(r, advice.get(r.id), since, place(r, rules), twins.get(r.id), rules.fresh_hours)
+        job_dict(
+            r,
+            advice.get(r.id) if view in _VIEWS_WITH_CV else None,
+            since,
+            place(r, rules),
+            twins.get(r.id),
+            rules.fresh_hours,
+            advice[r.id].lang,
+            country,
+        )
         for r in rows
     ]
 
@@ -150,9 +179,12 @@ def summary(conn: sqlite3.Connection) -> dict:
     rules = load_search_rules()
     counts = db.count_by_status(conn)
     last = db.last_search_at(conn)
+    ruleset = RuleSet(rules)
+    skipped = db.list_jobs(conn, status=Status.SKIPPED, limit=100_000)
     return {
         "counts": {
             **{v: sum(counts.get(s, 0) for s in st) for v, st in VIEWS.items()},
+            "skipped": sum(1 for r in skipped if reviewable(r, ruleset)),
             "decisions": len(signals.pending(conn)),
         },
         "new": len(db.new_matches_since(conn, _since_24h())),
@@ -162,7 +194,10 @@ def summary(conn: sqlite3.Connection) -> dict:
         # Filter chips of the page, in search.yaml order
         "families": daily.family_labels(rules),
         # LinkedIn searches for the last fresh_hours: links the candidate opens (ADR-020)
-        "linkedin": [{"label": k, "url": u} for k, u in daily.linkedin_links(rules=rules)],
+        "linkedin": [
+            {"label": label, "links": [{"label": k, "url": u} for k, u in links]}
+            for label, links in daily.linkedin_links(rules=rules)
+        ],
     }
 
 

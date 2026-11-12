@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Literal
 
 import yaml
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from jobbot import paths
 
@@ -89,6 +89,9 @@ class LocationRules(BaseModel):
 class SearchRules(BaseModel):
     # A posting is fresh when it was posted less than this many hours ago (ADR-020)
     fresh_hours: float = 24
+    # Jobs posted (or, without a date, first seen) longer ago than this are discarded, also once
+    # they are pending; 0 = no limit (ADR-023)
+    max_age_days: int = 0
     role_families: dict[str, RoleFamily] = Field(default_factory=dict)
     # Companies where any role will do: their jobs pass without a role family; title.exclude,
     # location and description rules still apply (ADR-022)
@@ -222,9 +225,11 @@ class LinkedInSearches(BaseModel):
     """Links to LinkedIn's own job search, last `fresh_hours`, newest first (ADR-020). JobBot
     never opens them: the candidate does, in their browser (ADR-005)."""
 
+    label: str = ""  # shown before the buttons, e.g. "Latinoamérica remoto"; the place if empty
     keywords: list[str] = Field(default_factory=list)
     geo_id: str = ""  # LinkedIn's id for the place, e.g. 101739942 (Costa Rica)
     location: str = ""  # from `region.country` unless set here
+    remote_only: bool = False  # LinkedIn's "En remoto" filter (ADR-023)
 
 
 class Targets(BaseModel):
@@ -244,7 +249,13 @@ class Targets(BaseModel):
     deel: DeelTarget | None = None
     jibe: list[JibeTarget] = Field(default_factory=list)
     email_alerts: EmailAlertsTarget | None = None
-    linkedin_searches: LinkedInSearches | None = None
+    # One group of buttons per entry; a single mapping (the first format) is one group
+    linkedin_searches: list[LinkedInSearches] = Field(default_factory=list)
+
+    @field_validator("linkedin_searches", mode="before")
+    @classmethod
+    def _one_or_many(cls, value: object) -> object:
+        return [value] if isinstance(value, dict) else value or []
 
 
 resolve = paths.resolve
@@ -290,6 +301,6 @@ def with_region(targets: Targets, region: Region) -> Targets:
         _fill(targets.jobicy, geo=region.country_slug)
     if targets.himalayas:
         _fill(targets.himalayas, country=region.country, utc_offset=region.utc_offset)
-    if targets.linkedin_searches:
-        _fill(targets.linkedin_searches, location=region.country)
+    for searches in targets.linkedin_searches:
+        _fill(searches, location=region.country)
     return targets

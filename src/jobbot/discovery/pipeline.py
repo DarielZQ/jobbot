@@ -36,7 +36,7 @@ from jobbot.discovery.successfactors import SuccessFactorsSource
 from jobbot.discovery.workday import WorkdaySource
 from jobbot.mail.gmail import GmailClient, access_token
 from jobbot.matching.dedupe import dedupe_key
-from jobbot.matching.rules import RuleSet
+from jobbot.matching.rules import TOO_OLD, RuleResult, RuleSet
 
 # Network errors, malformed JSON (ValueError) and malformed XML feeds.
 FETCH_ERRORS = (httpx.HTTPError, ValueError, ET.ParseError)
@@ -117,6 +117,9 @@ def rescreen(conn: sqlite3.Connection, rules: RuleSet) -> Counter[str]:
     changes: Counter[str] = Counter()
     for job_id, status, reason, job, seen_at in db.screenable_jobs(conn):
         result = rules.evaluate(job, seen_at)
+        if result.ok and rules.too_old(job.posted_at, seen_at):  # undated: since first seen
+            days = rules.age_days(job.posted_at, seen_at)
+            result = RuleResult(False, f"{TOO_OLD}: {days} días", result.role_family)
         if result.ok and status is Status.SKIPPED:
             key = dedupe_key(job)
             original = db.find_by_dedupe_key(conn, key)
@@ -134,6 +137,22 @@ def rescreen(conn: sqlite3.Connection, rules: RuleSet) -> Counter[str]:
                 )
             changes["reason_updated"] += 1
     return changes
+
+
+def expire_old(conn: sqlite3.Connection, rules: RuleSet) -> int:
+    """Open jobs that grew older than `max_age_days` go to Descartadas (ADR-023): posted that
+    long ago or, without a date, first seen that long ago. Jobs reopened by hand stay."""
+    if not rules.max_age_days:
+        return 0
+    expired = 0
+    for row in db.list_jobs(conn, status=Status.DISCOVERED, limit=100_000):
+        first_seen = datetime.fromisoformat(row.first_seen_at)
+        if row.status_reason == db.REOPENED_MANUALLY or not rules.too_old(row.posted(), first_seen):
+            continue
+        days = rules.age_days(row.posted(), first_seen)
+        db.set_status(conn, row.id, Status.SKIPPED, f"{TOO_OLD}: {days} días", row.role_family)
+        expired += 1
+    return expired
 
 
 def _complete_details(

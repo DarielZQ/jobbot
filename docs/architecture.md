@@ -220,6 +220,7 @@ Tabla `jobs` (una fila por vacante y fuente):
 | `first_seen_at`, `last_seen_at`, `updated_at` | UTC ISO-8601 |
 | `posted_approx` | `posted_at` sale de una edad relativa (Workday) o de la fecha del correo de una alerta de LinkedIn; migración 4 (ADR-020) |
 | `recommended` | Sugerida por LinkedIn fuera de las alertas guardadas: puede ser vieja; migración 4 |
+| `hidden` | Descartada que el usuario quitó de la lista; `rescreen` no la toca; migración 5 (ADR-023) |
 
 Migración 3 (ADR-019):
 

@@ -5,6 +5,10 @@
 # panel, primera sección del informe y búsquedas de LinkedIn (ADR-020).
 fresh_hours: 24
 
+# Días máximos desde la publicación (o, sin fecha, desde que JobBot la vio). Lo más viejo se
+# descarta al llegar, y las pendientes que pasen el límite van a Descartadas (ADR-023). 0 = sin límite.
+max_age_days: 30
+
 # Familias de roles (ADR-009). El título debe coincidir con el `include` de alguna familia y con
 # ninguno de su `exclude`. Se evalúan en orden: primero las `primary`. `cv` es el prefijo del PDF
 # en profile/resumes/ (<cv>_<es|en>.pdf) y `label`, el nombre que muestran el informe y el panel.
@@ -170,5 +174,7 @@ location:
   # Remoto aceptado solo si es elegible desde tu país (agrega el nombre de tu país)
   remote_ok:
     - '\b(latam|latin america|americas|anywhere|worldwide|global)\b'
+    # Lo mismo en español (ADR-023)
+    - '\b(latinoamerica|america latina|cualquier pais|todo el mundo|desde cualquier lugar)\b'
   remote_reject:
     - '\b(us only|usa only|united states only|must reside in the us|uk only|eu only)\b'

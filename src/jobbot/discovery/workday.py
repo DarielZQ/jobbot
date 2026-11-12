@@ -25,14 +25,15 @@ _DAYS = re.compile(r"\b(\d+)\b")
 
 def posted_on(text: str, now: datetime) -> datetime | None:
     """The day of a relative age: "Posted Today", "Posted Yesterday", "Posted 3 Days Ago",
-    "Posted 30+ Days Ago" (30 or more), or the same in Spanish ("Publicado hace 3 días")."""
+    "Posted 30+ Days Ago" (more than 30: read as 31, past a 30-day limit), or the same in
+    Spanish ("Publicado hace 3 días")."""
     folded = normalize_text(text)
     if "today" in folded or "hoy" in folded:
         days = 0
     elif "yesterday" in folded or "ayer" in folded:
         days = 1
     elif match := _DAYS.search(folded):
-        days = int(match.group(1))
+        days = int(match.group(1)) + ("+" in folded)
     else:
         return None
     return now - timedelta(days=days)

@@ -205,17 +205,20 @@ Se abre en tu navegador, en `http://127.0.0.1:8765`. Solo funciona en tu computa
 | **Postuladas** | A las que ya postulaste | **Me llamaron**, **Rechazo / sin respuesta**, **Deshacer** |
 | **Entrevistas** | Empresas que te llamaron | **Rechazo** |
 | **Cerradas** | Rechazos o sin respuesta | |
-| **Descartadas** | Lo que filtró JobBot o descartaste tú, con el motivo | **Volver a pendientes** |
+| **Descartadas** | Lo que filtró JobBot o descartaste tú en el último mes (`max_age_days`), con el motivo | **Volver a pendientes**, **Quitar de la lista** |
 | **Decisiones** | Preguntas cortas de JobBot sobre tu búsqueda (ver abajo) | Una por opción |
 
 - **Postular:** el título abre la vacante. "CV a subir" abre el PDF recomendado y **copiar ruta** copia su ubicación: en la ventana de subir archivo del sitio, pega con Ctrl+V y Enter.
 - **"Ya postulaste: #N":** aparece si una vacante abierta se parece a una a la que ya postulaste (misma empresa y título desde otra fuente o ubicación).
 - **Buscar ahora:** busca en todas las fuentes en ese momento y muestra el avance.
-- **Filtros:** por familia de roles; **100 % remoto** o **Nacionales** (presencial o híbrido en tu país); **Últimas 24 h** (solo las publicadas hace poco); y una búsqueda por puesto, empresa o lugar que no distingue tildes.
+- **Filtros:** por familia de roles; **100 % remoto** o **Nacionales** (presencial o híbrido en tu país); **Últimas 24 h** (solo las publicadas hace poco); **En español** (anuncios escritos en español); y una búsqueda por puesto, empresa o lugar que no distingue tildes.
 - **Fecha de publicación:** cada vacante dice "publicada hace X". Con "~", la fecha es aproximada: Workday solo da una edad ("hace 3 días") y en las alertas de LinkedIn se usa la fecha del correo. Indeed y CompuTrabajo por correo no traen fecha: "fecha de publicación desconocida".
 - **"Nueva":** publicada en las últimas 24 h (`fresh_hours`). Si la fecha es desconocida, vista por primera vez en las últimas 24 h.
 - **"Recomendada por LinkedIn, puede ser vieja":** llegó en un correo de LinkedIn que no es de tus alertas guardadas (empleos similares, sugerencias bajo una confirmación). Mira la fecha en el anuncio antes de postular. Estas van al final de la lista.
 - **"La bolsa la marca senior":** Get on Board, Jobicy o Himalayas la etiquetaron senior, pero se publicó hace poco y el título no lo dice, así que pasa igual. Lee los requisitos y decide.
+- **Ordenar por:** fecha de publicación (por defecto: lo más nuevo primero), cuándo la vio JobBot o empresa. El panel recuerda tu elección.
+- **"Remoto sin país: confirma que acepten…":** el anuncio está en español y dice solo "Remoto". Suele estar abierto a toda la región, pero no siempre: confírmalo antes de postular.
+- **Quitar de la lista:** en Descartadas, saca para siempre una vacante que ya revisaste (con **Deshacer** unos segundos). Una nueva búsqueda o un cambio de filtros no la vuelve a traer.
 - **Buscar en LinkedIn, últimas 24 h:** botones que abren en tu navegador la búsqueda de LinkedIn de cada palabra clave, solo con lo publicado en las últimas 24 h y lo más nuevo primero. JobBot no entra a LinkedIn: solo arma el enlace. Las palabras clave están en `targets.yaml: linkedin_searches`.
 - **Si te equivocas:** después de cada acción aparece **Deshacer** durante unos segundos.
 - **Cierre:** el panel se apaga solo 10 minutos después de que cierres la pestaña. Si la página dice que se cerró, ábrelo de nuevo.
@@ -413,6 +416,7 @@ Los patrones son expresiones regulares que no distinguen mayúsculas ni tildes (
 | `title.exclude` | Exclusiones para todas las familias: seniority (Senior, Lead, Manager), nivel 3 o más, ventas |
 | `description.exclude` | Requisitos imposibles en la descripción (autorización de seguridad, ciudadanía de EE. UU.) |
 | `description.seniority` | Etiqueta de seniority que ponen Get on Board, Jobicy y Himalayas. Descarta la vacante, salvo que se haya publicado hace menos de `fresh_hours` |
+| `max_age_days` | Días máximos desde la publicación (o, sin fecha, desde que JobBot la vio). Lo más viejo se descarta al llegar y las pendientes que pasan el límite van a Descartadas. 0 = sin límite |
 | `fresh_hours` | Horas para que una vacante cuente como reciente (24): filtro **Últimas 24 h**, sección del informe y búsquedas de LinkedIn |
 | `location.local` | Lugares donde aceptas presencial o híbrido |
 | `location.local_exclude` | Lugares dentro de esa zona que no aceptas |

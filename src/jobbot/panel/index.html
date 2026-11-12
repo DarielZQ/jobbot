@@ -52,6 +52,8 @@
   .filters { display:flex; gap:8px; align-items:center; margin:12px 0; flex-wrap:wrap; }
   .chips button { padding:4px 10px; font-size:13px; border-radius:14px; }
   .chips button.on { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
+  select { font:inherit; font-size:13px; margin-left:4px; padding:4px 6px; border:1px solid var(--line);
+           border-radius:6px; background:var(--card); color:var(--fg); }
   input[type=search] { flex:1; min-width:180px; font:inherit; font-size:14px; padding:6px 10px;
                        border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--fg); }
   ul.jobs { list-style:none; margin:0; padding:0; background:var(--card); border:1px solid var(--line); border-radius:8px; }
@@ -123,7 +125,15 @@
     </div>
     <div class="chips">
       <button id="fresh" title="Solo las publicadas hace poco (las de fecha desconocida no entran)">Últimas 24 h</button>
+      <button id="spanish" title="Solo los anuncios escritos en español">En español</button>
     </div>
+    <label class="small muted">Ordenar por
+      <select id="sort" aria-label="Ordenar por">
+        <option value="posted">fecha de publicación</option>
+        <option value="seen">cuándo la vio JobBot</option>
+        <option value="company">empresa</option>
+      </select>
+    </label>
     <input type="search" id="q" placeholder="Buscar por puesto, empresa o lugar" aria-label="Buscar">
   </div>
   <div class="linkedin" id="linkedin" hidden></div>
@@ -146,19 +156,23 @@ const REASONS = {
   remote_not_eligible: "remoto no elegible desde tu país",
   remote_region_unknown: "remoto sin región clara",
   not_interested: "no te interesó",
+  too_old: "publicada hace más de un mes",
 };
-const UNDO = { applied: "undo_applied", not_interested: "reopen" };
+const UNDO = { applied: "undo_applied", not_interested: "reopen", hide: "unhide" };
 const DONE_TEXT = {
   applied: "Marcada como postulada", undo_applied: "Vuelve a pendientes",
   not_interested: "Descartada", reopen: "Vuelve a pendientes",
   interview: "Marcada como entrevista", rejected: "Marcada como cerrada",
+  hide: "Quitada de la lista", unhide: "De vuelta en Descartadas",
 };
 
 const PLACES = { remote: "100 % remoto", national: "Nacional", abroad: "Otro país" };
-const state = { view: "pending", family: "", place: "", fresh: false, freshHours: 24, linkedin: [], query: "", jobs: [], decisions: [], shown: PAGE, polling: null, wasRunning: false };
+const state = { view: "pending", family: "", place: "", fresh: false, spanish: false, sort: "posted", freshHours: 24, linkedin: [], query: "", jobs: [], decisions: [], shown: PAGE, polling: null, wasRunning: false };
 try {
   state.view = localStorage.getItem("jobbot.view") || "pending";
   state.family = localStorage.getItem("jobbot.family") || "";
+  state.spanish = localStorage.getItem("jobbot.spanish") === "1";
+  state.sort = localStorage.getItem("jobbot.sort") || "posted";
   state.place = localStorage.getItem("jobbot.place") || "";
   state.fresh = localStorage.getItem("jobbot.fresh") === "1";
 } catch (e) { /* storage blocked: defaults */ }
@@ -262,8 +276,11 @@ function actionsFor(job, row) {
     }
     case "interview":
       return [button("Rechazo", "rejected")];
-    case "skipped":
-      return job.reason.startsWith("duplicate_of") ? [] : [button("Volver a pendientes", "reopen")];
+    case "skipped": {
+      // Reviewed and not for you: off the list for good (Deshacer brings it back)
+      const hide = button("Quitar de la lista", "hide");
+      return job.reason.startsWith("duplicate_of") ? [hide] : [button("Volver a pendientes", "reopen", "ok"), hide];
+    }
     default:
       return [];
   }
@@ -326,13 +343,23 @@ function row(job) {
   return li;
 }
 
+const SORTS = {
+  // The server sends the newest posting first (fresh ones first, LinkedIn's suggestions last)
+  posted: null,
+  seen: (a, b) => b.first_seen.localeCompare(a.first_seen),
+  company: (a, b) => a.company.localeCompare(b.company, "es", { sensitivity: "base" }) || a.title.localeCompare(b.title, "es"),
+};
+
 function visibleJobs() {
   const query = fold(state.query);
-  return state.jobs.filter((job) =>
+  const jobs = state.jobs.filter((job) =>
     (!state.family || job.family === state.family) &&
     (!state.place || job.place === state.place) &&
     (!state.fresh || job.fresh) &&
+    (!state.spanish || job.lang === "es") &&
     (!query || fold(`${job.title} ${job.company} ${job.location}`).includes(query)));
+  const compare = SORTS[state.sort];
+  return compare ? jobs.sort(compare) : jobs;
 }
 
 const EMPTY = {
@@ -340,7 +367,7 @@ const EMPTY = {
   applied: "Todavía no has marcado postulaciones. En Pendientes, usa «Ya postulé».",
   interview: "Cuando te llamen de una empresa, márcalo en Postuladas con «Me llamaron».",
   closed: "Aquí quedan las postulaciones rechazadas o sin respuesta.",
-  skipped: "No hay vacantes descartadas.",
+  skipped: "No hay vacantes descartadas del último mes.",
 };
 
 function renderDecisions() {
@@ -376,10 +403,11 @@ function showLinkedIn() {
   const key = JSON.stringify([state.freshHours, state.linkedin]);
   if (bar.hidden || bar.dataset.key === key) return;
   bar.dataset.key = key;
-  bar.replaceChildren(`Buscar en LinkedIn, últimas ${state.freshHours} h: `,
-    ...state.linkedin.map(({ label, url }) => el("a", {
+  bar.replaceChildren(...state.linkedin.map((group) => el("div", {},
+    `Buscar en LinkedIn (${group.label}), últimas ${state.freshHours} h: `,
+    ...group.links.map(({ label, url }) => el("a", {
       href: url, target: "_blank", rel: "noopener noreferrer", title: "Se abre en tu navegador",
-    }, label)));
+    }, label)))));
 }
 
 function render() {
@@ -413,6 +441,9 @@ function render() {
   }
   $("fresh").textContent = `Últimas ${state.freshHours} h (${state.jobs.filter((job) => job.fresh).length})`;
   $("fresh").classList.toggle("on", state.fresh);
+  $("spanish").textContent = `En español (${state.jobs.filter((job) => job.lang === "es").length})`;
+  $("spanish").classList.toggle("on", state.spanish);
+  $("sort").value = state.sort;
 }
 
 async function load() {
@@ -523,6 +554,18 @@ $("fresh").addEventListener("click", () => {
   state.fresh = !state.fresh;
   state.shown = PAGE;
   try { localStorage.setItem("jobbot.fresh", state.fresh ? "1" : "0"); } catch (e) { /* ignore */ }
+  render();
+});
+$("spanish").addEventListener("click", () => {
+  state.spanish = !state.spanish;
+  state.shown = PAGE;
+  try { localStorage.setItem("jobbot.spanish", state.spanish ? "1" : "0"); } catch (e) { /* ignore */ }
+  render();
+});
+$("sort").addEventListener("change", (event) => {
+  state.sort = SORTS[event.target.value] !== undefined ? event.target.value : "posted";
+  state.shown = PAGE;
+  try { localStorage.setItem("jobbot.sort", state.sort); } catch (e) { /* ignore */ }
   render();
 });
 $("q").addEventListener("input", (event) => { state.query = event.target.value; state.shown = PAGE; render(); });

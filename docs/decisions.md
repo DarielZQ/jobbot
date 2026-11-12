@@ -231,3 +231,28 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - **`any_role_companies`** en `search.yaml`: las vacantes de esas empresas pasan sin familia de roles. `title.exclude` (seniority), la ubicación y la descripción siguen aplicando. Quedan sin familia: el informe las agrupa en "Otras" y reciben el CV de la primera familia.
   - Las empresas concretas viven en la configuración de cada usuario. Los presets traen las dos claves vacías.
 - **Consecuencias:** cuando cambie el formato del portal, la fuente deja de encontrar tarjetas sin dar error, así que conviene revisar la línea de la fuente en la salida de la búsqueda. El sitemap del portal (`/sitemap.xml`) es una alternativa si hace falta.
+
+## ADR-023 — Vacantes en español de la región y límite de un mes
+
+- **Fecha:** 2026-11-11.
+- **Contexto:** el candidato quiere vacantes en español de otros países de Latinoamérica que pueda hacer desde Costa Rica, y que nada de lo que puede postular tenga más de un mes. En 30 días JobBot vio 729 vacantes en español. Las 65 de sus familias descartadas por ubicación eran casi todas presenciales o "remoto, debes vivir en el país" en Chile, Colombia o Perú, así que estaba bien descartarlas. Pero había huecos:
+  - Los filtros no reconocían las regiones escritas en español.
+  - Una vacante en español que decía solo "Remoto" se descartaba.
+  - Las búsquedas de LinkedIn eran solo del país.
+  - Además, Descartadas mezclaba vacantes de meses atrás y no había forma de sacar de la lista las ya revisadas.
+- **Decisión:**
+  - **Regiones en español** en `location.remote_ok` de los presets: Latinoamérica, América Latina, cualquier país, todo el mundo.
+  - **"Remoto" sin lugar:** si el anuncio está en español, pasa con la nota `remote_no_country` ("Remoto sin país: confirma que acepten <país>"). En inglés sigue siendo `remote_region_unknown`.
+  - **`max_age_days`** en `search.yaml` (30 en los presets; 0 = sin límite):
+    - lo publicado antes se descarta al llegar (`too_old: N días`);
+    - en cada corrida, `expire_old` manda a Descartadas las pendientes que pasan el límite, contando desde que JobBot la vio si no tiene fecha;
+    - las reabiertas a mano no se tocan;
+    - `rescreen` aplica la misma regla;
+    - el "Posted 30+ Days Ago" de Workday cuenta como 31 días.
+  - **`linkedin_searches`** pasa a ser una lista de grupos, cada uno con `label` y opcionalmente `remote_only` (filtro "En remoto"). El preset de Costa Rica suma "Latinoamérica remoto" (`location: Latinoamérica`, palabras en español). Un bloque único sigue funcionando como un grupo.
+  - **Panel:**
+    - "Ordenar por" (fecha de publicación, cuándo la vio JobBot o empresa) en todas las pestañas;
+    - filtro "En español", con el idioma detectado del anuncio;
+    - en Descartadas, solo lo del último `max_age_days` y el botón "Quitar de la lista". Columna `hidden`, migración 5; `rescreen` no toca las ocultas.
+  - **Torre.ai no se lee:** sus términos prohíben recorrer y extraer el sitio, y su `robots.txt` bloquea la búsqueda. Las vías legítimas son su API para profesionales, con clave del usuario, o sus correos de alertas.
+- **Consecuencias:** la nota de "Remoto sin país" puede dejar pasar vacantes que en realidad son de otro país; por eso se marca. Las vacantes de correo sin fecha duran como máximo `max_age_days` desde que llegaron.

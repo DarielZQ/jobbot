@@ -59,8 +59,10 @@ email_alerts:
 # del informe (ADR-020). geo_id es el número que LinkedIn pone en la URL al elegir tu país; ver el
 # preset costa-rica-it.
 # linkedin_searches:
-#   geo_id: ""
-#   keywords: [help desk, service desk, IT support]
+#   - label: "Latinoamérica remoto"
+#     location: "Latinoamérica"
+#     remote_only: true
+#     keywords: [soporte técnico, mesa de ayuda, help desk]
 
 # Deel: su página de empleos trae cada vacante con los países desde donde se puede hacer; los
 # filtros dejan las de tu país (ADR-021). Una consulta cada 12 h. Quita el # para activarla.

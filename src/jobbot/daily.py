@@ -21,11 +21,11 @@ from jobbot.core.db import JobRow
 from jobbot.core.http import HttpClient
 from jobbot.core.models import as_utc, posted_within
 from jobbot.core.state import Status
-from jobbot.discovery.pipeline import SourceReport, build_sources, run_source
+from jobbot.discovery.pipeline import SourceReport, build_sources, expire_old, run_source
 from jobbot.grill import signals
 from jobbot.matching.dedupe import applied_twins
 from jobbot.matching.language import ResumeAdvice, recommend_resume
-from jobbot.matching.rules import FRESH_SENIORITY, RuleSet
+from jobbot.matching.rules import FRESH_SENIORITY, NOTE_SEPARATOR, REMOTE_NO_COUNTRY, RuleSet
 
 # PowerShell's own AppUserModelID: lets a script show toasts without registering an app.
 _TOAST_APP_ID = r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
@@ -68,13 +68,16 @@ def posted_text(row: JobRow, now: datetime | None = None) -> str:
     return f"publicada hace {age}"
 
 
-def job_notes(row: JobRow) -> list[str]:
-    """Warnings shown next to a job, in the panel and in the report (ADR-020)."""
+def job_notes(row: JobRow, country: str = "") -> list[str]:
+    """Warnings shown next to a job, in the panel and in the report (ADR-020, ADR-023)."""
     notes = []
     if row.recommended:
         notes.append("Recomendada por LinkedIn, puede ser vieja")
-    if row.status_reason.startswith(FRESH_SENIORITY):
-        notes.append("La bolsa la marca senior")
+    for note in row.status_reason.split(NOTE_SEPARATOR) if row.status != Status.SKIPPED else []:
+        if note.startswith(FRESH_SENIORITY):
+            notes.append("La bolsa la marca senior")
+        elif note == REMOTE_NO_COUNTRY:
+            notes.append(f"Remoto sin país: confirma que acepten {country or 'tu país'}")
     return notes
 
 
@@ -101,22 +104,28 @@ def fresh_pending(conn: sqlite3.Connection, rules: SearchRules | None = None) ->
     return by_freshness([j for j in pending if is_fresh(j, hours)], hours)
 
 
+LinkGroup = tuple[str, list[tuple[str, str]]]
+
+
 def linkedin_links(
     targets: Targets | None = None, rules: SearchRules | None = None
-) -> list[tuple[str, str]]:
-    """(keywords, url) of LinkedIn searches limited to the last `fresh_hours`, newest first.
-    Only links: the candidate opens them in their browser (ADR-005, ADR-020)."""
-    searches = (targets or load_targets()).linkedin_searches
-    if searches is None:
-        return []
+) -> list[LinkGroup]:
+    """(group label, [(keywords, url)]) of LinkedIn searches limited to the last `fresh_hours`,
+    newest first. Only links: the candidate opens them in their browser (ADR-005, ADR-020)."""
     seconds = int((rules or load_search_rules()).fresh_hours * 3600)
-    place = {"geoId": searches.geo_id, "location": searches.location}
-    links = []
-    for keywords in searches.keywords:
-        params = {"keywords": keywords, **{k: v for k, v in place.items() if v}}
-        params |= {"f_TPR": f"r{seconds}", "sortBy": "DD"}
-        links.append((keywords, f"https://www.linkedin.com/jobs/search/?{urlencode(params)}"))
-    return links
+    groups = []
+    for searches in (targets or load_targets()).linkedin_searches:
+        place = {"geoId": searches.geo_id, "location": searches.location}
+        links = []
+        for keywords in searches.keywords:
+            params = {"keywords": keywords, **{k: v for k, v in place.items() if v}}
+            if searches.remote_only:
+                params["f_WT"] = "2"  # LinkedIn's "Remote" filter
+            params |= {"f_TPR": f"r{seconds}", "sortBy": "DD"}
+            links.append((keywords, f"https://www.linkedin.com/jobs/search/?{urlencode(params)}"))
+        if links:
+            groups.append((searches.label or searches.location, links))
+    return groups
 
 
 def _cv_cell(advice: ResumeAdvice | None) -> str:
@@ -144,12 +153,15 @@ def family_labels(rules: SearchRules | None = None) -> dict[str, str]:
 
 
 def _table(
-    jobs: Sequence[JobRow], advice: Mapping[int, ResumeAdvice], twins: Mapping[int, JobRow]
+    jobs: Sequence[JobRow],
+    advice: Mapping[int, ResumeAdvice],
+    twins: Mapping[int, JobRow],
+    country: str = "",
 ) -> str:
     esc = html.escape
     rows = "\n".join(
         f'<tr><td class="muted">{j.id}</td><td><a href="{esc(j.url)}">{esc(j.title)}</a>'
-        f'<div class="age">{esc(" · ".join([posted_text(j), *job_notes(j)]))}</div>'
+        f'<div class="age">{esc(" · ".join([posted_text(j), *job_notes(j, country)]))}</div>'
         f"{_twin_note(twins.get(j.id))}</td>"
         f"<td>{esc(j.company)}</td><td>{esc(j.location)}</td>"
         f'<td class="cv">{_cv_cell(advice.get(j.id))}</td>'
@@ -167,6 +179,7 @@ def _family_tables(
     advice: Mapping[int, ResumeAdvice],
     twins: Mapping[int, JobRow] | None = None,
     labels: Mapping[str, str] | None = None,
+    country: str = "",
 ) -> list[str]:
     twins = twins or {}
     labels = family_labels() if labels is None else labels
@@ -178,7 +191,9 @@ def _family_tables(
         group = [j for j in jobs if (j.role_family or "") == family]
         if group:
             name = html.escape(labels.get(family) or family or "Otras")
-            tables.append(f"<h2>{name} ({len(group)})</h2>\n{_table(group, advice, twins)}")
+            tables.append(
+                f"<h2>{name} ({len(group)})</h2>\n{_table(group, advice, twins, country)}"
+            )
     return tables
 
 
@@ -193,12 +208,14 @@ def render_report(
     labels: Mapping[str, str] | None = None,
     decisions: int = 0,
     fresh_hours: float = 24,
-    linkedin: Sequence[tuple[str, str]] = (),
+    linkedin: Sequence[LinkGroup] = (),
+    country: str = "",
 ) -> str:
     """`pending`: every open job (new ones included). Empty `results` = regenerated offline.
     `twins`: open jobs that look like one already applied to (applied_twins).
     `decisions`: grill-me questions waiting for an answer.
-    `linkedin`: (keywords, url) of LinkedIn searches for the last `fresh_hours`.
+    `linkedin`: groups of LinkedIn searches for the last `fresh_hours` (linkedin_links).
+    `country`: the user's, for the note on remote jobs that name none.
     Open jobs posted within `fresh_hours` go first, in a section of their own."""
     esc = html.escape
     labels = family_labels() if labels is None else labels
@@ -209,10 +226,10 @@ def render_report(
     if fresh:
         body = (
             f"<h2>Publicadas en las últimas {fresh_hours:g} h ({len(fresh)})</h2>\n"
-            f"{_table(fresh, advice, twins)}\n"
+            f"{_table(fresh, advice, twins, country)}\n"
         )
     new_rest = [j for j in new_jobs if j.id not in fresh_ids]
-    body += "\n".join(_family_tables(new_rest, advice, twins, labels))
+    body += "\n".join(_family_tables(new_rest, advice, twins, labels, country))
     body = body or '<p class="empty">No hay vacantes nuevas que encajen.</p>'
 
     new_ids = {j.id for j in new_jobs}
@@ -222,7 +239,7 @@ def render_report(
         body += (
             f"\n<details{opened}><summary>Pendientes de postular de días anteriores "
             f"({len(older)})</summary>\n"
-            + "\n".join(_family_tables(older, advice, twins, labels))
+            + "\n".join(_family_tables(older, advice, twins, labels, country))
             + "\n</details>"
         )
 
@@ -239,11 +256,11 @@ def render_report(
         )
 
     searches = ""
-    if linkedin:
-        anchors = " · ".join(f'<a href="{esc(url)}">{esc(label)}</a>' for label, url in linkedin)
-        searches = (
-            f'<p class="links">Buscar en LinkedIn, publicadas en las últimas {fresh_hours:g} h '
-            f"(se abre en tu navegador): {anchors}</p>"
+    for label, links in linkedin:
+        anchors = " · ".join(f'<a href="{esc(url)}">{esc(kw)}</a>' for kw, url in links)
+        searches += (
+            f'<p class="links">Buscar en LinkedIn ({esc(label)}), publicadas en las últimas '
+            f"{fresh_hours:g} h (se abre en tu navegador): {anchors}</p>\n"
         )
 
     if results:
@@ -331,6 +348,7 @@ def write_report(
         len(signals.pending(conn)),
         rules.fresh_hours,
         linkedin_links(rules=rules),
+        load_settings().region.country,
     )
     reports_dir.mkdir(parents=True, exist_ok=True)
     if results:
@@ -358,6 +376,7 @@ def run_all(
         results.append((source.name, report))
         if on_result:
             on_result(source.name, report, len(results), len(sources))
+    expire_old(conn, ruleset)  # pending jobs that grew past max_age_days (ADR-023)
     signals.record_runs(conn, results)
     signals.refresh(conn)  # grill-me questions from what this run saw
     new_jobs = db.new_matches_since(conn, started)

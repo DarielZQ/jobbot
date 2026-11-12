@@ -4,21 +4,31 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from jobbot.config import RoleFamily, SearchRules
-from jobbot.core.models import Job, posted_within
+from jobbot.core.models import Job, as_utc, posted_within
+from jobbot.matching.language import detect_language
 from jobbot.matching.normalize import normalize_text
 
-# A fresh posting that a board's seniority label would have excluded (ADR-020): it passes with
-# this reason, so the panel can say why.
+# Notes on a job that passes, so the panel can say why (joined with NOTE_SEPARATOR):
+# a fresh posting a board's seniority label would have excluded (ADR-020), and a Spanish posting
+# that only says "Remoto" (ADR-023).
 FRESH_SENIORITY = "fresh_seniority"
+REMOTE_NO_COUNTRY = "remote_no_country"
+NOTE_SEPARATOR = "; "
+# Posted (or, without a date, first seen) more than `max_age_days` ago (ADR-023)
+TOO_OLD = "too_old"
+# "Remoto", "100% remoto", "Remote": remote with no place at all
+_BARE_REMOTE = re.compile(
+    r"^(?:100 |fully |full |trabajo |)?(?:remote|remoto|teletrabajo)(?: work| total| 100)?$"
+)
 
 
 @dataclass(frozen=True)
 class RuleResult:
     ok: bool
-    reason: str = ""  # why it was excluded; for one that passes, a note (FRESH_SENIORITY)
+    reason: str = ""  # why it was excluded; for one that passes, its notes
     role_family: str = ""
 
 
@@ -56,6 +66,7 @@ class RuleSet:
         self._description_exclude = _compile(rules.description.exclude)
         self._description_seniority = _compile(rules.description.seniority)
         self.fresh_hours = rules.fresh_hours
+        self.max_age_days = rules.max_age_days
         self._location_local = _compile(rules.location.local)
         self._location_local_exclude = _compile(rules.location.local_exclude)
         self._remote_ok = _compile(rules.location.remote_ok)
@@ -75,8 +86,21 @@ class RuleSet:
     def in_local_area(self, location: str) -> bool:
         return _first_match(self._location_local, normalize_text(location)) is not None
 
+    def age_days(self, posted_at: datetime | None, first_seen: datetime | None = None) -> int:
+        """Days since it was posted or, without a date, since it was first seen (0 if neither)."""
+        moment = posted_at or first_seen
+        return (datetime.now(UTC) - as_utc(moment)).days if moment else 0
+
+    def too_old(self, posted_at: datetime | None, first_seen: datetime | None = None) -> bool:
+        """Older than `max_age_days` today (no limit when it is 0)."""
+        moment = posted_at or first_seen
+        if not self.max_age_days or moment is None:
+            return False
+        return (datetime.now(UTC) - as_utc(moment)).total_seconds() > self.max_age_days * 86400
+
     def evaluate(self, job: Job, seen_at: datetime | None = None) -> RuleResult:
-        """`seen_at`: when the job was first seen (now, unless given); freshness counts from it."""
+        """`seen_at`: when the job was first seen (now, unless given); freshness counts from it.
+        Age always counts until today: a posting that grew too old is excluded on a rescreen."""
         family = self.classify(job.title)
         if family is None:
             if normalize_text(job.company) not in self._any_role:
@@ -84,20 +108,23 @@ class RuleSet:
             family = ""  # any_role_companies: no family; the report lists it under "Otras"
         if hit := _first_match(self._title_exclude, normalize_text(job.title)):
             return RuleResult(False, f"title_excluded: {hit}", family)
+        if self.too_old(job.posted_at):
+            return RuleResult(False, f"{TOO_OLD}: {self.age_days(job.posted_at)} días", family)
 
         location_result = self._evaluate_location(job)
         if not location_result.ok:
             return RuleResult(False, location_result.reason, family)
+        notes = [location_result.reason] if location_result.reason else []
 
         description = normalize_text(job.description)
         if hit := _first_match(self._description_exclude, description):
             return RuleResult(False, f"description_excluded: {hit}", family)
         if hit := _first_match(self._description_seniority, description):
-            if posted_within(job.posted_at, self.fresh_hours, seen_at):
-                return RuleResult(True, f"{FRESH_SENIORITY}: {hit}", family)
-            return RuleResult(False, f"description_excluded: {hit}", family)
+            if not posted_within(job.posted_at, self.fresh_hours, seen_at):
+                return RuleResult(False, f"description_excluded: {hit}", family)
+            notes.append(f"{FRESH_SENIORITY}: {hit}")
 
-        return RuleResult(True, role_family=family)
+        return RuleResult(True, NOTE_SEPARATOR.join(notes), family)
 
     def _evaluate_location(self, job: Job) -> RuleResult:
         location = normalize_text(job.location)
@@ -113,5 +140,10 @@ class RuleSet:
         if job.remote or "remote" in location or "remoto" in location:
             if _first_match(self._remote_ok, location):
                 return RuleResult(True)
+            # A Spanish posting that only says "Remoto" is often open to the whole region: it
+            # passes with a note to check the country (ADR-023). An English one does not.
+            bare = not location or _BARE_REMOTE.match(location)
+            if bare and detect_language(job.title, job.description) == "es":
+                return RuleResult(True, REMOTE_NO_COUNTRY)
             return RuleResult(False, "remote_region_unknown")
         return RuleResult(False, "location_not_target")

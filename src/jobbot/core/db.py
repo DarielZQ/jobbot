@@ -66,6 +66,8 @@ MIGRATIONS: list[str] = [
     ALTER TABLE jobs ADD COLUMN posted_approx INTEGER NOT NULL DEFAULT 0;
     ALTER TABLE jobs ADD COLUMN recommended INTEGER NOT NULL DEFAULT 0;
     """,
+    # ADR-023: discarded jobs the candidate already reviewed and took off the list
+    "ALTER TABLE jobs ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;",
 ]
 
 
@@ -86,6 +88,7 @@ class JobRow:
     posted_at: str | None = None
     posted_approx: bool = False
     recommended: bool = False
+    hidden: bool = False  # taken off the Descartadas list by the candidate
 
     def posted(self) -> datetime | None:
         return as_utc(datetime.fromisoformat(self.posted_at)) if self.posted_at else None
@@ -93,7 +96,7 @@ class JobRow:
 
 _ROW_COLUMNS = (
     "id, source, company, title, location, url, status, status_reason, role_family, "
-    "first_seen_at, updated_at, remote, posted_at, posted_approx, recommended"
+    "first_seen_at, updated_at, remote, posted_at, posted_approx, recommended, hidden"
 )
 # Reasons set by the candidate (`jobbot applied`, panel): `rescreen` never overrides them.
 APPLIED_MANUALLY = "applied_manually"
@@ -108,7 +111,7 @@ def _now() -> str:
 
 
 def _job_row(row: sqlite3.Row) -> JobRow:
-    flags = {name: bool(row[name]) for name in ("remote", "posted_approx", "recommended")}
+    flags = {name: bool(row[name]) for name in ("remote", "posted_approx", "recommended", "hidden")}
     return JobRow(**{**dict(row), "status": Status(row["status"]), **flags})
 
 
@@ -273,7 +276,7 @@ def screenable_jobs(conn: sqlite3.Connection) -> list[tuple[int, Status, str, Jo
     """
     rows = conn.execute(
         "SELECT * FROM jobs WHERE (status = ? OR (status = ? AND status_reason NOT LIKE ?)) "
-        "AND status_reason NOT IN (?, ?)",
+        "AND status_reason NOT IN (?, ?) AND hidden = 0",
         (
             Status.DISCOVERED.value,
             Status.SKIPPED.value,
@@ -394,6 +397,22 @@ def reopen(conn: sqlite3.Connection, job_id: int) -> JobRow:
     if job.status != Status.SKIPPED or job.status_reason.startswith("duplicate_of"):
         raise InvalidTransition(f"#{job_id} cannot be reopened ({job.status.value})")
     set_status(conn, job_id, Status.DISCOVERED, REOPENED_MANUALLY)
+    return get_job(conn, job_id)
+
+
+def set_hidden(conn: sqlite3.Connection, job_id: int, hidden: bool = True) -> JobRow:
+    """Take a discarded job off the Descartadas list (or put it back). `rescreen` leaves hidden
+    jobs alone, so a change of filters does not bring them back."""
+    job = get_job(conn, job_id)
+    if job is None:
+        raise KeyError(job_id)
+    if job.status != Status.SKIPPED:
+        raise InvalidTransition(f"#{job_id} is not discarded ({job.status.value})")
+    with conn:
+        conn.execute(
+            "UPDATE jobs SET hidden = ?, updated_at = ? WHERE id = ?",
+            (int(hidden), _now(), job_id),
+        )
     return get_job(conn, job_id)
 
 
