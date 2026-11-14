@@ -5,7 +5,7 @@ import pytest
 
 from conftest import make_job
 from jobbot.core import db
-from jobbot.core.http import HttpClient
+from jobbot.core.http import HttpClient, NotJsonError
 from jobbot.core.state import InvalidTransition, Status, check_transition
 from jobbot.matching.dedupe import applied_twins, dedupe_key
 from jobbot.matching.normalize import normalize_company, normalize_text, normalize_title
@@ -180,3 +180,34 @@ def test_http_client_gives_up_on_connection_errors_after_max_retries() -> None:
     with pytest.raises(httpx.ConnectError):
         client.get_json("https://example.com/jobs")
     assert calls == 3
+
+
+def test_http_client_explains_a_page_sent_instead_of_json() -> None:
+    # A site under maintenance answers 200 with an HTML page (Workday, 2026-11-14).
+    page = "<html><head><title>\n  Workday is currently unavailable\n</title></head></html>"
+    client = HttpClient(
+        transport=httpx.MockTransport(
+            lambda request: httpx.Response(200, text=page, headers={"Content-Type": "text/html"})
+        )
+    )
+    with pytest.raises(NotJsonError) as caught:
+        client.post_json("https://acme.wd5.myworkdayjobs.com/wday/cxs/acme/Ext/jobs", {})
+    message = str(caught.value)
+    assert "HTTP 200" in message
+    assert "text/html" in message
+    assert "«Workday is currently unavailable»" in message
+    assert "mantenimiento" in message
+    assert isinstance(caught.value, ValueError)  # callers that catch ValueError keep working
+
+
+def test_http_client_names_an_empty_answer_and_a_redirect_to_another_site() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.host == "acme.wd5.myworkdayjobs.com":
+            return httpx.Response(302, headers={"Location": "https://status.example.com/down"})
+        return httpx.Response(200, text="")
+
+    client = HttpClient(transport=httpx.MockTransport(handler))
+    with pytest.raises(NotJsonError) as caught:
+        client.get_json("https://acme.wd5.myworkdayjobs.com/wday/cxs/acme/Ext/jobs")
+    assert "respuesta vacía" in str(caught.value)
+    assert "redirigió a status.example.com" in str(caught.value)

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import time
 from collections.abc import Callable
 from typing import Any
@@ -19,6 +20,33 @@ RETRYABLE_ERRORS = (httpx.ConnectError, httpx.ConnectTimeout)
 # Google APIs (Gmail) answer some rate limits with 403 instead of 429. Other 403s (a site
 # blocking the bot, a missing permission) are final.
 GOOGLE_RATE_LIMITS = {"rateLimitExceeded", "userRateLimitExceeded", "RATE_LIMIT_EXCEEDED"}
+_TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.I | re.S)
+
+
+class NotJsonError(ValueError):
+    """A JSON API answered with something else: usually a maintenance page (Workday tenants
+    have Saturday windows, seen 2026-11-14) or an empty body. Says what came back."""
+
+    def __init__(self, response: httpx.Response) -> None:
+        super().__init__(_not_json_message(response))
+
+
+def _not_json_message(response: httpx.Response) -> str:
+    content_type = response.headers.get("Content-Type", "").split(";")[0].strip() or "sin tipo"
+    parts = [f"HTTP {response.status_code}", content_type]
+    if response.history and response.history[0].url.host != response.url.host:
+        parts.append(f"redirigió a {response.url.host}")
+    text = response.text
+    if not text.strip():
+        answer = "dio una respuesta vacía"
+    else:
+        answer = "respondió una página"
+        if (match := _TITLE.search(text)) and (title := " ".join(match.group(1).split())[:80]):
+            parts.append(f"«{title}»")
+    return (
+        f"el sitio {answer} en vez de datos ({', '.join(parts)}). Suele ser un mantenimiento "
+        "del sitio: se vuelve a consultar en la próxima corrida"
+    )
 
 
 def user_agent() -> str:
@@ -60,13 +88,13 @@ class HttpClient:
         self._client.close()
 
     def get_json(self, url: str, **kwargs: Any) -> Any:
-        return self.request("GET", url, **kwargs).json()
+        return _json(self.request("GET", url, **kwargs))
 
     def get_text(self, url: str, accept: str = "*/*", **kwargs: Any) -> str:
         return self.request("GET", url, headers={"Accept": accept}, **kwargs).text
 
     def post_json(self, url: str, payload: Any, **kwargs: Any) -> Any:
-        return self.request("POST", url, json=payload, **kwargs).json()
+        return _json(self.request("POST", url, json=payload, **kwargs))
 
     def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         host = urlsplit(url).netloc
@@ -94,6 +122,13 @@ class HttpClient:
         remaining = interval - (time.monotonic() - last)
         if remaining > 0:
             self._sleep(remaining)
+
+
+def _json(response: httpx.Response) -> Any:
+    try:
+        return response.json()
+    except ValueError as exc:
+        raise NotJsonError(response) from exc
 
 
 def _retryable(response: httpx.Response) -> bool:

@@ -13,7 +13,7 @@ import httpx
 
 from jobbot.config import Targets, resolve
 from jobbot.core import db
-from jobbot.core.http import HttpClient, error_detail
+from jobbot.core.http import HttpClient, NotJsonError, error_detail
 from jobbot.core.models import Job
 from jobbot.core.state import Status
 from jobbot.discovery.amazon import AmazonSource
@@ -175,6 +175,8 @@ def _complete_details(
 
 
 def _describe(exc: Exception) -> str:
+    if isinstance(exc, NotJsonError):
+        return f"Sin datos: {exc}"
     text = f"{type(exc).__name__}: {exc}"
     if isinstance(exc, httpx.HTTPStatusError) and (detail := error_detail(exc.response)):
         text += f" ({detail})"

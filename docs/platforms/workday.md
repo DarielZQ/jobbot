@@ -1,6 +1,6 @@
 # Workday
 
-**Última verificación:** 2026-10-27 · **Estado:** descubrimiento disponible (`discovery/workday.py`). La postulación la hace el usuario en el sitio de la empresa.
+**Última verificación:** 2026-11-14 · **Estado:** descubrimiento disponible (`discovery/workday.py`). La postulación la hace el usuario en el sitio de la empresa.
 
 ## Descubrimiento (sin login)
 
@@ -35,6 +35,9 @@ workday:
 - `total` solo es confiable en la primera página; se toma de ahí.
 - `locationsText` puede decir `"2 Locations"`: si se aplicó la faceta de país, se le agrega `| <país>`.
 - `bulletFields[0]` suele ser el ID de requisición; se usa como `ats_job_id` junto con el tenant.
-- `postedOn` da una edad relativa ("Posted Today", "Posted 3 Days Ago", "Posted 30+ Days Ago", o en español "Publicado hace 3 días"). `posted_on` la convierte en una fecha aproximada (ADR-020); "30+" queda como 30 días.
+- `postedOn` da una edad relativa ("Posted Today", "Posted 3 Days Ago", "Posted 30+ Days Ago", o en español "Publicado hace 3 días"). `posted_on` la convierte en una fecha aproximada (ADR-020); "30+" se lee como 31 días, fuera del límite de un mes.
 - Algunas empresas devuelven **422** o **404** cuando el `site` adivinado no es el correcto. Hay que copiar la URL real desde su página de empleos y probarla con `probe_workday.py`.
 - Algunas empresas no tienen faceta para el país: en ese caso se busca por texto con el nombre del país y deciden los filtros de ubicación.
+- **Mantenimiento:** cada empresa tiene su propia ventana. Suele caer en sábado, y la mensual o trimestral puede durar toda la mañana. Mientras dura, el endpoint redirige a `static.community.workday.com`, a una página titulada «Workday is currently unavailable.».
+  - JobBot lo reporta como «Sin datos: el sitio respondió una página en vez de datos», con el título de la página, y vuelve a consultar en la próxima corrida.
+  - Pasó el 2026-11-14 (segundo sábado del mes): a las 08:30, 16 de 18 empresas estaban en mantenimiento.

@@ -386,6 +386,17 @@ def test_pipeline_error_includes_the_api_explanation(conn, rules, make_client) -
     assert report.error.endswith("(Mail not enabled)")
 
 
+def test_pipeline_reports_a_maintenance_page_in_plain_words(conn, rules, make_client) -> None:
+    page = "<html><title>Workday is currently unavailable</title></html>"
+    client = make_client(
+        lambda _: httpx.Response(200, text=page, headers={"Content-Type": "text/html"})
+    )
+
+    report = run_source(WorkdaySource(client, WORKDAY), conn, rules)
+    assert report.error.startswith("Sin datos: el sitio respondió una página")
+    assert "JSONDecodeError" not in report.error
+
+
 def test_pipeline_reports_unexpected_errors_instead_of_stopping(conn, rules) -> None:
     class Odd(Source):
         name = "odd"
