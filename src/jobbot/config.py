@@ -234,6 +234,11 @@ class LinkedInSearches(BaseModel):
     geo_id: str = ""  # LinkedIn's id for the place, e.g. 101739942 (Costa Rica)
     location: str = ""  # from `region.country` unless set here
     remote_only: bool = False  # LinkedIn's "En remoto" filter (ADR-023)
+    # LinkedIn's experience-level filter (ADR-024): "internship" (Pasantía), "entry" (Sin
+    # experiencia), "associate" (Algo de responsabilidad)
+    experience: list[Literal["internship", "entry", "associate"]] = Field(default_factory=list)
+    # How far back, in hours; 0 = `fresh_hours`. Internships are few: a week (168) suits them.
+    hours: float = 0
 
 
 class Targets(BaseModel):

@@ -172,7 +172,7 @@ def test_jobs_carry_language_and_a_sortable_date(conn) -> None:
 
 
 def test_linkedin_has_a_remote_latin_america_group() -> None:
-    groups = dict(daily.linkedin_links())
+    groups = {group.label: group.links for group in daily.linkedin_links()}
     keywords, url = groups["Latinoamérica remoto"][0]
     query = parse_qs(urlparse(url).query)
 

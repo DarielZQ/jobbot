@@ -12,6 +12,7 @@ import subprocess
 from collections.abc import Callable, Mapping, Sequence
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import NamedTuple
 from urllib.parse import urlencode
 
 from jobbot import paths
@@ -25,7 +26,13 @@ from jobbot.discovery.pipeline import SourceReport, build_sources, expire_old, r
 from jobbot.grill import signals
 from jobbot.matching.dedupe import applied_twins
 from jobbot.matching.language import ResumeAdvice, recommend_resume
-from jobbot.matching.rules import FRESH_SENIORITY, NOTE_SEPARATOR, REMOTE_NO_COUNTRY, RuleSet
+from jobbot.matching.rules import (
+    ENROLLMENT_REQUIRED,
+    FRESH_SENIORITY,
+    NOTE_SEPARATOR,
+    REMOTE_NO_COUNTRY,
+    RuleSet,
+)
 
 # PowerShell's own AppUserModelID: lets a script show toasts without registering an app.
 _TOAST_APP_ID = r"{1AC14E77-02E7-4E5D-B744-2EB1AE5198B7}\WindowsPowerShell\v1.0\powershell.exe"
@@ -78,6 +85,8 @@ def job_notes(row: JobRow, country: str = "") -> list[str]:
             notes.append("La bolsa la marca senior")
         elif note == REMOTE_NO_COUNTRY:
             notes.append(f"Remoto sin país: confirma que acepten {country or 'tu país'}")
+        elif note.startswith(ENROLLMENT_REQUIRED):
+            notes.append("Pide estar matriculado: revisa si aceptan egresados")
     return notes
 
 
@@ -104,27 +113,45 @@ def fresh_pending(conn: sqlite3.Connection, rules: SearchRules | None = None) ->
     return by_freshness([j for j in pending if is_fresh(j, hours)], hours)
 
 
-LinkGroup = tuple[str, list[tuple[str, str]]]
+# LinkedIn's experience-level filter (f_E): Pasantía, Sin experiencia, Algo de responsabilidad
+_EXPERIENCE = {"internship": "1", "entry": "2", "associate": "3"}
+
+
+class LinkGroup(NamedTuple):
+    label: str
+    links: list[tuple[str, str]]  # (keywords, url)
+    hours: float  # how far back the searches go
+
+
+def window_text(hours: float) -> str:
+    """'últimas 24 h', 'últimos 7 días'."""
+    if hours >= 48 and hours % 24 == 0:
+        return f"últimos {hours / 24:g} días"
+    return f"últimas {hours:g} h"
 
 
 def linkedin_links(
     targets: Targets | None = None, rules: SearchRules | None = None
 ) -> list[LinkGroup]:
-    """(group label, [(keywords, url)]) of LinkedIn searches limited to the last `fresh_hours`,
-    newest first. Only links: the candidate opens them in their browser (ADR-005, ADR-020)."""
-    seconds = int((rules or load_search_rules()).fresh_hours * 3600)
+    """Groups of LinkedIn searches, newest first, over the last `fresh_hours` unless a group
+    sets its own `hours`. Only links: the candidate opens them in their browser (ADR-005,
+    ADR-020, ADR-024)."""
+    fresh_hours = (rules or load_search_rules()).fresh_hours
     groups = []
     for searches in (targets or load_targets()).linkedin_searches:
+        hours = searches.hours or fresh_hours
         place = {"geoId": searches.geo_id, "location": searches.location}
         links = []
         for keywords in searches.keywords:
             params = {"keywords": keywords, **{k: v for k, v in place.items() if v}}
             if searches.remote_only:
                 params["f_WT"] = "2"  # LinkedIn's "Remote" filter
-            params |= {"f_TPR": f"r{seconds}", "sortBy": "DD"}
+            if searches.experience:
+                params["f_E"] = ",".join(_EXPERIENCE[level] for level in searches.experience)
+            params |= {"f_TPR": f"r{int(hours * 3600)}", "sortBy": "DD"}
             links.append((keywords, f"https://www.linkedin.com/jobs/search/?{urlencode(params)}"))
         if links:
-            groups.append((searches.label or searches.location, links))
+            groups.append(LinkGroup(searches.label or searches.location, links, hours))
     return groups
 
 
@@ -214,7 +241,7 @@ def render_report(
     """`pending`: every open job (new ones included). Empty `results` = regenerated offline.
     `twins`: open jobs that look like one already applied to (applied_twins).
     `decisions`: grill-me questions waiting for an answer.
-    `linkedin`: groups of LinkedIn searches for the last `fresh_hours` (linkedin_links).
+    `linkedin`: groups of LinkedIn searches, each over its own window (linkedin_links).
     `country`: the user's, for the note on remote jobs that name none.
     Open jobs posted within `fresh_hours` go first, in a section of their own."""
     esc = html.escape
@@ -256,11 +283,11 @@ def render_report(
         )
 
     searches = ""
-    for label, links in linkedin:
-        anchors = " · ".join(f'<a href="{esc(url)}">{esc(kw)}</a>' for kw, url in links)
+    for group in linkedin:
+        anchors = " · ".join(f'<a href="{esc(url)}">{esc(kw)}</a>' for kw, url in group.links)
         searches += (
-            f'<p class="links">Buscar en LinkedIn ({esc(label)}), publicadas en las últimas '
-            f"{fresh_hours:g} h (se abre en tu navegador): {anchors}</p>\n"
+            f'<p class="links">Buscar en LinkedIn ({esc(group.label)}), '
+            f"{window_text(group.hours)} (se abre en tu navegador): {anchors}</p>\n"
         )
 
     if results:

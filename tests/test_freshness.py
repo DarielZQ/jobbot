@@ -192,7 +192,8 @@ def test_posted_text() -> None:
 
 
 def test_linkedin_links_cover_the_last_fresh_hours_newest_first() -> None:
-    (group, links), *_ = daily.linkedin_links()
+    first, *_ = daily.linkedin_links()
+    group, links = first.label, first.links
     label, url = links[0]
 
     assert group == "Costa Rica"
@@ -232,7 +233,11 @@ def test_report_lists_fresh_jobs_first_once_with_age_notes_and_linkedin(conn) ->
     _insert(conn, "suggested", "Help Desk Technician", recommended=True)
     pending = db.list_jobs(conn, status=Status.DISCOVERED)
     links = [
-        ("Costa Rica", [("help desk", "https://www.linkedin.com/jobs/search/?keywords=help+desk")])
+        daily.LinkGroup(
+            "Costa Rica",
+            [("help desk", "https://www.linkedin.com/jobs/search/?keywords=help+desk")],
+            24,
+        )
     ]
 
     page = daily.render_report(pending, [], pending, {}, datetime.now(), linkedin=links)

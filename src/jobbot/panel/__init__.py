@@ -35,7 +35,7 @@ from jobbot.core.state import InvalidTransition, Status
 from jobbot.grill import signals
 from jobbot.matching.dedupe import applied_twins
 from jobbot.matching.language import ResumeAdvice
-from jobbot.matching.rules import RuleSet
+from jobbot.matching.rules import RuleSet, entry_level
 
 log = logging.getLogger("jobbot.panel")
 
@@ -133,6 +133,8 @@ def job_dict(
         ).isoformat(),
         "recommended": row.recommended,
         "lang": lang,
+        # Internship, trainee or graduate program, or junior role: the "Entrada" chip (ADR-024)
+        "entry": entry_level(row.title),
         "notes": daily.job_notes(row, country),
         "place": where,
         "cv": cv,
@@ -193,10 +195,14 @@ def summary(conn: sqlite3.Connection) -> dict:
         "last_search": last.isoformat() if last else None,
         # Filter chips of the page, in search.yaml order
         "families": daily.family_labels(rules),
-        # LinkedIn searches for the last fresh_hours: links the candidate opens (ADR-020)
+        # LinkedIn searches, each over its own window: links the candidate opens (ADR-020)
         "linkedin": [
-            {"label": label, "links": [{"label": k, "url": u} for k, u in links]}
-            for label, links in daily.linkedin_links(rules=rules)
+            {
+                "label": group.label,
+                "when": daily.window_text(group.hours),
+                "links": [{"label": k, "url": u} for k, u in group.links],
+            }
+            for group in daily.linkedin_links(rules=rules)
         ],
     }
 

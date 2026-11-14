@@ -145,3 +145,10 @@ linkedin_searches:
     location: "Latinoamérica"
     remote_only: true
     keywords: [soporte técnico, mesa de ayuda, soporte TI, analista de datos]
+  # Primer empleo (ADR-024): filtro de nivel de LinkedIn y una semana hacia atrás, porque salen
+  # pocas pasantías por día. Quita el # para activarlo.
+  # - label: "Primer empleo · Costa Rica"
+  #   geo_id: "101739942"
+  #   experience: [internship, entry]   # internship = Pasantía, entry = Sin experiencia
+  #   hours: 168
+  #   keywords: [trainee, pasantía, internship, junior developer]

@@ -257,3 +257,14 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - **Torre.ai no se lee:** sus términos prohíben recorrer y extraer el sitio, y su `robots.txt` bloquea la búsqueda. Las vías legítimas son su API para profesionales, con clave del usuario, o sus correos de alertas.
   - **Actualización 2026-11-12:** se eligió el correo. El feed `email:torre` lee los correos de vacantes de Torre (`emma@torre.ai` y las alertas de `torre@torre.ai`). La opción `remote_scope` del feed, la misma de Greenhouse y Ashby, hace que su "Remote" sin país cuente como elegible, porque Torre ya filtró por el país del candidato.
 - **Consecuencias:** la nota de "Remoto sin país" puede dejar pasar vacantes que en realidad son de otro país; por eso se marca. Las vacantes de correo sin fecha duran como máximo `max_age_days` desde que llegaron.
+
+## ADR-024 — Primer empleo: filtro Entrada, nota de matrícula y búsquedas por nivel
+
+- **Fecha:** 2026-11-14.
+- **Contexto:** el candidato quiere un apartado de pasantías y de primer empleo, y ver también puestos de software y de IA y automatización aunque todavía le queden grandes. Ya es egresado, y la mayoría de las pasantías piden estar matriculado. En la base había 72 títulos de pasantía o trainee, casi todos de otras áreas.
+- **Decisión:**
+  - **Filtro "Entrada"** en el panel: marca pasantías, trainee, aprendiz, programas de graduados, new grad, early career y junior (`matching.rules.entry_level`, sobre el título). No es una familia: atraviesa todas.
+  - **Nota `enrollment_required`:** si la descripción pide estar matriculado ("currently enrolled", "estudiante activo", "estar cursando"…), la vacante pasa con la marca «Pide estar matriculado: revisa si aceptan egresados». Cuando el anuncio acepta a la vez estudiantes y recién graduados no se marca. Las vacantes sin descripción, como las que llegan por correo, no reciben la nota.
+  - **`linkedin_searches`:** cada grupo acepta `experience`, el filtro de nivel de LinkedIn (`f_E`): `internship`, `entry` o `associate`. También acepta `hours`, su propio rango hacia atrás, porque una semana sirve mejor para las pasantías. El panel y el informe dicen el rango de cada grupo («últimos 7 días»).
+  - **Familias nuevas sin código nuevo:** "Software / automatización" (solo con marca de entrada) e "IA y automatización · aspiracional" son configuración en `search.yaml`. La palabra "aspiracional" en la etiqueta basta para distinguirlas en el panel y el informe. La automatización industrial (PLC, equipos) queda fuera con su `exclude`.
+- **Consecuencias:** la nota de matrícula depende de la redacción del anuncio, así que puede faltar o sobrar: es un aviso, no un filtro. El filtro "Entrada" no incluye los niveles 1 (L1, "Analyst I"), que ya son el foco de las familias de soporte.

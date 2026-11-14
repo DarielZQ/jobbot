@@ -126,6 +126,7 @@
     <div class="chips">
       <button id="fresh" title="Solo las publicadas hace poco (las de fecha desconocida no entran)">Últimas 24 h</button>
       <button id="spanish" title="Solo los anuncios escritos en español">En español</button>
+      <button id="entry" title="Primer empleo: pasantías, trainee, junior, new grad y early career">Entrada</button>
     </div>
     <label class="small muted">Ordenar por
       <select id="sort" aria-label="Ordenar por">
@@ -167,11 +168,12 @@ const DONE_TEXT = {
 };
 
 const PLACES = { remote: "100 % remoto", national: "Nacional", abroad: "Otro país" };
-const state = { view: "pending", family: "", place: "", fresh: false, spanish: false, sort: "posted", freshHours: 24, linkedin: [], query: "", jobs: [], decisions: [], shown: PAGE, polling: null, wasRunning: false };
+const state = { view: "pending", family: "", place: "", fresh: false, spanish: false, entry: false, sort: "posted", freshHours: 24, linkedin: [], query: "", jobs: [], decisions: [], shown: PAGE, polling: null, wasRunning: false };
 try {
   state.view = localStorage.getItem("jobbot.view") || "pending";
   state.family = localStorage.getItem("jobbot.family") || "";
   state.spanish = localStorage.getItem("jobbot.spanish") === "1";
+  state.entry = localStorage.getItem("jobbot.entry") === "1";
   state.sort = localStorage.getItem("jobbot.sort") || "posted";
   state.place = localStorage.getItem("jobbot.place") || "";
   state.fresh = localStorage.getItem("jobbot.fresh") === "1";
@@ -357,6 +359,7 @@ function visibleJobs() {
     (!state.place || job.place === state.place) &&
     (!state.fresh || job.fresh) &&
     (!state.spanish || job.lang === "es") &&
+    (!state.entry || job.entry) &&
     (!query || fold(`${job.title} ${job.company} ${job.location}`).includes(query)));
   const compare = SORTS[state.sort];
   return compare ? jobs.sort(compare) : jobs;
@@ -397,14 +400,15 @@ function renderDecisions() {
 }
 
 function showLinkedIn() {
-  // LinkedIn's own search for the last fresh_hours, newest first: JobBot never opens it (ADR-005).
+  // LinkedIn's own search, newest first, each group over its own window: JobBot never opens it
+  // (ADR-005).
   const bar = $("linkedin");
   bar.hidden = state.view !== "pending" || !state.linkedin.length;
   const key = JSON.stringify([state.freshHours, state.linkedin]);
   if (bar.hidden || bar.dataset.key === key) return;
   bar.dataset.key = key;
   bar.replaceChildren(...state.linkedin.map((group) => el("div", {},
-    `Buscar en LinkedIn (${group.label}), últimas ${state.freshHours} h: `,
+    `Buscar en LinkedIn (${group.label}), ${group.when || `últimas ${state.freshHours} h`}: `,
     ...group.links.map(({ label, url }) => el("a", {
       href: url, target: "_blank", rel: "noopener noreferrer", title: "Se abre en tu navegador",
     }, label)))));
@@ -443,6 +447,8 @@ function render() {
   $("fresh").classList.toggle("on", state.fresh);
   $("spanish").textContent = `En español (${state.jobs.filter((job) => job.lang === "es").length})`;
   $("spanish").classList.toggle("on", state.spanish);
+  $("entry").textContent = `Entrada (${state.jobs.filter((job) => job.entry).length})`;
+  $("entry").classList.toggle("on", state.entry);
   $("sort").value = state.sort;
 }
 
@@ -560,6 +566,12 @@ $("spanish").addEventListener("click", () => {
   state.spanish = !state.spanish;
   state.shown = PAGE;
   try { localStorage.setItem("jobbot.spanish", state.spanish ? "1" : "0"); } catch (e) { /* ignore */ }
+  render();
+});
+$("entry").addEventListener("click", () => {
+  state.entry = !state.entry;
+  state.shown = PAGE;
+  try { localStorage.setItem("jobbot.entry", state.entry ? "1" : "0"); } catch (e) { /* ignore */ }
   render();
 });
 $("sort").addEventListener("change", (event) => {

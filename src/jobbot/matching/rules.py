@@ -16,7 +16,27 @@ from jobbot.matching.normalize import normalize_text
 # that only says "Remoto" (ADR-023).
 FRESH_SENIORITY = "fresh_seniority"
 REMOTE_NO_COUNTRY = "remote_no_country"
+# The description asks for current enrollment: someone who finished their studies should check
+# before applying (ADR-024).
+ENROLLMENT_REQUIRED = "enrollment_required"
 NOTE_SEPARATOR = "; "
+# On normalized text. "current students and recent graduates" also takes graduates: no note.
+_ENROLLMENT = re.compile(
+    r"\b(?:currently enrolled|must be (?:currently )?enrolled|be enrolled in"
+    r"|enrolled (?:full[ -]time )?in an? (?:accredited )?(?:bachelor|degree|university|college"
+    r"|undergraduate)"
+    r"|(?:active|current|full[ -]time) (?:university |college )?students?(?! (?:and|or) recent)"
+    r"|currently pursuing(?! or (?:have )?recently)"
+    r"|estudiantes? (?:activ[oa]s?|regular(?:es)?)|matriculad[oa]s?|empadronad[oa]s?"
+    r"|(?:estar|encontrarse|actualmente) cursando)\b"
+)
+# First-job titles: internships, trainee and graduate programs, junior roles (ADR-024)
+_ENTRY_LEVEL = re.compile(
+    r"\b(?:interns?|internship|co[ -]?op|trainee|apprentice(?:ship)?|pasante|pasantia"
+    r"|practicante|practica profesional|becari[oa]|junior|jr|entry[ -]level|new[ -]grad(?:uate)?"
+    r"|graduate (?:program|programme|scheme|trainee|analyst|engineer|developer)"
+    r"|early[ -]career|recien graduad[oa]|egresad[oa])\b"
+)
 # Posted (or, without a date, first seen) more than `max_age_days` ago (ADR-023)
 TOO_OLD = "too_old"
 # "Remoto", "100% remoto", "Remote": remote with no place at all
@@ -30,6 +50,11 @@ class RuleResult:
     ok: bool
     reason: str = ""  # why it was excluded; for one that passes, its notes
     role_family: str = ""
+
+
+def entry_level(title: str) -> bool:
+    """An internship, trainee or graduate program, or a junior role: the panel's "Entrada"."""
+    return _ENTRY_LEVEL.search(normalize_text(title)) is not None
 
 
 def _compile(patterns: list[str]) -> list[re.Pattern[str]]:
@@ -123,6 +148,8 @@ class RuleSet:
             if not posted_within(job.posted_at, self.fresh_hours, seen_at):
                 return RuleResult(False, f"description_excluded: {hit}", family)
             notes.append(f"{FRESH_SENIORITY}: {hit}")
+        if enrollment := _ENROLLMENT.search(description):
+            notes.append(f"{ENROLLMENT_REQUIRED}: {enrollment.group(0)}")
 
         return RuleResult(True, NOTE_SEPARATOR.join(notes), family)
 
