@@ -68,6 +68,20 @@ def test_jobs_say_whether_they_are_remote_national_or_abroad(conn) -> None:
     assert panel.list_view(conn, "skipped")[0]["place"] == "abroad"
 
 
+def test_jobs_taken_down_from_their_site_are_flagged(conn) -> None:
+    gone = _add(conn, 1, Status.SKIPPED, "location_not_target", title="Help Desk")
+    kept = _add(conn, 2, Status.SKIPPED, "location_not_target", title="Service Desk")
+    db.record_listing(conn, db.get_job(conn, gone).source, "2999-01-01T00:00:00+00:00")
+    with conn:
+        later = "3000-01-01T00:00:00+00:00"
+        conn.execute("UPDATE jobs SET last_seen_at = ? WHERE id = ?", (later, kept))
+
+    assert {j["id"]: j["gone"] for j in panel.list_view(conn, "skipped")} == {
+        gone: True,
+        kept: False,
+    }
+
+
 def test_discarded_jobs_say_whether_the_title_is_senior(conn) -> None:
     _add(conn, 1, Status.SKIPPED, "title_excluded: senior", title="Senior Help Desk Analyst")
     _add(conn, 2, Status.SKIPPED, "title_not_target_role", title="Gerente de Ventas")

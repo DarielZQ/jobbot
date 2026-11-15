@@ -38,3 +38,4 @@ class LeverSource(Source):
                 posted_at=datetime.fromtimestamp(created / 1000, UTC) if created else None,
                 description=description,
             )
+        self.listing_complete = True

@@ -66,3 +66,4 @@ class DeelSource(Source):
                 remote=True,  # Deel is fully remote
                 posted_at=datetime.fromisoformat(published) if published else None,
             )
+        self.listing_complete = True

@@ -100,10 +100,12 @@ def job_dict(
     lang: str = "",
     country: str = "",
     senior: bool = False,
+    gone: bool = False,
 ) -> dict:
     """`new`: posted within `fresh_hours`, or first seen since `new_since` when the date is
     unknown. `lang`: the posting's language ("es" | "en"). `country`: for the notes.
-    `senior`: the title asks for a higher level (`title.seniority`), the "Senior" chip."""
+    `senior`: the title asks for a higher level (`title.seniority`), the "Senior" chip.
+    `gone`: missing from the latest complete listing of its site (`db.taken_down`)."""
     fresh = daily.is_fresh(row, fresh_hours)
     cv = None
     if advice is not None:
@@ -138,6 +140,7 @@ def job_dict(
         # Internship, trainee or graduate program, or junior role: the "Entrada" chip (ADR-024)
         "entry": entry_level(row.title),
         "senior": senior,
+        "gone": gone,
         "notes": daily.job_notes(row, country),
         "place": where,
         "cv": cv,
@@ -165,6 +168,7 @@ def list_view(conn: sqlite3.Connection, view: str) -> list[dict]:
     twins = applied_twins(rows, db.applied_jobs(conn)) if view == "pending" else {}
     since = _since_24h()
     country = load_settings().region.country
+    gone = db.taken_down(conn)
     return [
         job_dict(
             r,
@@ -176,6 +180,7 @@ def list_view(conn: sqlite3.Connection, view: str) -> list[dict]:
             advice[r.id].lang,
             country,
             rules.senior(r.title),
+            r.id in gone,
         )
         for r in rows
     ]

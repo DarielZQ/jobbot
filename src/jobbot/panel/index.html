@@ -74,7 +74,7 @@
            background:var(--ok-soft); color:var(--ok); vertical-align:1px; }
   .badge.remote { background:var(--accent-soft); color:var(--accent); }
   .badge.national, .badge.abroad { background:var(--hover); color:var(--muted); }
-  .badge.twin, .badge.old { background:var(--warn-bg); color:var(--fg); border:1px solid var(--warn-line); }
+  .badge.twin, .badge.old, .badge.gone { background:var(--warn-bg); color:var(--fg); border:1px solid var(--warn-line); }
   .badge.note { background:var(--hover); color:var(--muted); }
   .linkedin { margin:-4px 0 12px; font-size:13px; color:var(--muted); }
   .linkedin a { display:inline-block; margin:2px 4px 2px 0; padding:2px 10px; border:1px solid var(--line);
@@ -136,6 +136,7 @@
       <button id="spanish" title="Solo los anuncios escritos en español">En español</button>
       <button id="entry" title="Primer empleo: pasantías, trainee, junior, new grad y early career">Entrada</button>
       <button id="senior" title="Título de nivel más alto: senior, líder, gerente, nivel 3 (title.seniority)" hidden>Senior</button>
+      <button id="gone" title="No salieron en el último listado completo de su sitio: lo más probable es que ya cerraron" hidden>Ya no en el sitio</button>
     </div>
     <label class="small muted">Ordenar por
       <select id="sort" aria-label="Ordenar por">
@@ -185,7 +186,7 @@ const DONE_TEXT = {
 
 const PLACES = { remote: "100 % remoto", national: "Nacional", abroad: "Otro país" };
 const PLACE_CHIPS = { remote: "100 % remoto", national: "Nacionales", abroad: "Otro país" };
-const state = { view: "pending", family: "", place: "", fresh: false, spanish: false, entry: false, senior: false, sort: "posted", freshHours: 24, linkedin: [], query: "", jobs: [], decisions: [], shown: PAGE, polling: null, wasRunning: false };
+const state = { view: "pending", family: "", place: "", fresh: false, spanish: false, entry: false, senior: false, gone: false, sort: "posted", freshHours: 24, linkedin: [], query: "", jobs: [], decisions: [], shown: PAGE, polling: null, wasRunning: false };
 try {
   state.view = localStorage.getItem("jobbot.view") || "pending";
   state.family = localStorage.getItem("jobbot.family") || "";
@@ -375,6 +376,10 @@ function row(job) {
     el("div", {},
       el("div", {}, title,
         PLACES[job.place] ? el("span", { class: `badge ${job.place}` }, PLACES[job.place]) : null,
+        job.gone ? el("span", {
+          class: "badge gone",
+          title: "No salió en el último listado completo del sitio: la empresa la quitó, lo más probable porque ya cerró.",
+        }, "Ya no aparece en el sitio") : null,
         job.new ? el("span", { class: "badge" }, "Nueva") : null,
         ...(job.notes || []).map((note) => el("span", {
           class: note.startsWith("Recomendada") ? "badge old" : "badge note",
@@ -410,15 +415,20 @@ function seniorFilter() {
   return state.senior && state.view === "skipped";
 }
 
+function goneFilter() {
+  return state.gone && state.view === "skipped";
+}
+
 function filtering() {
   return Boolean(state.family || placeFilter() || state.fresh || state.spanish || state.entry ||
-                 seniorFilter() || state.query.trim());
+                 seniorFilter() || goneFilter() || state.query.trim());
 }
 
 function visibleJobs() {
   const query = fold(state.query.trim());
   const place = placeFilter();
   const senior = seniorFilter();
+  const gone = goneFilter();
   const jobs = state.jobs.filter((job) =>
     (!state.family || job.family === state.family) &&
     (!place || job.place === place) &&
@@ -426,6 +436,7 @@ function visibleJobs() {
     (!state.spanish || job.lang === "es") &&
     (!state.entry || job.entry) &&
     (!senior || job.senior) &&
+    (!gone || job.gone) &&
     (!query || fold(`${job.title} ${job.company} ${job.location}`).includes(query)));
   const compare = SORTS[state.sort];
   return compare ? jobs.sort(compare) : jobs;
@@ -522,6 +533,9 @@ function render() {
   $("senior").hidden = !skipped;
   $("senior").textContent = `Senior (${state.jobs.filter((job) => job.senior).length})`;
   $("senior").classList.toggle("on", seniorFilter());
+  $("gone").hidden = !skipped;
+  $("gone").textContent = `Ya no en el sitio (${state.jobs.filter((job) => job.gone).length})`;
+  $("gone").classList.toggle("on", goneFilter());
   $("fresh").textContent = `Últimas ${state.freshHours} h (${state.jobs.filter((job) => job.fresh).length})`;
   $("fresh").classList.toggle("on", state.fresh);
   $("spanish").textContent = `En español (${state.jobs.filter((job) => job.lang === "es").length})`;
@@ -661,6 +675,11 @@ $("sort").addEventListener("change", (event) => {
 });
 $("senior").addEventListener("click", () => {
   state.senior = !state.senior;
+  state.shown = PAGE;
+  render();
+});
+$("gone").addEventListener("click", () => {
+  state.gone = !state.gone;
   state.shown = PAGE;
   render();
 });

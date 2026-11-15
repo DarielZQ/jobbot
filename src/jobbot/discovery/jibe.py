@@ -41,6 +41,7 @@ class JibeSource(Source):
                 if (posting.get("country") or "").lower() == wanted:
                     yield self._to_job(posting)
             if not jobs or collected >= int(data.get("totalCount") or 0):
+                self.listing_complete = True
                 return
 
     def _to_job(self, posting: dict[str, Any]) -> Job:

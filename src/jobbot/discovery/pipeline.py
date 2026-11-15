@@ -204,6 +204,7 @@ def run_source(source: Source, conn: sqlite3.Connection, rules: RuleSet) -> Sour
         if hours < source.min_hours_between_runs:
             report.skipped_recent = f"{hours:.1f} h < {source.min_hours_between_runs:g} h"
             return report
+    started = db.utc_now()
     try:
         for job in source.fetch():
             if db.touch_seen(conn, job.ats, job.ats_job_id):
@@ -239,6 +240,8 @@ def run_source(source: Source, conn: sqlite3.Connection, rules: RuleSet) -> Sour
             else:
                 report.new_skipped += 1
                 report.skip_reasons[reason.split(":")[0]] += 1
+        if source.listing_complete:  # every open posting was seen: the missing ones closed
+            db.record_listing(conn, source.name, started)
     except SourceNotConfigured as exc:
         report.not_configured = str(exc)
     except Exception as exc:

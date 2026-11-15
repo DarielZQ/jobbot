@@ -37,3 +37,4 @@ class GreenhouseSource(Source):
                 posted_at=datetime.fromisoformat(updated) if updated else None,
                 description=posting.get("content", ""),
             )
+        self.listing_complete = True

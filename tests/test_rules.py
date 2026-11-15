@@ -97,6 +97,25 @@ def rules_gam_only() -> RuleSet:
         "Network Technician",
         "Junior Network Engineer",
         "Analista de Redes",
+        # Otros puestos de TI de entrada (ADR-026)
+        "IT Associate",
+        "IT Co op - Programa Student to Tiger",
+        "IT Operations & PMO Remote",
+        "IT Techbar Technician Junior",
+        "Asistente de TI",
+        "Auxiliar de Técnico",
+        "Técnico Nivel I en Redes",
+        "Técnico telecomunicaciones",
+        "Soportista de plataformas tecnológicas",
+        "Ingeniero junior TI",
+        "Ingeniero en redes",
+        "Ingeniero/a de Infraestructura TI",
+        "Associate DevOps Engineer",
+        "Infosec Analyst I",
+        "Security Application Engineer I",
+        "SOC Analyst I",
+        "Intern - Bachelors Tech",
+        "Práctica Profesional Ofimática y Redes",
     ],
 )
 def test_it_support_titles_pass(rules: RuleSet, title: str) -> None:
@@ -128,6 +147,9 @@ def test_it_support_titles_pass(rules: RuleSet, title: str) -> None:
         "Database Administrator",
         "Junior DBA",
         "Administrador de Bases de Datos",
+        "Data Engineering Intern",
+        "Data Science Intern (2027 Start)",
+        "Business Intelligence Engineer",
     ],
 )
 def test_data_ai_titles_pass(rules: RuleSet, title: str) -> None:
@@ -177,15 +199,19 @@ def test_it_support_family_wins_over_data_family(rules: RuleSet) -> None:
         ("Service Desk Analyst III", "title_excluded"),
         ("Técnico de Soporte Nivel 3", "title_excluded"),
         ("Supply Chain Planning Intern", "title_not_target_role"),
-        ("Intern - Bachelors Tech", "title_not_target_role"),
         ("Technical Writing Intern", "title_not_target_role"),
+        ("Marketing Intern", "title_not_target_role"),
+        ("Técnico en Refrigeración", "title_not_target_role"),
+        ("Ingeniero Industrial Junior", "title_not_target_role"),
+        ("Security Officer", "title_not_target_role"),
+        ("Senior Infosec Analyst I", "title_excluded"),
+        ("Ingeniero Senior TI - Rol Líder Técnico", "title_excluded"),
         ("Finance Trainee", "title_not_target_role"),
         ("Customer Service Representative", "title_not_target_role"),
         ("Accounts Payable Analyst", "title_not_target_role"),
         ("Machine Operator I.", "title_not_target_role"),
         ("Major Incident Response Mgr, SP-Support Command Center", "title_excluded"),
-        # Fuera del plan del candidato por ahora: SOC y QA
-        ("SOC Analyst I", "title_not_target_role"),
+        # Las plantillas no traen familia de software: QA queda fuera (ADR-026)
         ("Security Operations Center Analyst", "title_not_target_role"),
         ("Analista QA Junior", "title_not_target_role"),
         # Mismo vocabulario, otra área

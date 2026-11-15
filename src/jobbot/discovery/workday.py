@@ -105,6 +105,8 @@ class WorkdaySource(Source):
                 if posting.get("externalPath"):
                     yield self._to_job(posting, facet_applied)
             if not postings or offset + PAGE_SIZE >= total:
+                # A search by country name can rank postings in and out: only the facet is a list
+                self.listing_complete = facet_applied
                 return
 
     def _page(

@@ -38,3 +38,4 @@ class AshbySource(Source):
                 posted_at=datetime.fromisoformat(published) if published else None,
                 description=posting.get("descriptionPlain", ""),
             )
+        self.listing_complete = True

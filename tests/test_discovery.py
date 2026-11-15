@@ -288,6 +288,65 @@ def test_pipeline_filters_dedupes_and_is_idempotent(conn, rules) -> None:
     assert [row.title for row in discovered] == ["Service Desk Analyst"]
 
 
+class FullListing(FakeSource):
+    """A site whose API lists every open posting (Workday, Greenhouse...)."""
+
+    def fetch(self) -> Iterable[Job]:
+        yield from self.jobs
+        self.listing_complete = True
+
+
+def test_jobs_missing_from_a_complete_listing_are_taken_down(conn, rules) -> None:
+    kept = make_job(
+        source="greenhouse:acme", ats="greenhouse", ats_job_id="1", title="Service Desk Analyst"
+    )
+    closed = make_job(
+        source="greenhouse:acme", ats="greenhouse", ats_job_id="2", title="Help Desk Technician"
+    )
+    run_source(FullListing("greenhouse:acme", [kept, closed]), conn, rules)
+    assert db.taken_down(conn) == set()
+    with conn:  # that run was yesterday
+        conn.execute("UPDATE jobs SET last_seen_at = '2000-01-01T00:00:00+00:00'")
+
+    run_source(FullListing("greenhouse:acme", [kept]), conn, rules)
+    assert {db.get_job(conn, i).title for i in db.taken_down(conn)} == {"Help Desk Technician"}
+
+    run_source(FullListing("greenhouse:acme", [kept, closed]), conn, rules)  # back up again
+    assert db.taken_down(conn) == set()
+
+
+def test_partial_listings_never_mark_jobs_as_taken_down(conn, rules) -> None:
+    job = make_job(source="jobicy", ats="jobicy", ats_job_id="1", title="Service Desk Analyst")
+    run_source(FakeSource("jobicy", [job]), conn, rules)
+    with conn:  # that run was yesterday
+        conn.execute("UPDATE jobs SET last_seen_at = '2000-01-01T00:00:00+00:00'")
+
+    # A feed of the newest postings only, or a listing cut short by an error
+    run_source(FakeSource("jobicy", []), conn, rules)
+
+    class CutShort(FullListing):
+        def fetch(self) -> Iterable[Job]:
+            raise httpx.ReadTimeout("slow")
+            yield  # a generator, like the real sources
+
+    assert run_source(CutShort("jobicy", []), conn, rules).error
+    assert db.taken_down(conn) == set()
+
+
+def test_workday_listing_is_complete_only_through_the_country_facet(
+    load_fixture, make_client
+) -> None:
+    page = load_fixture("workday_page.json")
+    source = WorkdaySource(make_client(lambda request: httpx.Response(200, json=page)), WORKDAY)
+    list(source.fetch())
+    assert source.listing_complete
+
+    no_facet = {**page, "facets": []}
+    source = WorkdaySource(make_client(lambda request: httpx.Response(200, json=no_facet)), WORKDAY)
+    list(source.fetch())
+    assert not source.listing_complete
+
+
 def test_rescreen_reopens_and_skips_without_network(conn, rules) -> None:
     from jobbot.discovery.pipeline import rescreen
 

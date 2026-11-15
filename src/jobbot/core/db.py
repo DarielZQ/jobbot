@@ -68,6 +68,13 @@ MIGRATIONS: list[str] = [
     """,
     # ADR-023: discarded jobs the candidate already reviewed and took off the list
     "ALTER TABLE jobs ADD COLUMN hidden INTEGER NOT NULL DEFAULT 0;",
+    # ADR-026: when each source last listed every open posting (a run that started then)
+    """
+    CREATE TABLE source_listings (
+        source    TEXT PRIMARY KEY,
+        listed_at TEXT NOT NULL
+    );
+    """,
 ]
 
 
@@ -149,6 +156,26 @@ def touch_seen(conn: sqlite3.Connection, ats: str, ats_job_id: str) -> bool:
             (_now(), ats, ats_job_id),
         ).rowcount
     return bool(updated)
+
+
+def record_listing(conn: sqlite3.Connection, source: str, started_at: str) -> None:
+    """`source` listed every open posting in a run that started at `started_at` (ADR-026)."""
+    with conn:
+        conn.execute(
+            "INSERT INTO source_listings (source, listed_at) VALUES (?, ?) "
+            "ON CONFLICT (source) DO UPDATE SET listed_at = excluded.listed_at",
+            (source, started_at),
+        )
+
+
+def taken_down(conn: sqlite3.Connection) -> set[int]:
+    """Jobs missing from the latest complete listing of their source: the site took them
+    down, most likely because the opening closed (ADR-026)."""
+    rows = conn.execute(
+        "SELECT jobs.id FROM jobs JOIN source_listings USING (source) "
+        "WHERE jobs.last_seen_at < source_listings.listed_at"
+    )
+    return {row["id"] for row in rows}
 
 
 def note_posting(conn: sqlite3.Connection, job: Job) -> None:

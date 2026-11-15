@@ -33,6 +33,10 @@ class Source:
     name: str
     # Some APIs ask callers to query rarely (e.g. Remotive: max ~4 times a day).
     min_hours_between_runs: float = 0
+    # Set by `fetch` once it has listed every open posting of the site, not just the newest ones
+    # or the first pages: a known job missing from that listing was taken down (ADR-026).
+    # Feeds, searches and email alerts never set it.
+    listing_complete: bool = False
 
     def __init__(self, client: HttpClient | None) -> None:
         self.client = client

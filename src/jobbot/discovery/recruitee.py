@@ -26,6 +26,7 @@ class RecruiteeSource(Source):
         data = self.client.get_json(f"https://{self.target.subdomain}.recruitee.com/api/offers/")
         for offer in data.get("offers") or []:
             yield self._to_job(offer)
+        self.listing_complete = True
 
     def _to_job(self, offer: dict[str, Any]) -> Job:
         location = offer.get("location") or ", ".join(

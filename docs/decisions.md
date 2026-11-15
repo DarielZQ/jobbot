@@ -281,3 +281,26 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
     - botón "Quitar estas N de la lista", que saca todo lo que muestran los filtros y la búsqueda. Pide confirmación, ofrece **Deshacer** durante 15 segundos y solo aparece con algún filtro o búsqueda activa, para que un clic no vacíe la lista entera. Usa `POST /api/jobs/hide` (`{"ids": [...], "hidden": true|false}`), que solo toca vacantes descartadas.
   - **Una ✕ en la búsqueda**, en todas las pestañas, y la tecla Esc, para borrarla.
 - **Consecuencias:** una configuración anterior que tenga las reglas de nivel en `title.exclude` sigue filtrando igual, pero el filtro "Senior" queda vacío hasta mover esas reglas a `title.seniority`. Las remotas que en realidad son de otro país quedan como "100 % remoto": para esas sirve la búsqueda (el nombre del país) y el mismo botón.
+
+## ADR-026 — Más puestos de tecnología de entrada y vacantes que ya no están en el sitio
+
+- **Fecha:** 2026-11-15.
+- **Contexto:**
+  - El candidato reabrió a mano 16 vacantes descartadas. Todas eran de tecnología y todas se habían descartado por el título: IT Associate, IT Operations, técnico de redes o telecomunicaciones, soportista, auxiliar técnico, ingeniero junior de TI, QA, data scientist, pasantías de datos, seguridad nivel I. Prefiere postular aunque no cumpla todo.
+  - Un enlace de Workday que daba "no existe" no era una falla: Workday corría bien y la empresa había quitado la vacante dos días después de publicarla. JobBot ya guardaba cuándo vio cada vacante por última vez (`last_seen_at`), pero no lo usaba: en Descartadas había cientos que ya no estaban en su sitio.
+- **Decisión:**
+  - **Reglas de título más amplias** en `role_families` de las plantillas, siempre sin senior ni nivel 3 (`title.seniority`):
+    - IT Associate, Co-op u Operations, técnico de TI, asistente o auxiliar de TI, técnico de redes o telecomunicaciones, soportista y plataformas tecnológicas;
+    - ingenieros de soporte, redes, infraestructura o cloud, y los de TI con marca de entrada ("Ingeniero junior TI", "Associate DevOps Engineer");
+    - seguridad con marca de entrada (Infosec Analyst I) y analista SOC;
+    - pasantías de cualquier área de tecnología, y de datos con una palabra en medio ("Data Engineering Intern").
+  - Las plantillas no traen una familia de software, así que QA y desarrollo quedan para quien la agregue, como en ADR-024. En la configuración del candidato van a esa familia, con el CV de software, junto con los ingenieros de TI sin área. También se agregaron allí data scientist y data engineer sin marca de nivel.
+  - **"Ya no aparece en el sitio":**
+    - una fuente marca `listing_complete` cuando su `fetch` listó todas las vacantes abiertas. Lo hacen Workday (solo con la faceta de país), Greenhouse, Lever, Ashby, Recruitee, Deel, iCIMS, Jibe y Amazon, y solo si la paginación terminó sola, sin llegar al tope de páginas;
+    - el pipeline guarda entonces la hora en que empezó esa corrida (`source_listings`, migración 6). Una vacante de esa fuente que no se vio desde entonces ya no está en el sitio (`db.taken_down`);
+    - Jobicy, Himalayas, Get on Board y Remotive no lo marcan, porque solo dan las más nuevas. Tampoco elempleo ni SuccessFactors, que son búsquedas, ni los correos;
+    - el panel muestra la etiqueta en todas las pestañas y, en Descartadas, el filtro "Ya no en el sitio" para quitarlas con el botón de ADR-025.
+- **Consecuencias:**
+  - Una corrida que falla a medias no registra el listado, así que no marca nada.
+  - La marca aparece desde la primera corrida completa después de esta versión.
+  - Una vacante que el sitio quita y vuelve a publicar con el mismo id pierde la marca en la siguiente corrida.

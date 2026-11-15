@@ -140,7 +140,7 @@ Reglas:
 | `jobbot/core/state.py` | Estados y transiciones válidas |
 | `jobbot/core/db.py` | Esquema, migraciones, upsert idempotente, consultas |
 | `jobbot/core/http.py` | Cliente HTTP con intervalo mínimo por host, `Retry-After`, reintentos y `User-Agent` honesto |
-| `jobbot/discovery/base.py` | Interfaz `Source` (`fetch`, `enrich`, `min_hours_between_runs`) y `SourceNotConfigured` |
+| `jobbot/discovery/base.py` | Interfaz `Source` (`fetch`, `enrich`, `min_hours_between_runs`, `listing_complete`) y `SourceNotConfigured` |
 | `jobbot/discovery/workday.py` | JSON del sitio de empleo de Workday, filtrado por faceta de país |
 | `jobbot/discovery/successfactors.py` | Feed RSS público de SAP SuccessFactors Career Site Builder |
 | `jobbot/discovery/greenhouse.py`, `lever.py` | APIs públicas de Greenhouse y Lever |
@@ -148,7 +148,7 @@ Reglas:
 | `jobbot/discovery/elempleo.py` | Listado público de elempleo |
 | `jobbot/discovery/email_alerts.py`, `jobbot/mail/gmail.py` | Alertas de LinkedIn, CompuTrabajo, Indeed y elempleo desde Gmail, solo lectura (extra `gmail`) |
 | `jobbot/discovery/applications.py` | Confirmaciones de postulación desde Gmail (ADR-018) |
-| `jobbot/discovery/pipeline.py` | Construye y ejecuta las fuentes, respeta `min_hours_between_runs`, `rescreen` sin red |
+| `jobbot/discovery/pipeline.py` | Construye y ejecuta las fuentes, respeta `min_hours_between_runs`, registra los listados completos (`source_listings`), `rescreen` sin red |
 | `jobbot/matching/normalize.py` | Normalización de texto, empresa y título |
 | `jobbot/matching/rules.py` | Familias de roles y filtros duros con motivo |
 | `jobbot/matching/language.py` | Idioma del anuncio y CV recomendado por vacante |
@@ -228,6 +228,12 @@ Migración 3 (ADR-019):
 | :--- | :--- |
 | `decisions` | Preguntas de grill-me: `key` única, `kind`, `question`, `options` (JSON), `recommended`, `reason`, `status` (`pending` o `answered`), `answer`, `created_at`, `answered_at` |
 | `source_runs` | Una fila por corrida de cada fuente: `source`, `ran_at`, `error` (vacío si salió bien) |
+
+Migración 6 (ADR-026):
+
+| Tabla | Contenido |
+| :--- | :--- |
+| `source_listings` | Por fuente, `listed_at`: cuándo empezó su última corrida que listó todas las vacantes abiertas. Una vacante de esa fuente con `last_seen_at` anterior ya no está en el sitio (`db.taken_down`) |
 
 Las migraciones usan `PRAGMA user_version` (ADR-002).
 

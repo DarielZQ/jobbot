@@ -58,6 +58,7 @@ class ICimsSource(Source):
         for page in range(MAX_PAGES):
             fresh = [job for job in self._page(page) if job.ats_job_id not in seen]
             if not fresh:
+                self.listing_complete = True
                 return
             seen.update(job.ats_job_id for job in fresh)
             yield from fresh

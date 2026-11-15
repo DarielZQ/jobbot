@@ -93,6 +93,22 @@ role_families:
       - '\b(junior|jr|associate|entry level|trainee)\b.*\bnetwork engineer\b'
       - '\bnetwork engineer\s+(i|1|junior|jr|associate)\b'
       - '\b(analista|administrador|ingeniero)\s+(junior\s+)?de\s+redes\b'
+      # Otros puestos de TI de entrada (ADR-026): IT Associate, asistente o auxiliar de TI,
+      # técnicos de redes y telecomunicaciones, ingenieros junior de TI, seguridad nivel I, SOC
+      # y pasantías de tecnología. Senior y nivel 3 siguen fuera por title.seniority.
+      - '\b(it|ti)\s+(associate|assistant|asistente|intern|internship|co op|coop|coordinator|coordinador|generalist|operations|operaciones)\b'
+      - '\b(it|ti)\b.*\b(technician|tecnico)\b'
+      - '\btech\s*bar\b'
+      - '\b(asistente|auxiliar)\s+(de\s+)?(ti|it|tecnologia|informatica|sistemas|soporte|computo|redes|tecnic[oa])\b'
+      - '\btecnic[oa]\b.*\b(soporte|ti|it|informatica|computo|computacion|redes|sistemas|telecomunicaciones|comunicaciones|fibra optica|cableado estructurado|networking)\b'
+      - '\bsoportista\b'
+      - '\bplataformas?\s+tecnologicas?\b'
+      - '\bingenier[oa]s?\b(\s+a)?\s+(junior\s+|jr\s+)?(de|en)\s+(soporte|redes|infraestructura|telecomunicaciones|operaciones ti|cloud|nube)\b'
+      - '^(?=.*\b(junior|jr|trainee|associate|pasante|practicante|intern|i|1)\b).*\bingenier[oa]s?\b.*\b(soporte|redes|infraestructura|telecomunicaciones|cloud|nube|ti|it|sistemas|informatica)\b'
+      - '^(?=.*\b(junior|jr|associate|entry level|graduate|trainee|intern|i|1)\b).*\b(systems?|infrastructure|network|cloud|devops|site reliability|platform|it operations)\s+engineer\b'
+      - '^(?=.*\b(junior|jr|associate|entry level|trainee|intern|i|1)\b).*\b(security|cybersecurity|cyber security|infosec|information security|appsec|ciberseguridad|seguridad informatica)\b.*\b(analyst|engineer|specialist|analista|ingeniero)\b'
+      - '\bsoc\s+(analyst|analista|operator|operador)\b'
+      - '^(?=.*\b(intern|interns|internship|pasantia|pasante|practicante|practica profesional|co op|coop|trainee|apprentice|apprenticeship|becari[oa])\b).*\b(technology|tecnologia|tech|computer|computacion|informatica|systems|sistemas|cyber|cybersecurity|ciberseguridad|cloud|network|redes|it|ti|tic|telecomunicaciones)\b'
     exclude:
       # Mismo vocabulario fuera de TI
       - '\bredes\s+(sociales|electricas)\b'
@@ -130,6 +146,9 @@ role_families:
       # Pasantías de datos/IA
       - '\b(data|datos|analytics|analitica|ai|machine learning)\s+(intern|internship|trainee|pasante|practicante)\b'
       - '\b(intern|internship|pasantia|pasante|practicante)\b.*\b(data|datos|analytics|analitica)\b'
+      # Con una palabra en medio («Data Engineering Intern») y BI engineer (ADR-026)
+      - '\b(data|datos|analytics|analitica|ai|machine learning)\s+\w+\s+(intern|internship|trainee|pasante|practicante|co op)\b'
+      - '\b(bi|business intelligence|analytics)\s+(engineer|developer|desarrollador)\b'
     exclude:
       - '\bdata\s+entry\b'
       - '\bdata\s+(privacy|protection)\b'
