@@ -99,9 +99,11 @@ def job_dict(
     fresh_hours: float = 24,
     lang: str = "",
     country: str = "",
+    senior: bool = False,
 ) -> dict:
     """`new`: posted within `fresh_hours`, or first seen since `new_since` when the date is
-    unknown. `lang`: the posting's language ("es" | "en"). `country`: for the notes."""
+    unknown. `lang`: the posting's language ("es" | "en"). `country`: for the notes.
+    `senior`: the title asks for a higher level (`title.seniority`), the "Senior" chip."""
     fresh = daily.is_fresh(row, fresh_hours)
     cv = None
     if advice is not None:
@@ -135,6 +137,7 @@ def job_dict(
         "lang": lang,
         # Internship, trainee or graduate program, or junior role: the "Entrada" chip (ADR-024)
         "entry": entry_level(row.title),
+        "senior": senior,
         "notes": daily.job_notes(row, country),
         "place": where,
         "cv": cv,
@@ -172,6 +175,7 @@ def list_view(conn: sqlite3.Connection, view: str) -> list[dict]:
             rules.fresh_hours,
             advice[r.id].lang,
             country,
+            rules.senior(r.title),
         )
         for r in rows
     ]
@@ -218,6 +222,18 @@ def apply_action(conn: sqlite3.Connection, job_id: int, action: str) -> dict:
         raise ValueError(action)
     row = ACTIONS[action](conn, job_id)
     return job_dict(row, None, _since_24h())
+
+
+def hide_many(conn: sqlite3.Connection, payload: object) -> int:
+    """Descartadas' "Quitar estas N de la lista" and its undo: `{"ids": [...], "hidden": bool}`.
+    Raises ValueError on anything else. Returns how many jobs changed (ADR-025)."""
+    if not isinstance(payload, dict):
+        raise ValueError("payload")
+    ids, hidden = payload.get("ids"), payload.get("hidden", True)
+    valid = isinstance(ids, list) and all(type(i) is int and i > 0 for i in ids)
+    if not valid or not isinstance(hidden, bool):
+        raise ValueError("ids")
+    return db.set_hidden_many(conn, ids, hidden)
 
 
 @dataclass
@@ -319,6 +335,8 @@ class _Handler(BaseHTTPRequestHandler):
             return self._json({"started": self.panel.start_discovery()})
         if decision := _DECISION.match(self.path):
             return self._answer_decision(int(decision[1]), body)
+        if self.path == "/api/jobs/hide":
+            return self._hide_many(body)
         match = _JOB_ACTION.match(self.path)
         if not match:
             return self._json({"error": "not found"}, HTTPStatus.NOT_FOUND)
@@ -347,6 +365,16 @@ class _Handler(BaseHTTPRequestHandler):
             return self._json({"error": "opción desconocida"}, HTTPStatus.BAD_REQUEST)
         log.info("decision %s: %s", decision_id, choice)
         return self._json({"result": result})
+
+    def _hide_many(self, body: bytes) -> None:
+        try:
+            payload = json.loads(body or b"{}")
+            with self._conn() as conn:
+                changed = hide_many(conn, payload)
+        except ValueError:  # json.JSONDecodeError is a ValueError
+            return self._json({"error": "lista de vacantes inválida"}, HTTPStatus.BAD_REQUEST)
+        log.info("bulk %s: %s jobs", "hide" if payload.get("hidden", True) else "unhide", changed)
+        return self._json({"changed": changed})
 
     def _conn(self) -> _Closing:
         return _Closing(self.panel.connect())

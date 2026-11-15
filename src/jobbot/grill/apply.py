@@ -130,7 +130,9 @@ def _max_level(plan: Plan, answer: str, answers: dict[str, str]) -> None:
             patterns = [p for p in patterns if p != LEVEL_3]
         return patterns
 
-    plan.edit_list(SEARCH, ("title", "exclude"), update)
+    plan.edit_list(SEARCH, ("title", "seniority"), update)
+    if answer == "Cualquiera salvo senior":  # before ADR-025 the levels lived in title.exclude
+        plan.edit_list(SEARCH, ("title", "exclude"), lambda p: [x for x in p if x != LEVEL_3])
 
 
 def _modality(plan: Plan, answer: str, answers: dict[str, str]) -> None:

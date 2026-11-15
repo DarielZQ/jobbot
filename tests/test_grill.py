@@ -100,7 +100,7 @@ def test_plan_shows_changes_and_saves_them_keeping_comments(home: Path) -> None:
     assert (region.country, region.country_code, region.utc_offset) == ("Mexico", "MEX", -6)
     search = load_search_rules()
     assert list(search.role_families) == ["it_support"]
-    assert apply.LEVEL_2[0] in search.title.exclude
+    assert apply.LEVEL_2[0] in search.title.seniority
     assert r"\b(monterrey|guadalajara)\b" in search.location.local
     assert not any("portug" in p for p in search.title.exclude)
     assert "# Dónde buscas trabajo" in (home / "config" / "settings.yaml").read_text("utf-8")
@@ -110,6 +110,14 @@ def test_remote_only_clears_the_local_area() -> None:
     plan = apply.plan({"modality": "Solo remoto"}, TOPIC.questions)
     plan.save()
     assert load_search_rules().location.local == []
+
+
+def test_any_level_but_senior_lets_level_3_through() -> None:
+    assert apply.LEVEL_3 in load_search_rules().title.seniority
+    apply.plan({"max_level": "Cualquiera salvo senior"}, TOPIC.questions).save()
+    title = load_search_rules().title
+    assert apply.LEVEL_3 not in title.seniority + title.exclude
+    assert any("senior" in p for p in title.seniority)
 
 
 # --- Background decisions -----------------------------------------------------------------------

@@ -268,3 +268,16 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - **`linkedin_searches`:** cada grupo acepta `experience`, el filtro de nivel de LinkedIn (`f_E`): `internship`, `entry` o `associate`. También acepta `hours`, su propio rango hacia atrás, porque una semana sirve mejor para las pasantías. El panel y el informe dicen el rango de cada grupo («últimos 7 días»).
   - **Familias nuevas sin código nuevo:** "Software / automatización" (solo con marca de entrada) e "IA y automatización · aspiracional" son configuración en `search.yaml`. La palabra "aspiracional" en la etiqueta basta para distinguirlas en el panel y el informe. La automatización industrial (PLC, equipos) queda fuera con su `exclude`.
 - **Consecuencias:** la nota de matrícula depende de la redacción del anuncio, así que puede faltar o sobrar: es un aviso, no un filtro. El filtro "Entrada" no incluye los niveles 1 (L1, "Analyst I"), que ya son el foco de las familias de soporte.
+
+## ADR-025 — Limpiar Descartadas en bloque: Senior, Otro país y búsqueda
+
+- **Fecha:** 2026-11-15.
+- **Contexto:** Descartadas tenía más de 3.000 vacantes del último mes y solo se podían quitar de una en una. Cerca de la mitad pedían un nivel más alto (senior, líder, gerente, nivel 3) y más de un tercio eran presenciales en otro país. El candidato no va a postular a ninguna de esas, pero entre el resto aparecen algunas que sí le sirven, así que no basta con esconderlas sin mirarlas. Además, la búsqueda no tenía cómo borrarse de un clic.
+- **Decisión:**
+  - **`title.seniority`** en `search.yaml`: las reglas de nivel salen de `title.exclude` a su propia lista. Siguen descartando igual (`title_excluded: <palabra>`), pero ahora el panel puede saber cuáles son de nivel y cuáles de ventas o idiomas. `grill setup-profile` edita esta lista con su pregunta de nivel máximo.
+  - **Panel, solo en Descartadas:**
+    - filtro "Senior", con `title.seniority` sobre el título (`RuleSet.senior`);
+    - filtro "Otro país", con la misma clasificación que ya da la etiqueta de cada vacante (`place == "abroad"`);
+    - botón "Quitar estas N de la lista", que saca todo lo que muestran los filtros y la búsqueda. Pide confirmación, ofrece **Deshacer** durante 15 segundos y solo aparece con algún filtro o búsqueda activa, para que un clic no vacíe la lista entera. Usa `POST /api/jobs/hide` (`{"ids": [...], "hidden": true|false}`), que solo toca vacantes descartadas.
+  - **Una ✕ en la búsqueda**, en todas las pestañas, y la tecla Esc, para borrarla.
+- **Consecuencias:** una configuración anterior que tenga las reglas de nivel en `title.exclude` sigue filtrando igual, pero el filtro "Senior" queda vacío hasta mover esas reglas a `title.seniority`. Las remotas que en realidad son de otro país quedan como "100 % remoto": para esas sirve la búsqueda (el nombre del país) y el mismo botón.

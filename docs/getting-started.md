@@ -139,7 +139,7 @@ Qué pregunta y qué cambia:
 | :--- | :--- |
 | País | `settings.yaml: region` y el país de `facts.yaml` |
 | Tipo de puesto | Qué familias de roles quedan en `search.yaml` |
-| Nivel máximo (solo nivel 1, hasta nivel 2, cualquiera salvo senior) | Exclusiones de nivel en `search.yaml: title.exclude` |
+| Nivel máximo (solo nivel 1, hasta nivel 2, cualquiera salvo senior) | Exclusiones de nivel en `search.yaml: title.seniority` |
 | Modalidad (solo remoto, o también presencial o híbrido en tu zona) | `search.yaml: location.local` (vacío si es solo remoto) |
 | Zona local (solo si aceptas presencial) | Agrega tus ciudades o cantones a `location.local` |
 | Idiomas | Deja de excluir títulos en portugués si lo hablas |
@@ -205,13 +205,13 @@ Se abre en tu navegador, en `http://127.0.0.1:8765`. Solo funciona en tu computa
 | **Postuladas** | A las que ya postulaste | **Me llamaron**, **Rechazo / sin respuesta**, **Deshacer** |
 | **Entrevistas** | Empresas que te llamaron | **Rechazo** |
 | **Cerradas** | Rechazos o sin respuesta | |
-| **Descartadas** | Lo que filtró JobBot o descartaste tú en el último mes (`max_age_days`), con el motivo | **Volver a pendientes**, **Quitar de la lista** |
+| **Descartadas** | Lo que filtró JobBot o descartaste tú en el último mes (`max_age_days`), con el motivo | **Volver a pendientes**, **Quitar de la lista**, **Quitar estas N de la lista** |
 | **Decisiones** | Preguntas cortas de JobBot sobre tu búsqueda (ver abajo) | Una por opción |
 
 - **Postular:** el título abre la vacante. "CV a subir" abre el PDF recomendado y **copiar ruta** copia su ubicación: en la ventana de subir archivo del sitio, pega con Ctrl+V y Enter.
 - **"Ya postulaste: #N":** aparece si una vacante abierta se parece a una a la que ya postulaste (misma empresa y título desde otra fuente o ubicación).
 - **Buscar ahora:** busca en todas las fuentes en ese momento y muestra el avance.
-- **Filtros:** por familia de roles; **100 % remoto** o **Nacionales** (presencial o híbrido en tu país); **Últimas 24 h** (solo las publicadas hace poco); **En español** (anuncios escritos en español); **Entrada** (primer empleo: pasantías, trainee, junior, new grad y early career); y una búsqueda por puesto, empresa o lugar que no distingue tildes.
+- **Filtros:** por familia de roles; **100 % remoto** o **Nacionales** (presencial o híbrido en tu país); **Últimas 24 h** (solo las publicadas hace poco); **En español** (anuncios escritos en español); **Entrada** (primer empleo: pasantías, trainee, junior, new grad y early career); y una búsqueda por puesto, empresa o lugar que no distingue tildes. La **✕** del buscador, o la tecla Esc, la borra. En Descartadas hay dos más: **Otro país** (presencial o híbrido fuera de tu zona) y **Senior** (títulos de nivel más alto, según `title.seniority`).
 - **Fecha de publicación:** cada vacante dice "publicada hace X". Con "~", la fecha es aproximada: Workday solo da una edad ("hace 3 días") y en las alertas de LinkedIn se usa la fecha del correo. Indeed y CompuTrabajo por correo no traen fecha: "fecha de publicación desconocida".
 - **"Nueva":** publicada en las últimas 24 h (`fresh_hours`). Si la fecha es desconocida, vista por primera vez en las últimas 24 h.
 - **"Recomendada por LinkedIn, puede ser vieja":** llegó en un correo de LinkedIn que no es de tus alertas guardadas (empleos similares, sugerencias bajo una confirmación). Mira la fecha en el anuncio antes de postular. Estas van al final de la lista.
@@ -220,6 +220,7 @@ Se abre en tu navegador, en `http://127.0.0.1:8765`. Solo funciona en tu computa
 - **"Remoto sin país: confirma que acepten…":** el anuncio está en español y dice solo "Remoto". Suele estar abierto a toda la región, pero no siempre: confírmalo antes de postular.
 - **"Pide estar matriculado: revisa si aceptan egresados":** la descripción pide ser estudiante activo. Si ya terminaste la carrera, mira si también aceptan egresados o recién graduados antes de postular.
 - **Quitar de la lista:** en Descartadas, saca para siempre una vacante que ya revisaste (con **Deshacer** unos segundos). Una nueva búsqueda o un cambio de filtros no la vuelve a traer.
+- **Quitar estas N de la lista:** en Descartadas, con algún filtro o búsqueda activa, saca de una vez todas las que se ven (por ejemplo, Senior y luego Otro país). Pide confirmación y deja **Deshacer** 15 segundos.
 - **Buscar en LinkedIn:** botones que abren en tu navegador la búsqueda de LinkedIn de cada palabra clave, con lo más nuevo primero. Por defecto, solo lo publicado en las últimas 24 h; un grupo puede tener su propio rango. JobBot no entra a LinkedIn: solo arma el enlace. Las palabras clave están en `targets.yaml: linkedin_searches`.
 - **Si te equivocas:** después de cada acción aparece **Deshacer** durante unos segundos.
 - **Cierre:** el panel se apaga solo 10 minutos después de que cierres la pestaña. Si la página dice que se cerró, ábrelo de nuevo.
@@ -414,7 +415,8 @@ Los patrones son expresiones regulares que no distinguen mayúsculas ni tildes (
 | `role_families.<familia>.cv` | Variante de CV de esa familia |
 | `role_families.<familia>.include` / `exclude` | El título debe coincidir con algún `include` y con ningún `exclude` |
 | `any_role_companies` | Empresas donde te sirve cualquier puesto: sus vacantes pasan sin familia (la seniority y la ubicación siguen aplicando) |
-| `title.exclude` | Exclusiones para todas las familias: seniority (Senior, Lead, Manager), nivel 3 o más, ventas |
+| `title.seniority` | Nivel por encima del tuyo, para todas las familias: Senior, Lead, Manager, nivel 3 o más. Descarta igual que `title.exclude` y es el filtro "Senior" de Descartadas |
+| `title.exclude` | Otras exclusiones para todas las familias: ventas, idiomas que no hablas |
 | `description.exclude` | Requisitos imposibles en la descripción (autorización de seguridad, ciudadanía de EE. UU.) |
 | `description.seniority` | Etiqueta de seniority que ponen Get on Board, Jobicy y Himalayas. Descarta la vacante, salvo que se haya publicado hace menos de `fresh_hours` |
 | `max_age_days` | Días máximos desde la publicación (o, sin fecha, desde que JobBot la vio). Lo más viejo se descarta al llegar y las pendientes que pasan el límite van a Descartadas. 0 = sin límite |

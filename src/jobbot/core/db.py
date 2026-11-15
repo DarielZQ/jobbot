@@ -416,6 +416,22 @@ def set_hidden(conn: sqlite3.Connection, job_id: int, hidden: bool = True) -> Jo
     return get_job(conn, job_id)
 
 
+def set_hidden_many(conn: sqlite3.Connection, job_ids: list[int], hidden: bool = True) -> int:
+    """`set_hidden` for every discarded job of `job_ids`, in one transaction; jobs in any other
+    state are left alone. Returns how many changed (ADR-025)."""
+    changed = 0
+    now = _now()
+    with conn:
+        for start in range(0, len(job_ids), 500):  # SQLite caps the parameters per statement
+            chunk = job_ids[start : start + 500]
+            changed += conn.execute(
+                f"UPDATE jobs SET hidden = ?, updated_at = ? WHERE status = ? AND hidden != ? "
+                f"AND id IN ({', '.join('?' * len(chunk))})",
+                (int(hidden), now, Status.SKIPPED.value, int(hidden), *chunk),
+            ).rowcount
+    return changed
+
+
 def set_outcome(conn: sqlite3.Connection, job_id: int, outcome: Status) -> JobRow:
     """What happened after applying: INTERVIEW or REJECTED, marked by the candidate."""
     if outcome not in (Status.INTERVIEW, Status.REJECTED):

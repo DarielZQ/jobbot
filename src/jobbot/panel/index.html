@@ -54,8 +54,15 @@
   .chips button.on { border-color:var(--accent); color:var(--accent); background:var(--accent-soft); }
   select { font:inherit; font-size:13px; margin-left:4px; padding:4px 6px; border:1px solid var(--line);
            border-radius:6px; background:var(--card); color:var(--fg); }
-  input[type=search] { flex:1; min-width:180px; font:inherit; font-size:14px; padding:6px 10px;
+  .search { position:relative; flex:1; min-width:180px; display:flex; }
+  input[type=search] { flex:1; min-width:0; font:inherit; font-size:14px; padding:6px 32px 6px 10px;
                        border:1px solid var(--line); border-radius:6px; background:var(--card); color:var(--fg); }
+  input[type=search]::-webkit-search-cancel-button { -webkit-appearance:none; appearance:none; }
+  .search button { position:absolute; right:4px; top:50%; transform:translateY(-50%); border:none;
+                   background:none; padding:2px 8px; color:var(--muted); font-size:15px; line-height:1; }
+  .search button:hover { color:var(--fg); background:var(--hover); }
+  .bulk { display:flex; gap:10px; align-items:center; justify-content:space-between; flex-wrap:wrap;
+          margin:-4px 0 12px; font-size:13px; color:var(--muted); }
   ul.jobs { list-style:none; margin:0; padding:0; background:var(--card); border:1px solid var(--line); border-radius:8px; }
   li.job { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:12px; align-items:center;
            padding:12px 14px; border-bottom:1px solid var(--line); transition:opacity .25s; }
@@ -122,11 +129,13 @@
       <button data-place="">Remotas y nacionales</button>
       <button data-place="remote" title="Solo trabajos 100 % desde casa (sin híbridos)">100 % remoto</button>
       <button data-place="national" title="Presencial o híbrido en tu zona (location.local)">Nacionales</button>
+      <button data-place="abroad" title="Presenciales o híbridas fuera de tu zona" hidden>Otro país</button>
     </div>
     <div class="chips">
       <button id="fresh" title="Solo las publicadas hace poco (las de fecha desconocida no entran)">Últimas 24 h</button>
       <button id="spanish" title="Solo los anuncios escritos en español">En español</button>
       <button id="entry" title="Primer empleo: pasantías, trainee, junior, new grad y early career">Entrada</button>
+      <button id="senior" title="Título de nivel más alto: senior, líder, gerente, nivel 3 (title.seniority)" hidden>Senior</button>
     </div>
     <label class="small muted">Ordenar por
       <select id="sort" aria-label="Ordenar por">
@@ -135,9 +144,16 @@
         <option value="company">empresa</option>
       </select>
     </label>
-    <input type="search" id="q" placeholder="Buscar por puesto, empresa o lugar" aria-label="Buscar">
+    <span class="search">
+      <input type="search" id="q" placeholder="Buscar por puesto, empresa o lugar" aria-label="Buscar">
+      <button id="q-clear" title="Borrar la búsqueda (Esc)" aria-label="Borrar la búsqueda" hidden>✕</button>
+    </span>
   </div>
   <div class="linkedin" id="linkedin" hidden></div>
+  <div class="bulk" id="bulk" hidden>
+    <span id="bulk-text"></span>
+    <button id="hide-all" title="Saca de Descartadas todas las que muestra el filtro (con Deshacer)"></button>
+  </div>
 
   <ul class="jobs" id="list"></ul>
   <button class="more" id="more" hidden>Mostrar más</button>
@@ -168,7 +184,8 @@ const DONE_TEXT = {
 };
 
 const PLACES = { remote: "100 % remoto", national: "Nacional", abroad: "Otro país" };
-const state = { view: "pending", family: "", place: "", fresh: false, spanish: false, entry: false, sort: "posted", freshHours: 24, linkedin: [], query: "", jobs: [], decisions: [], shown: PAGE, polling: null, wasRunning: false };
+const PLACE_CHIPS = { remote: "100 % remoto", national: "Nacionales", abroad: "Otro país" };
+const state = { view: "pending", family: "", place: "", fresh: false, spanish: false, entry: false, senior: false, sort: "posted", freshHours: 24, linkedin: [], query: "", jobs: [], decisions: [], shown: PAGE, polling: null, wasRunning: false };
 try {
   state.view = localStorage.getItem("jobbot.view") || "pending";
   state.family = localStorage.getItem("jobbot.family") || "";
@@ -235,14 +252,46 @@ function safeUrl(url) {
 }
 
 let toastTimer = null;
-function toast(text, undo) {
+function toast(text, undo, ms) {
   $("toast-text").textContent = text;
   const button = $("toast-undo");
   button.hidden = !undo;
   button.onclick = undo ? () => { $("toast").hidden = true; undo(); } : null;
   $("toast").hidden = false;
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { $("toast").hidden = true; }, undo ? 8000 : 4000);
+  toastTimer = setTimeout(() => { $("toast").hidden = true; }, ms || (undo ? 8000 : 4000));
+}
+
+async function hideMany(ids, hidden) {
+  return (await api("/api/jobs/hide", "POST", { ids, hidden })).changed;
+}
+
+async function hideAll() {
+  // Descartadas: everything the filters and the search show, in one go (ADR-025)
+  const ids = visibleJobs().map((job) => job.id);
+  if (!ids.length) return;
+  if (!confirm(`¿Quitar de Descartadas las ${ids.length} vacantes que muestra el filtro? Podrás deshacerlo justo después.`)) return;
+  let changed;
+  try {
+    changed = await hideMany(ids, true);
+  } catch (e) {
+    toast(e.message || "No se pudo guardar.");
+    return;
+  }
+  const gone = new Set(ids);
+  state.jobs = state.jobs.filter((job) => !gone.has(job.id));
+  state.shown = PAGE;
+  render();
+  refreshSummary();
+  toast(`Quitadas de la lista: ${changed}`, async () => {
+    try {
+      toast(`De vuelta en Descartadas: ${await hideMany(ids, false)}`);
+    } catch (e) {
+      toast(e.message || "No se pudo deshacer.");
+    }
+    load();
+    refreshSummary();
+  }, 15000);
 }
 
 async function act(job, action, row) {
@@ -352,14 +401,31 @@ const SORTS = {
   company: (a, b) => a.company.localeCompare(b.company, "es", { sensitivity: "base" }) || a.title.localeCompare(b.title, "es"),
 };
 
+// "Otro país" and "Senior" are Descartadas' chips: elsewhere they do not filter
+function placeFilter() {
+  return state.place === "abroad" && state.view !== "skipped" ? "" : state.place;
+}
+
+function seniorFilter() {
+  return state.senior && state.view === "skipped";
+}
+
+function filtering() {
+  return Boolean(state.family || placeFilter() || state.fresh || state.spanish || state.entry ||
+                 seniorFilter() || state.query.trim());
+}
+
 function visibleJobs() {
-  const query = fold(state.query);
+  const query = fold(state.query.trim());
+  const place = placeFilter();
+  const senior = seniorFilter();
   const jobs = state.jobs.filter((job) =>
     (!state.family || job.family === state.family) &&
-    (!state.place || job.place === state.place) &&
+    (!place || job.place === place) &&
     (!state.fresh || job.fresh) &&
     (!state.spanish || job.lang === "es") &&
     (!state.entry || job.entry) &&
+    (!senior || job.senior) &&
     (!query || fold(`${job.title} ${job.company} ${job.location}`).includes(query)));
   const compare = SORTS[state.sort];
   return compare ? jobs.sort(compare) : jobs;
@@ -416,6 +482,7 @@ function showLinkedIn() {
 
 function render() {
   document.querySelector(".filters").hidden = state.view === "decisions";
+  $("bulk").hidden = true;
   showLinkedIn();
   for (const button of document.querySelectorAll("#tabs button"))
     button.classList.toggle("on", button.dataset.view === state.view);
@@ -431,6 +498,12 @@ function render() {
   }
   $("more").hidden = jobs.length <= state.shown;
   $("more").textContent = `Mostrar más (${jobs.length - state.shown} restantes)`;
+  const skipped = state.view === "skipped";
+  // Only once something is filtered: a bare click never empties the whole list
+  $("bulk").hidden = !skipped || !jobs.length || !filtering();
+  $("bulk-text").textContent = `El filtro muestra ${jobs.length} de ${state.jobs.length}.`;
+  $("hide-all").textContent = `Quitar estas ${jobs.length} de la lista`;
+  $("q-clear").hidden = !state.query;
   for (const button of document.querySelectorAll("#tabs button"))
     button.classList.toggle("on", button.dataset.view === state.view);
   for (const button of document.querySelectorAll("#families button"))
@@ -439,10 +512,16 @@ function render() {
     const place = button.dataset.place;
     if (place) {
       const count = state.jobs.filter((job) => job.place === place).length;
-      button.textContent = `${place === "remote" ? "100 % remoto" : "Nacionales"} (${count})`;
+      button.textContent = `${PLACE_CHIPS[place]} (${count})`;
+    } else {
+      button.textContent = skipped ? "Todos los lugares" : "Remotas y nacionales";
     }
-    button.classList.toggle("on", place === state.place);
+    button.classList.toggle("on", place === placeFilter());
   }
+  document.querySelector('#places [data-place="abroad"]').hidden = !skipped;
+  $("senior").hidden = !skipped;
+  $("senior").textContent = `Senior (${state.jobs.filter((job) => job.senior).length})`;
+  $("senior").classList.toggle("on", seniorFilter());
   $("fresh").textContent = `Últimas ${state.freshHours} h (${state.jobs.filter((job) => job.fresh).length})`;
   $("fresh").classList.toggle("on", state.fresh);
   $("spanish").textContent = `En español (${state.jobs.filter((job) => job.lang === "es").length})`;
@@ -580,7 +659,23 @@ $("sort").addEventListener("change", (event) => {
   try { localStorage.setItem("jobbot.sort", state.sort); } catch (e) { /* ignore */ }
   render();
 });
-$("q").addEventListener("input", (event) => { state.query = event.target.value; state.shown = PAGE; render(); });
+$("senior").addEventListener("click", () => {
+  state.senior = !state.senior;
+  state.shown = PAGE;
+  render();
+});
+$("hide-all").addEventListener("click", hideAll);
+function setQuery(text) {
+  state.query = text;
+  if ($("q").value !== text) $("q").value = text;
+  state.shown = PAGE;
+  render();
+}
+$("q").addEventListener("input", (event) => setQuery(event.target.value));
+$("q").addEventListener("keydown", (event) => {
+  if (event.key === "Escape" && state.query) { event.preventDefault(); setQuery(""); }
+});
+$("q-clear").addEventListener("click", () => { setQuery(""); $("q").focus(); });
 $("more").addEventListener("click", () => { state.shown += PAGE; render(); });
 document.addEventListener("visibilitychange", () => {
   if (document.visibilityState === "visible") { refreshSummary(); load(); }

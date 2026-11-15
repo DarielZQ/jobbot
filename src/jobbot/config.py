@@ -68,6 +68,9 @@ class RoleFamily(BaseModel):
 
 
 class TitleRules(BaseModel):
+    # Level above the candidate's (senior, lead, manager, level 3): excluded like `exclude`, and
+    # also the panel's "Senior" chip in Descartadas (ADR-025)
+    seniority: list[str] = Field(default_factory=list)
     exclude: list[str] = Field(default_factory=list)
 
 

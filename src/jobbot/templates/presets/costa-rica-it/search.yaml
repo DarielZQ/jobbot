@@ -136,17 +136,19 @@ role_families:
       - '\bdigitador\b'
 
 # Empresas donde te sirve cualquier puesto (ADR-022): sus vacantes pasan aunque el título no sea
-# de ninguna familia. Siguen aplicando title.exclude (seniority), la ubicación y la descripción.
+# de ninguna familia. Siguen aplicando title.seniority, title.exclude, la ubicación y la descripción.
 # Se escriben como el nombre de la empresa en targets.yaml, p. ej. ["Acme"].
 any_role_companies: []
 
 title:
-  # Exclusiones globales: aplican a todas las familias
-  exclude:
+  # Exclusiones globales: aplican a todas las familias.
+  # Nivel por encima del tuyo. En Descartadas del panel son el filtro «Senior» (ADR-025).
+  seniority:
     - '\b(senior|sr|lead|manager|mgr|director|head|principal|architect|staff|supervisor|vp)\b'
     - '\b(gerente|jefe|coordinador|lider)\b'
     # Nivel 3 en adelante. El nivel 2 (II, Tier 2, L2, Mid) pasa; agrégalo aquí si no lo quieres.
     - '\b(iii|iv|level\s*3|l3|nivel\s*3)\b'
+  exclude:
     - '\b(sales|ventas|recruiter|reclutador)\b'
     # Piden un idioma que no hablas: quita de la lista los que sí hablas. "(m/w/d)" es la marca de
     # género de los anuncios en alemán.

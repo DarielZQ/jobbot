@@ -89,7 +89,7 @@ Un preset es un punto de partida para un país o un tipo de búsqueda.
 
 1. Crea `src/jobbot/templates/presets/<pais>-<area>/` (por ejemplo `mexico-it`) con:
    - `settings.yaml`: el bloque `region` (`country`, `country_code`, `country_slug`, `utc_offset`, `timezone`).
-   - `search.yaml`: familias de roles (con `label` y `cv`), `title.exclude`, `description.exclude` y `location` (`local`, `local_exclude`, `remote_ok`, `remote_reject`).
+   - `search.yaml`: familias de roles (con `label` y `cv`), `title.seniority`, `title.exclude`, `description.exclude` y `location` (`local`, `local_exclude`, `remote_ok`, `remote_reject`).
    - `targets.yaml`: empresas y bolsas **verificadas** (que respondan y tengan vacantes del país). Para Workday, verifica cada una con `scripts/probe_workday.py`.
 2. Comenta en los YAML lo que no sea obvio, con la fecha de verificación.
 3. Agrega un test en `tests/test_setup.py` que cargue el preset y verifique que cada fuente recibe su país (como el de `costa-rica-it`). Si el país no está en `src/jobbot/templates/grill/countries.yaml`, agrégalo para que `grill setup-profile` lo ofrezca.

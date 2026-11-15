@@ -68,6 +68,51 @@ def test_jobs_say_whether_they_are_remote_national_or_abroad(conn) -> None:
     assert panel.list_view(conn, "skipped")[0]["place"] == "abroad"
 
 
+def test_discarded_jobs_say_whether_the_title_is_senior(conn) -> None:
+    _add(conn, 1, Status.SKIPPED, "title_excluded: senior", title="Senior Help Desk Analyst")
+    _add(conn, 2, Status.SKIPPED, "title_not_target_role", title="Gerente de Ventas")
+    _add(conn, 3, Status.SKIPPED, "title_not_target_role", title="Data Engineer Intern")
+    _add(conn, 4, Status.SKIPPED, "title_excluded: sales", title="Sales Development Rep")
+
+    senior = {j["title"]: j["senior"] for j in panel.list_view(conn, "skipped")}
+    assert senior == {
+        "Senior Help Desk Analyst": True,
+        "Gerente de Ventas": True,
+        "Data Engineer Intern": False,
+        "Sales Development Rep": False,  # title.exclude, but not a level
+    }
+
+
+def test_hide_many_takes_discarded_jobs_off_the_list_and_back(conn) -> None:
+    skipped = [_add(conn, n, Status.SKIPPED, "location_not_target") for n in (1, 2, 3)]
+    pending = _add(conn, 4)
+
+    assert panel.hide_many(conn, {"ids": [*skipped[:2], pending, 999]}) == 2
+    assert [j["id"] for j in panel.list_view(conn, "skipped")] == [skipped[2]]
+    assert db.get_job(conn, pending).hidden is False  # only discarded jobs are touched
+    assert panel.summary(conn)["counts"]["skipped"] == 1
+
+    assert panel.hide_many(conn, {"ids": skipped, "hidden": False}) == 2
+    assert len(panel.list_view(conn, "skipped")) == 3
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        [1, 2],
+        {},
+        {"ids": "1,2"},
+        {"ids": [1, "2"]},
+        {"ids": [True]},
+        {"ids": [0]},
+        {"ids": [1], "hidden": "no"},
+    ],
+)
+def test_hide_many_rejects_anything_but_a_list_of_ids(conn, payload) -> None:
+    with pytest.raises(ValueError):
+        panel.hide_many(conn, payload)
+
+
 def test_pending_job_already_applied_elsewhere_is_flagged(conn) -> None:
     applied = _add(
         conn, 1, title="Técnicos(as) de Soporte", company="Globex S.A.", location="Curridabat"

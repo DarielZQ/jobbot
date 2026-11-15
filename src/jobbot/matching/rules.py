@@ -87,6 +87,7 @@ class RuleSet:
             rules.role_families.items(), key=lambda item: item[1].priority != "primary"
         )
         self._families = [_compile_family(name, family) for name, family in ordered]
+        self._title_seniority = _compile(rules.title.seniority)
         self._title_exclude = _compile(rules.title.exclude)
         self._description_exclude = _compile(rules.description.exclude)
         self._description_seniority = _compile(rules.description.seniority)
@@ -107,6 +108,10 @@ class RuleSet:
             ):
                 return family.name
         return None
+
+    def senior(self, title: str) -> bool:
+        """The title asks for a level above the candidate's (`title.seniority`)."""
+        return _first_match(self._title_seniority, normalize_text(title)) is not None
 
     def in_local_area(self, location: str) -> bool:
         return _first_match(self._location_local, normalize_text(location)) is not None
@@ -131,7 +136,10 @@ class RuleSet:
             if normalize_text(job.company) not in self._any_role:
                 return RuleResult(False, "title_not_target_role")
             family = ""  # any_role_companies: no family; the report lists it under "Otras"
-        if hit := _first_match(self._title_exclude, normalize_text(job.title)):
+        title = normalize_text(job.title)
+        if hit := _first_match(self._title_seniority, title) or _first_match(
+            self._title_exclude, title
+        ):
             return RuleResult(False, f"title_excluded: {hit}", family)
         if self.too_old(job.posted_at):
             return RuleResult(False, f"{TOO_OLD}: {self.age_days(job.posted_at)} días", family)
