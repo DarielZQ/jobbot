@@ -29,7 +29,7 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
 - **Actualización 2026-11-17:**
   - Desde el 2026-11-16, Cloudflare pide una verificación de navegador a parte de las empresas de Workday (`docs/platforms/workday.md`).
   - Antes, `HttpClient` trataba esa respuesta como un 429 cualquiera y reintentaba tres veces. Ahora la reconoce (`cf-mitigated: challenge` o el texto de la página) y lanza `ChallengeError` sin reintentar: esa fuente se detiene en la corrida.
-  - El informe la explica como «Bloqueo anti-bots». Todos los errores de fuente se explican igual: primero qué pasó en palabras simples y al final el detalle técnico corto (`pipeline._describe`).
+  - El informe la explica como «Bloqueo anti-bots». Todos los errores de fuente se explican igual: primero qué pasó en palabras simples y al final el detalle técnico corto (`pipeline.describe_error`).
 
 ## ADR-004 — Adapters deterministas por fuente
 
@@ -308,3 +308,20 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - Una corrida que falla a medias no registra el listado, así que no marca nada.
   - La marca aparece desde la primera corrida completa después de esta versión.
   - Una vacante que el sitio quita y vuelve a publicar con el mismo id pierde la marca en la siguiente corrida.
+
+## ADR-027 — Más multinacionales con sede en Costa Rica y el `robots.txt` de cada ATS
+
+- **Fecha:** 2026-11-17.
+- **Contexto:**
+  - El candidato quiere cubrir las multinacionales con operaciones en Costa Rica, no solo las que ya conocía.
+  - La lista de empresas de la feria de CINDE Jobs y una búsqueda por ATS dieron unas 140 candidatas. Para cada una se revisó en qué sistema publica, cuántas vacantes tiene en Costa Rica y qué dice el `robots.txt` de ese sistema.
+- **Decisión:**
+  - **Se agregan** las que publican en un ATS que JobBot ya lee y cuyo `robots.txt` lo permite. La lista vive en `targets.yaml` del usuario. Las plantillas no cambian, porque cada usuario elige sus empresas.
+  - **SmartRecruiters no se lee.** Su API de vacantes es pública, pero `api.smartrecruiters.com/robots.txt` tiene `Disallow: /` para todo cliente salvo el de LinkedIn. Se sigue el mismo criterio que con Torre (ADR-023): las empresas que publican ahí se siguen con alertas de LinkedIn.
+  - **CINDE Jobs no se lee:** sus términos prohíben descargar o copiar su contenido. Se usa a mano (`job-search.md`).
+  - **Ubicación con el código del país:** algunos sitios escriben «…, CR» o «CR - …». La plantilla de Costa Rica lo acepta en `location.local` (`\bcr$|^cr\b`).
+  - **San José de California:** «San Jose, CA, USA» coincidía con la San José de `location.local`, y se coló una pasantía de Estados Unidos. La plantilla la excluye en `location.local_exclude`. El comentario va sobre la clave y no dentro de la lista, porque `ruamel.yaml` rompe el archivo si grill vacía una lista que empieza con un comentario.
+  - `scripts/probe_workday.py` explica los errores con `pipeline.describe_error`, igual que el informe. Antes se caía cuando Workday pedía la verificación anti-bots.
+- **Consecuencias:**
+  - Las empresas de Workday que no se pudieron verificar (Cloudflare, ADR-003) y las de sitio propio quedan anotadas en `targets.yaml` para probarlas más adelante.
+  - El `robots.txt` típico de SuccessFactors Career Site Builder prohíbe `/services/`, que es donde está el feed RSS que lee `discovery/successfactors.py`. Hay que decidir si se cambia a la página de búsqueda, que sí está permitida, o si se dejan de leer esos sitios.

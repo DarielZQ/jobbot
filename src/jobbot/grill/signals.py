@@ -112,7 +112,7 @@ def _failing(conn: sqlite3.Connection) -> list[dict]:
 
 
 def _headline(error: str) -> str:
-    """The plain-words part of a source's error (pipeline._describe), without the detail."""
+    """The plain-words part of a source's error (pipeline.describe_error), without the detail."""
     first = error.split(". ", 1)[0].rstrip(".")
     return first if len(first) <= 140 else f"{first[:139]}…"
 

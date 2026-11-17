@@ -89,3 +89,5 @@ Las fuentes que buscan por país toman el valor de `settings.yaml: region` salvo
 | Concentrix, TEKsystems (Phenom) | Sin endpoint público verificado | Revisar a mano o con alertas |
 | TELUS Digital | Responde 403 al bot (ADR-003) | Revisar a mano |
 | Teleperformance | Sitio sin verificar | Revisar a mano |
+| SmartRecruiters (Experian, AbbVie, Expeditors y otras) | Su API de vacantes es pública, pero `api.smartrecruiters.com/robots.txt` dice `Disallow: /` para todo cliente salvo el de LinkedIn (ADR-027) | Alertas de LinkedIn por empresa |
+| CINDE Jobs | Sus términos prohíben descargar o copiar su contenido sin permiso escrito de CINDE | Usarlo a mano: pasantías, ferias y su lista de empresas sirven para elegir a cuáles agregar |

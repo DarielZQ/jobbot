@@ -253,6 +253,7 @@ Las migraciones usan `PRAGMA user_version` (ADR-002).
 | Oracle Recruiting | `*.oraclecloud.com/hcmUI/CandidateExperience` |
 | iCIMS | `*.icims.com` |
 | Eightfold | `*.eightfold.ai` |
+| SmartRecruiters | `jobs.smartrecruiters.com/<empresa>/...` (no se lee: su `robots.txt` prohíbe la API, ADR-027) |
 
 ## Cortesía de red
 

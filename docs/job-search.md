@@ -52,7 +52,9 @@ Descartadas:
 | **ANE** (ane.cr) | Plataforma pública y gratuita de intermediación de empleo de Costa Rica | Registrarse y subir el CV; poco esfuerzo |
 | **Perfil de LinkedIn** | Los reclutadores buscan perfiles, no solo reciben postulaciones | Mantener el perfil al día y las alertas activas. Cuando se pueda, postular en el sitio de la empresa en vez de Easy Apply |
 | **Preferencias de CompuTrabajo** | Si el área de interés del perfil no es Informática/Soporte, las alertas traen puestos ajenos | Ajustar el área de interés o darse de baja de las promociones |
-| **Programas de formación de empresas de servicios TI** | Algunas empresas abren cohortes de soporte para quienes inician | Seguir sus sitios de empleo; si usan un ATS soportado, agregarlas a `targets.yaml` |
+| **Programas de formación de empresas de servicios TI** | Algunas empresas abren cohortes de soporte para quienes inician. Ejemplo: Akamai Technical Academy, 16 semanas en línea y gratis para quien no viene de TI, con Costa Rica entre los países elegibles | Seguir sus sitios de empleo; si usan un ATS soportado, agregarlas a `targets.yaml` |
+| **CINDE Jobs** (cindejobs.com) | Bolsa de las multinacionales con operaciones en Costa Rica: sección de pasantías, ferias con entrevistas agendadas (CINDE Jobs Advanced) y la lista de empresas de su feria | Registrarse y revisarlo a mano: sus términos no permiten leerlo con un programa. Su lista de empresas sirve para elegir cuáles agregar a `targets.yaml` |
+| **Ferias de PROCOMER** (Talent Costa Rica) | Feria nacional con más de 100 empresas, por lo general en mayo, y ferias regionales durante el año | Registrarse en talento.procomer.com antes de cada feria |
 | Agregadores (Jooble y similares) | Repiten vacantes de otras fuentes | Baja prioridad |
 
 ## Trabajo remoto (ADR-017)

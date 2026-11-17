@@ -37,7 +37,7 @@ class ChallengeError(Exception):
         return "cloudflare" in self.response.headers.get("Server", "").lower()
 
 
-# How the report names a bot check (pipeline._describe; grill's failing-source question)
+# How the report names a bot check (pipeline.describe_error; grill's failing-source question)
 ANTI_BOT = "Bloqueo anti-bots"
 # Text of bot-check pages, for the ones that come without Cloudflare's `cf-mitigated` header
 _CHALLENGE_TEXT = (

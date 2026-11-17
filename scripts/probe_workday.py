@@ -14,7 +14,8 @@ from urllib.parse import urlsplit
 import httpx
 
 from jobbot.config import WorkdayTarget
-from jobbot.core.http import HttpClient
+from jobbot.core.http import ChallengeError, HttpClient
+from jobbot.discovery.pipeline import describe_error
 from jobbot.discovery.workday import PAGE_SIZE, find_country_facet
 
 
@@ -59,8 +60,9 @@ def main() -> int:
         for url in sys.argv[1:]:
             try:
                 probe(client, parse_url(url))
-            except (httpx.HTTPError, ValueError) as exc:
-                print(f"\n{url}: FALLA {type(exc).__name__}: {exc}")
+            except (httpx.HTTPError, ValueError, ChallengeError) as exc:
+                # The same plain-words explanation as the daily report, bot checks included
+                print(f"\n{url}: FALLA. {describe_error(exc)}")
     return 0
 
 

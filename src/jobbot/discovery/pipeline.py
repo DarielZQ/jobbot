@@ -210,7 +210,7 @@ def _host(exc: httpx.HTTPError) -> str:
         return ""
 
 
-def _describe(exc: Exception) -> str:
+def describe_error(exc: Exception) -> str:
     """Plain words first, then the technical detail in brackets: code and site, never the
     whole URL."""
     if isinstance(exc, ChallengeError):
@@ -250,7 +250,7 @@ def _record_applications(source: ConfirmationSource, conn: sqlite3.Connection) -
     except SourceNotConfigured as exc:
         report.not_configured = str(exc)
     except Exception as exc:  # like any other source: reported, the run goes on
-        report.error = _describe(exc)
+        report.error = describe_error(exc)
     return report
 
 
@@ -306,5 +306,5 @@ def run_source(source: Source, conn: sqlite3.Connection, rules: RuleSet) -> Sour
     except Exception as exc:
         # FETCH_ERRORS, or a response shaped unlike any seen before: one site's failure is
         # reported and the others still run.
-        report.error = _describe(exc)
+        report.error = describe_error(exc)
     return report

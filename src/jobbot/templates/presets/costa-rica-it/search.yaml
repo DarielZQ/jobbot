@@ -192,10 +192,13 @@ location:
   local:
     - 'costa rica'
     - '\b(san jose|heredia|alajuela|cartago|escazu|santa ana|belen|la aurora|curridabat|san pedro|lagunilla|coyol|barreal|forum)\b'
-  # Lugares dentro del país que no aceptas. Ejemplo para quien solo trabaja en el GAM:
-  # local_exclude:
+    # «American Free Zone, San Franci, CR» o «CR - Alajuela»: el código del país (ADR-027)
+    - '\bcr$|^cr\b'
+  # Lugares que no aceptas aunque coincidan con `local`. El primero es San José de California
+  # («San Jose, CA, USA»), no la de Costa Rica (ADR-027). Ejemplo para quien solo trabaja en el GAM:
   #   - '\b(guanacaste|liberia|limon|puntarenas|perez zeledon|san carlos|nicoya|golfito)\b'
-  local_exclude: []
+  local_exclude:
+    - '\bsan jose (ca|california)\b'
   # Remoto aceptado solo si es elegible desde tu país
   remote_ok:
     - '\b(latam|latin america|americas|anywhere|worldwide|global)\b'

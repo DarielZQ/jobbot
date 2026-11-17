@@ -249,16 +249,25 @@ def test_non_target_titles_rejected(rules: RuleSet, title: str, reason_prefix: s
         "San José",
         "Escazú, San José",
         "Remote - LATAM",
+        # Country code at the end or start (SuccessFactors, Workday; ADR-027)
+        "American Free Zone, San Franci, CR",
+        "CR - Zona Franca",
     ],
 )
 def test_locations_accepted(rules: RuleSet, location: str) -> None:
     assert rules.evaluate(make_job(location=location)).ok
 
 
+def test_san_jose_california_is_not_costa_rica(rules: RuleSet) -> None:
+    result = rules.evaluate(make_job(location="San Jose, CA, USA"))
+    assert (result.ok, result.reason) == (False, "location_outside_area: san jose ca")
+
+
 @pytest.mark.parametrize(
     ("location", "remote", "reason"),
     [
         ("Austin, TX", False, "location_not_target"),
+        ("Crawley, United Kingdom", False, "location_not_target"),  # "cr" only as a whole word
         ("Liberia, Guanacaste, Costa Rica", False, "location_outside_area: liberia"),
         ("Remote - US only", True, "remote_not_eligible: us only"),
         ("Remote", True, "remote_region_unknown"),
