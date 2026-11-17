@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from datetime import UTC, datetime
 
 import httpx
+import pytest
 
 from conftest import FIXTURES, make_job
 from jobbot.config import (
@@ -421,7 +422,8 @@ def test_pipeline_reports_http_errors(conn, rules) -> None:
             raise httpx.ConnectError("boom")
 
     report = run_source(Broken(), conn, rules)
-    assert report.error.startswith("ConnectError")
+    assert report.error.startswith("Sin conexión: no se pudo llegar al sitio")
+    assert report.error.endswith("[ConnectError: boom]")
 
 
 def test_pipeline_error_includes_the_api_explanation(conn, rules, make_client) -> None:
@@ -441,8 +443,9 @@ def test_pipeline_error_includes_the_api_explanation(conn, rules, make_client) -
             return []
 
     report = run_source(Gmail(), conn, rules)
-    assert report.error.startswith("HTTPStatusError: Client error '403 Forbidden'")
-    assert report.error.endswith("(Mail not enabled)")
+    assert report.error.startswith("Acceso negado: el sitio rechazó la consulta.")
+    assert "Motivo que dio el sitio: Mail not enabled." in report.error
+    assert report.error.endswith("[HTTP 403 · gmail.googleapis.com]")
 
 
 def test_pipeline_reports_a_maintenance_page_in_plain_words(conn, rules, make_client) -> None:
@@ -468,8 +471,55 @@ def test_pipeline_reports_unexpected_errors_instead_of_stopping(conn, rules) -> 
             raise KeyError("externalPath")
 
     report = run_source(Odd(), conn, rules)
-    assert report.error == "KeyError: 'externalPath'"
+    assert report.error.startswith("La respuesta del sitio cambió de forma")
+    assert report.error.endswith("[KeyError: 'externalPath']")
     assert report.new_matched + report.new_skipped == 1  # what came before the error is kept
+
+
+def test_bot_check_is_explained_and_never_retried(conn, rules, make_client) -> None:
+    calls: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        page = "<html><body>Security Check. Enable JavaScript and cookies to continue</body></html>"
+        headers = {"Content-Type": "text/html", "Server": "cloudflare", "cf-mitigated": "challenge"}
+        return httpx.Response(429, text=page, headers=headers)
+
+    report = run_source(WorkdaySource(make_client(handler), WORKDAY), conn, rules)
+
+    assert len(calls) == 1  # ADR-003: no retries against a bot check
+    assert report.error.startswith("Bloqueo anti-bots: Cloudflare, la protección del sitio,")
+    assert "No es una falla de JobBot ni un cambio en la página" in report.error
+    assert report.error.endswith("[HTTP 429 · acme.wd1.myworkdayjobs.com]")
+
+
+def test_bot_check_page_without_cloudflare_header_is_recognized() -> None:
+    from jobbot.core.http import is_challenge
+
+    page = "<title>Just a moment...</title>"
+    html = {"Content-Type": "text/html"}
+    assert is_challenge(httpx.Response(503, text=page, headers=html))
+    assert not is_challenge(httpx.Response(503, text="<title>Down</title>", headers=html))
+    assert not is_challenge(httpx.Response(429, json={"error": "slow down"}))
+
+
+@pytest.mark.parametrize(
+    ("status", "start"),
+    [
+        (429, "Demasiadas consultas: el sitio pidió bajar el ritmo"),
+        (404, "Dirección no encontrada: la página de empleos ya no está en esa URL"),
+        (502, "Falla del sitio: su servidor tuvo un error propio"),
+        (418, "El sitio rechazó la consulta (HTTP 418)."),
+    ],
+)
+def test_http_errors_say_what_happened_in_plain_words(
+    conn, rules, make_client, status, start
+) -> None:
+    client = make_client(lambda _: httpx.Response(status, json={}))
+    report = run_source(WorkdaySource(client, WORKDAY), conn, rules)
+    assert report.error.startswith(start)
+    assert report.error.endswith(f"[HTTP {status} · acme.wd1.myworkdayjobs.com]")
+    assert "developer.mozilla.org" not in report.error
 
 
 def test_workday_skips_postings_without_link(load_fixture, make_client) -> None:

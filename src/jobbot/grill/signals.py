@@ -22,6 +22,7 @@ import yaml
 
 from jobbot import paths
 from jobbot.core import db
+from jobbot.core.http import ANTI_BOT
 from jobbot.core.state import Status
 from jobbot.grill import GRILL_DIR
 from jobbot.grill.apply import FACTS, SETTINGS, Plan
@@ -92,18 +93,28 @@ def _failing(conn: sqlite3.Connection) -> list[dict]:
             "kind": "failing",
             "question": (
                 f"La fuente {source} falló en sus últimas {FAILING_RUNS} búsquedas "
-                f"({errors[0][:120]}). ¿La desactivo?"
+                f"({_headline(errors[0])}). ¿La desactivo?"
             ),
             "options": [DISABLE, KEEP],
             "recommended": DISABLE,
             "reason": (
-                "Varios fallos seguidos suelen ser un cambio del sitio. Para reactivarla, quítala "
-                "de disabled_sources en config/settings.yaml."
+                (
+                    "El sitio bloquea las consultas automáticas y JobBot no lo evade (ADR-003)."
+                    if errors[0].startswith(ANTI_BOT)
+                    else "Varios fallos seguidos suelen ser un cambio del sitio."
+                )
+                + " Para reactivarla, quítala de disabled_sources en config/settings.yaml."
             ),
         }
         for source, errors in recent.items()
         if len(errors) >= FAILING_RUNS and all(errors[:FAILING_RUNS])
     ]
+
+
+def _headline(error: str) -> str:
+    """The plain-words part of a source's error (pipeline._describe), without the detail."""
+    first = error.split(". ", 1)[0].rstrip(".")
+    return first if len(first) <= 140 else f"{first[:139]}…"
 
 
 def _profile_text() -> str:

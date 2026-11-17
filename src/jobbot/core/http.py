@@ -23,6 +23,43 @@ GOOGLE_RATE_LIMITS = {"rateLimitExceeded", "userRateLimitExceeded", "RATE_LIMIT_
 _TITLE = re.compile(r"<title[^>]*>(.*?)</title>", re.I | re.S)
 
 
+class ChallengeError(Exception):
+    """The site answered with a bot check (Cloudflare's "Security Check", in front of Workday
+    since 2026-11-16) instead of data. ADR-003: never retried nor worked around; the source
+    stops for this run and the user is told."""
+
+    def __init__(self, response: httpx.Response) -> None:
+        self.response = response
+        super().__init__(f"HTTP {response.status_code} con verificación anti-bots")
+
+    @property
+    def by_cloudflare(self) -> bool:
+        return "cloudflare" in self.response.headers.get("Server", "").lower()
+
+
+# How the report names a bot check (pipeline._describe; grill's failing-source question)
+ANTI_BOT = "Bloqueo anti-bots"
+# Text of bot-check pages, for the ones that come without Cloudflare's `cf-mitigated` header
+_CHALLENGE_TEXT = (
+    "enable javascript and cookies to continue",
+    "checking your browser",
+    "just a moment...",
+    "attention required!",
+    "/cdn-cgi/challenge-platform/",
+)
+
+
+def is_challenge(response: httpx.Response) -> bool:
+    if response.headers.get("cf-mitigated", "").lower() == "challenge":
+        return True
+    if response.status_code not in (403, 429, 503):
+        return False
+    if "html" not in response.headers.get("Content-Type", ""):
+        return False
+    head = response.text[:20_000].lower()
+    return any(marker in head for marker in _CHALLENGE_TEXT)
+
+
 class NotJsonError(ValueError):
     """A JSON API answered with something else: usually a maintenance page (Workday tenants
     have Saturday windows, seen 2026-11-14) or an empty body. Says what came back."""
@@ -108,6 +145,8 @@ class HttpClient:
                 self._sleep(_backoff(attempt))
                 continue
             self._last_request_at[host] = time.monotonic()
+            if is_challenge(response):  # ADR-003: a bot check is final, never retried
+                raise ChallengeError(response)
             if not _retryable(response) or attempt == self._max_retries:
                 response.raise_for_status()
                 return response

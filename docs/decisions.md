@@ -26,6 +26,10 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
 - **Contexto:** saltarse CAPTCHAs y fingerprinting viola los términos de uso de los sitios, arriesga las cuentas del usuario y es técnicamente frágil.
 - **Decisión:** `User-Agent` honesto, sin stealth, sin resolvedores de CAPTCHA, sin fingerprint spoofing ni proxies rotativos. Si un sitio bloquea o muestra un challenge, esa fuente se detiene y se avisa al usuario.
 - **Consecuencias:** menos cobertura en sitios que bloquean bots, compensada con fuentes que tienen API pública y con las alertas por correo.
+- **Actualización 2026-11-17:**
+  - Desde el 2026-11-16, Cloudflare pide una verificación de navegador a parte de las empresas de Workday (`docs/platforms/workday.md`).
+  - Antes, `HttpClient` trataba esa respuesta como un 429 cualquiera y reintentaba tres veces. Ahora la reconoce (`cf-mitigated: challenge` o el texto de la página) y lanza `ChallengeError` sin reintentar: esa fuente se detiene en la corrida.
+  - El informe la explica como «Bloqueo anti-bots». Todos los errores de fuente se explican igual: primero qué pasó en palabras simples y al final el detalle técnico corto (`pipeline._describe`).
 
 ## ADR-004 — Adapters deterministas por fuente
 

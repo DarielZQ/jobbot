@@ -168,6 +168,21 @@ def test_failing_source_can_be_disabled(conn) -> None:
     assert load_settings().disabled_sources == ["workday:acme"]
 
 
+def test_failing_source_question_says_why_in_plain_words(conn) -> None:
+    blocked = (
+        "Bloqueo anti-bots: Cloudflare, la protección del sitio, pidió una verificación de "
+        "navegador («Security Check») en vez de responder. No es una falla de JobBot. "
+        "[HTTP 429 · acme.wd1.myworkdayjobs.com]"
+    )
+    signals.record_runs(conn, [("workday:acme", SourceReport(error=blocked))] * 3)
+
+    signals.refresh(conn)
+    (decision,) = signals.pending(conn)
+    assert "(Bloqueo anti-bots: Cloudflare, la protección del sitio, pidió" in decision.question
+    assert "[HTTP" not in decision.question  # the detail stays in the report
+    assert decision.reason.startswith("El sitio bloquea las consultas automáticas")
+
+
 def test_skill_many_postings_ask_for_is_asked_without_a_recommendation(conn) -> None:
     for n in range(5):
         job = make_job(ats_job_id=str(n), description="Soporte con Zendesk y Windows.")

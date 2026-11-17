@@ -13,7 +13,7 @@ import httpx
 
 from jobbot.config import Targets, resolve
 from jobbot.core import db
-from jobbot.core.http import HttpClient, NotJsonError, error_detail
+from jobbot.core.http import ANTI_BOT, ChallengeError, HttpClient, NotJsonError, error_detail
 from jobbot.core.models import Job
 from jobbot.core.state import Status
 from jobbot.discovery.amazon import AmazonSource
@@ -174,13 +174,72 @@ def _complete_details(
         report.screened_out += 1
 
 
+# What an HTTP error means, said plainly (the report, the panel and the daily log show it)
+_STATUS_TEXT = {
+    401: "Acceso negado: el sitio pide iniciar sesión para esa consulta.",
+    403: (
+        "Acceso negado: el sitio rechazó la consulta. Puede que bloquee programas automáticos o "
+        "que esa página ya no sea pública."
+    ),
+    404: (
+        "Dirección no encontrada: la página de empleos ya no está en esa URL. Lo más probable es "
+        "que la empresa cambió su sitio; revisa esa fuente en targets.yaml."
+    ),
+    429: (
+        "Demasiadas consultas: el sitio pidió bajar el ritmo y siguió negándose después de "
+        "reintentar. Vuelve a probar en la próxima corrida."
+    ),
+}
+_STATUS_TEXT[410] = _STATUS_TEXT[404]
+_SERVER_ERROR = (
+    "Falla del sitio: su servidor tuvo un error propio y no se recuperó después de reintentar. "
+    "Suele resolverse solo."
+)
+_CHALLENGE = (
+    ANTI_BOT + ": {who} pidió una verificación de navegador («Security Check») en vez de "
+    "responder. No es una falla de JobBot ni un cambio en la página: el sitio frena las "
+    "consultas automáticas. JobBot no se salta esas verificaciones (ADR-003), así que no "
+    "reintenta y vuelve a probar en la próxima corrida."
+)
+
+
+def _host(exc: httpx.HTTPError) -> str:
+    try:
+        return exc.request.url.host
+    except RuntimeError:  # an error built without its request
+        return ""
+
+
 def _describe(exc: Exception) -> str:
+    """Plain words first, then the technical detail in brackets: code and site, never the
+    whole URL."""
+    if isinstance(exc, ChallengeError):
+        who = "Cloudflare, la protección del sitio," if exc.by_cloudflare else "el sitio"
+        response = exc.response
+        return f"{_CHALLENGE.format(who=who)} [HTTP {response.status_code} · {response.url.host}]"
     if isinstance(exc, NotJsonError):
         return f"Sin datos: {exc}"
-    text = f"{type(exc).__name__}: {exc}"
-    if isinstance(exc, httpx.HTTPStatusError) and (detail := error_detail(exc.response)):
-        text += f" ({detail})"
-    return text
+    if isinstance(exc, httpx.HTTPStatusError):
+        code = exc.response.status_code
+        text = _STATUS_TEXT.get(code) or (
+            _SERVER_ERROR if code >= 500 else f"El sitio rechazó la consulta (HTTP {code})."
+        )
+        if detail := error_detail(exc.response):
+            text += f" Motivo que dio el sitio: {detail}."
+        return f"{text} [HTTP {code} · {_host(exc)}]"
+    if isinstance(exc, httpx.TimeoutException):
+        text = "Sin respuesta: el sitio tardó demasiado en contestar. Suele ser pasajero."
+    elif isinstance(exc, httpx.ConnectError):
+        text = (
+            "Sin conexión: no se pudo llegar al sitio (sin internet en ese momento o el sitio "
+            "caído). Vuelve a probar en la próxima corrida."
+        )
+    elif isinstance(exc, httpx.HTTPError):
+        text = "La conexión con el sitio se cortó a mitad de la consulta."
+    else:
+        text = "La respuesta del sitio cambió de forma y JobBot no la entendió: hay que ajustarlo."
+    where = _host(exc) if isinstance(exc, httpx.HTTPError) else ""
+    return f"{text} [{type(exc).__name__}: {exc}{f' · {where}' if where else ''}]"
 
 
 def _record_applications(source: ConfirmationSource, conn: sqlite3.Connection) -> SourceReport:

@@ -41,3 +41,8 @@ workday:
 - **Mantenimiento:** cada empresa tiene su propia ventana. Suele caer en sábado, y la mensual o trimestral puede durar toda la mañana. Mientras dura, el endpoint redirige a `static.community.workday.com`, a una página titulada «Workday is currently unavailable.».
   - JobBot lo reporta como «Sin datos: el sitio respondió una página en vez de datos», con el título de la página, y vuelve a consultar en la próxima corrida.
   - Pasó el 2026-11-14 (segundo sábado del mes): a las 08:30, 16 de 18 empresas estaban en mantenimiento.
+- **Verificación anti-bots de Cloudflare (desde el 2026-11-16):**
+  - **Síntomas:** a una parte de las empresas les responde **429** con el encabezado `cf-mitigated: challenge` y una página «Security Check – Enable JavaScript and cookies to continue». Qué empresas cambia en cada corrida: un día fallaron 15 de 18 y otro 7 o 12.
+  - **No es un exceso de consultas:** desde la misma red, otro programa recibía datos al mismo tiempo. Cloudflare frena a quien se identifica como programa automático, y JobBot lo hace con su `User-Agent` honesto.
+  - **Qué hace JobBot:** no la evade, ni cambiando el `User-Agent` ni con un navegador (ADR-003). Tampoco reintenta: la empresa se reporta como «Bloqueo anti-bots» y se vuelve a probar en la próxima corrida.
+  - **Si una empresa queda bloqueada tres corridas seguidas,** la pestaña Decisiones propone desactivarla. Las alertas de LinkedIn por empresa cubren esas vacantes por correo.
