@@ -341,3 +341,19 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - Foundever y Boston Scientific se leen sin pasar por rutas prohibidas.
   - Wipro sale de la plantilla y se sigue con alertas de LinkedIn. Las 5 vacantes de Costa Rica que JobBot vio desde octubre (QA, desarrollo y un analista por contrato) quedaron todas descartadas por los filtros.
   - La lista no trae la descripción, así que los filtros de descripción se aplican después del detalle, como en Workday e iCIMS.
+
+## ADR-029 — Empresa y lugar de las alertas de Indeed, y duplicados entre sitios
+
+- **Fecha:** 2026-11-17.
+- **Contexto:**
+  - Desde noviembre de 2026 las alertas de Indeed enlazan cada vacante a `cr.indeed.com/rc/clk/dl?jk=<id>`. Como el enlace trae el ID, el lector tomaba el camino de los enlaces con ID, que no lee el texto: guardaba la empresa como «(Indeed)» y la ubicación como el país.
+  - Así no se detectaban duplicados. Dos vacantes de Veeam llegaron por Indeed y por Greenhouse. Tampoco se filtraba el lugar: un «Systems Analyst» en Liberia pasó como si fuera del GAM.
+  - Además, Indeed escribe «Veeam Software» y el sitio de la empresa, «Veeam».
+- **Decisión:**
+  - `parse_indeed` toma el ID del enlace, y el título, la empresa y la ubicación del bloque de texto con ese enlace (o con el mismo título). Si no hay texto, sigue con «(Indeed)» y el país.
+  - `normalize_company` quita al final del nombre palabras genéricas (software, technologies, solutions, services, systems, group, international…), sin quitar nunca la primera palabra. Lo usan `dedupe_key` y las confirmaciones de postulación.
+  - Una vacante conocida que vuelve a llegar con la empresa (`db.name_company`) se completa con empresa, ubicación y `dedupe_key`. Si sigue en Pendientes y el candidato no la reabrió a mano, se filtra otra vez. Si la misma vacante está abierta desde otra fuente, la copia de la alerta queda como duplicada y se mantiene la del sitio de la empresa.
+- **Consecuencias:**
+  - Las vacantes de Indeed de los últimos 14 días (`lookback_days`) se completan en la siguiente corrida. Las más viejas se quedan como «(Indeed)».
+  - Las claves guardadas de empresas que terminan en esas palabras no se recalculan, así que esas vacantes viejas no se reconocen como duplicadas de las nuevas.
+  - Las decisiones del candidato no cambian: una vacante postulada solo recibe el nombre de la empresa.

@@ -73,7 +73,7 @@ def report_line(name: str, report: SourceReport) -> str:
         top = ", ".join(f"{k}={v}" for k, v in report.skip_reasons.most_common(3))
         line += f"  [{top}]"
     if report.screened_out:
-        line += f"  descartadas al ver su descripción: {report.screened_out}"
+        line += f"  descartadas al completar sus datos: {report.screened_out}"
     if report.error:
         line += f"  ERROR {report.error}"
     return line

@@ -21,7 +21,7 @@ def dedupe_key(job: Job) -> str:
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 
-def _placeholder(company: str) -> bool:
+def is_placeholder(company: str) -> bool:
     """Alert emails without the company name store "(Indeed)" instead."""
     return company.startswith("(") and company.endswith(")")
 
@@ -38,11 +38,11 @@ def applied_twins(pending: Iterable[JobRow], applied: Iterable[JobRow]) -> dict[
     by_title_unnamed: dict[str, JobRow] = {}  # unnamed applied jobs, for a named open one
     for job in applied:
         title = normalize_title(job.title)
-        if not _placeholder(job.company):
+        if not is_placeholder(job.company):
             by_company.setdefault((normalize_company(job.company), title), job)
         if len(title.split()) >= _MIN_TITLE_WORDS_WITHOUT_COMPANY:
             by_title.setdefault(title, job)
-            if _placeholder(job.company):
+            if is_placeholder(job.company):
                 by_title_unnamed.setdefault(title, job)
 
     twins: dict[int, JobRow] = {}
@@ -51,7 +51,7 @@ def applied_twins(pending: Iterable[JobRow], applied: Iterable[JobRow]) -> dict[
         twin = by_company.get((normalize_company(job.company), title))
         if twin is None and len(title.split()) >= _MIN_TITLE_WORDS_WITHOUT_COMPANY:
             # With no company on one side, the title is all there is to compare.
-            twin = (by_title if _placeholder(job.company) else by_title_unnamed).get(title)
+            twin = (by_title if is_placeholder(job.company) else by_title_unnamed).get(title)
         if twin is not None and twin.id != job.id:
             twins[job.id] = twin
     return twins

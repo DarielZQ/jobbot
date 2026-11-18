@@ -20,6 +20,15 @@ def test_normalize_company_drops_legal_suffixes() -> None:
     assert normalize_company("Acme S.A.") == "acme"
 
 
+def test_normalize_company_drops_generic_last_words() -> None:
+    # Indeed says "Veeam Software", the company's own site says "Veeam".
+    assert normalize_company("Veeam Software") == normalize_company("Veeam")
+    assert normalize_company("Marriott International, Inc") == "marriott"
+    assert normalize_company("Acme Global Solutions") == "acme"
+    assert normalize_company("Global Solutions") == "global"  # never the first word
+    assert normalize_company("Software Acme") == "software acme"  # only at the end
+
+
 def test_normalize_title_drops_requisition_ids() -> None:
     assert normalize_title("IT Support Analyst - JR0123456") == "it support analyst"
 

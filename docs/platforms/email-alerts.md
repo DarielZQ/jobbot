@@ -91,7 +91,8 @@ Cuando llegue la primera, corre `uv run jobbot alerts-sample --feed linkedin` pa
   - Si la misma oferta llega en varios correos, se guarda la versión que trae empresa.
 - **Indeed** (`email:indeed`):
   - La consulta excluye las confirmaciones de postulación (para no reingresar vacantes ya postuladas) y los códigos de inicio de sesión (para no guardarlos nunca en las muestras).
-  - Si un enlace trae el ID de la vacante (`jk=`), se usa la URL canónica `viewjob?jk=…`.
+  - Si un enlace trae el ID de la vacante (`jk=`), se usa la URL canónica `viewjob?jk=…`. Desde noviembre de 2026 las alertas enlazan a `cr.indeed.com/rc/clk/dl?jk=…`: el ID sale del enlace y el título, la empresa y la ubicación, del bloque de texto que lo trae (ADR-029). Antes se guardaban como «(Indeed)» y «Costa Rica», y por eso no se reconocían duplicados ni lugares fuera del área.
+  - Cuando una vacante guardada como «(Indeed)» vuelve a llegar con su empresa, se completa. Si sigue en Pendientes, se filtra otra vez: puede quedar fuera por la ubicación, o como duplicada de la misma vacante en el sitio de la empresa, que es la que se queda.
   - Si solo hay enlaces de rastreo, JobBot **nunca los abre**. Título, empresa y ubicación salen del texto del correo (alerta diaria o vacante recomendada) y el ID se arma con esos tres datos, así que la misma vacante en varios correos se guarda una sola vez. El enlace guardado lo abre el usuario, no JobBot.
 - **Torre** (`email:torre`):
   - Llegan dos formatos, cada uno con una vacante. El código de `https://torre.ai/s/<código>` es el ID de la vacante.

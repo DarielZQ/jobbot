@@ -214,7 +214,7 @@ Tabla `jobs` (una fila por vacante y fuente):
 | `id` | Clave primaria; es el `#` que muestran el panel y la CLI |
 | `source`, `ats`, `ats_job_id` | `UNIQUE(ats, ats_job_id)`: volver a descubrir actualiza `last_seen_at`, no duplica |
 | `company`, `title`, `location`, `url`, `remote`, `posted_at`, `description` | Datos de la vacante. `remote` = 100 % remoto; los híbridos son `0` |
-| `dedupe_key` | Hash de empresa + título + ubicación normalizados; detecta la misma vacante en otra fuente |
+| `dedupe_key` | Hash de empresa + título + ubicación normalizados; detecta la misma vacante en otra fuente. La empresa se compara sin sufijos legales ni palabras genéricas al final («Veeam Software» = «Veeam») |
 | `status`, `status_reason` | Estado actual y motivo (p. ej. `title_excluded: senior`) |
 | `role_family` | Familia de roles (`it_support`, `data_ai`); migración 2 |
 | `first_seen_at`, `last_seen_at`, `updated_at` | UTC ISO-8601 |

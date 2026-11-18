@@ -274,22 +274,37 @@ def _job_links(message: MailMessage, pattern: re.Pattern[str]) -> dict[str, tupl
 
 
 def parse_indeed(message: MailMessage, source: str, default_location: str) -> list[Job]:
-    keyed = [
-        Job(
-            source=source,
-            ats="indeed",
-            ats_job_id=job_key.lower(),
-            company="(Indeed)",
-            title=title or "(sin título)",
-            location=default_location,
-            url=f"https://cr.indeed.com/viewjob?jk={job_key.lower()}",
-        )
-        for job_key, (_, title) in _job_links(message, INDEED_JOB).items()
-    ]
+    blocks = _indeed_from_text(message.text)
+    keyed = _job_links(message, INDEED_JOB)
     if keyed:
-        return keyed
+        # The id comes from the link; title, company and place from the text block that has
+        # that link (alerts since 2026-11 link to /rc/clk/dl?jk=...) or the same title.
+        by_key: dict[str, tuple[str, str, str]] = {}
+        by_title: dict[str, tuple[str, str, str]] = {}
+        for title, company, location, link in blocks:
+            if match := INDEED_JOB.search(link):
+                by_key.setdefault(match.group(1).lower(), (title, company, location))
+            by_title.setdefault(title, (title, company, location))
+        jobs = []
+        for job_key, (_, anchor) in keyed.items():
+            key = job_key.lower()
+            title, company, location = by_key.get(key) or by_title.get(anchor) or (anchor, "", "")
+            location = _with_country(location, default_location)
+            jobs.append(
+                Job(
+                    source=source,
+                    ats="indeed",
+                    ats_job_id=key,
+                    company=company or "(Indeed)",
+                    title=title or "(sin título)",
+                    location=location,
+                    url=f"https://cr.indeed.com/viewjob?jk={key}",
+                    remote="remot" in location.lower(),
+                )
+            )
+        return jobs
     jobs = []
-    for title, company, location, link in _indeed_from_text(message.text):
+    for title, company, location, link in blocks:
         location = _with_country(location, default_location)
         # No job key in these emails: the same title/company/place is the same job.
         key = hashlib.sha1(f"{title}|{company}|{location}".lower().encode("utf-8")).hexdigest()
@@ -308,7 +323,8 @@ def parse_indeed(message: MailMessage, source: str, default_location: str) -> li
     return jobs
 
 
-INDEED_TRACKER = re.compile(r"https?://(?:engage|cts)\.indeed\.com/\S+", re.I)
+# Click trackers (engage., cts.) and, since 2026-11, cr.indeed.com/rc/clk/dl?jk=... links
+INDEED_TRACKER = re.compile(r"https?://(?:[\w-]+\.)*indeed\.com/\S+", re.I)
 _INDEED_VIEW = re.compile(r"^(?:ver empleo|view job):\s*(https?://\S+)$", re.I)
 _BLANK_LINE = re.compile(r"\n\s*\n")
 

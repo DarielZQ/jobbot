@@ -35,7 +35,7 @@ from jobbot.discovery.remotive import RemotiveSource
 from jobbot.discovery.successfactors import SuccessFactorsSource
 from jobbot.discovery.workday import WorkdaySource
 from jobbot.mail.gmail import GmailClient, access_token
-from jobbot.matching.dedupe import dedupe_key
+from jobbot.matching.dedupe import dedupe_key, is_placeholder
 from jobbot.matching.rules import TOO_OLD, RuleResult, RuleSet
 
 # Network errors, malformed JSON (ValueError) and malformed XML feeds.
@@ -51,7 +51,8 @@ class SourceReport:
     error: str = ""
     skipped_recent: str = ""
     not_configured: str = ""
-    # Open jobs reopened by rescreen that failed the filters once their details arrived.
+    # Known open jobs that failed the filters once their details (rescreen) or their company
+    # and place (alerts first stored as "(Indeed)") arrived.
     screened_out: int = 0
     # ConfirmationSource only: confirmation emails read and jobs marked (or added) as applied.
     confirmations: int | None = None
@@ -174,6 +175,23 @@ def _complete_details(
         report.screened_out += 1
 
 
+def _name_company(conn: sqlite3.Connection, rules: RuleSet, job: Job, report: SourceReport) -> None:
+    """A known job stored as "(Indeed)" that now comes with its company and place is screened
+    again: the place may be outside the area, or the company's own site may list the same
+    opening. Then the alert copy is the duplicate, and the one from the company stays."""
+    if is_placeholder(job.company):
+        return
+    key = dedupe_key(job)
+    if (job_id := db.name_company(conn, job, key)) is None:
+        return
+    result = rules.evaluate(job)
+    if result.ok and (original := db.find_by_dedupe_key(conn, key, other_than=job_id)):
+        result = RuleResult(False, f"duplicate_of: {original}", result.role_family)
+    if not result.ok:
+        db.set_status(conn, job_id, Status.SKIPPED, result.reason, result.role_family)
+        report.screened_out += 1
+
+
 # What an HTTP error means, said plainly (the report, the panel and the daily log show it)
 _STATUS_TEXT = {
     401: "Acceso negado: el sitio pide iniciar sesión para esa consulta.",
@@ -270,6 +288,7 @@ def run_source(source: Source, conn: sqlite3.Connection, rules: RuleSet) -> Sour
                 report.seen += 1
                 db.note_posting(conn, job)
                 _complete_details(source, conn, rules, job, report)
+                _name_company(conn, rules, job, report)
                 continue
 
             result = rules.evaluate(job)

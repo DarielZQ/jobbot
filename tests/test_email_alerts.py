@@ -104,6 +104,29 @@ def test_indeed_single_job_email() -> None:
     assert job.url == "https://cts.indeed.com/v3/VIEWtoken0000"
 
 
+def test_indeed_alert_with_job_keys_keeps_company_and_place() -> None:
+    # Since 2026-11 the text links carry the job key: the id comes from the link, and the
+    # company and place still come from the text (they used to be lost as "(Indeed)").
+    message = _message(text=_fixture("email_indeed_alert_keyed.txt"))
+    jobs = parse_indeed(message, "email:indeed", "Costa Rica")
+
+    assert [(j.ats_job_id, j.title, j.company, j.location) for j in jobs] == [
+        (
+            "0123456789abcdef",
+            "Technical Support Engineer, Storage",
+            "Acme Software",
+            "San José, Provincia de San José, Costa Rica",
+        ),
+        (
+            "fedcba9876543210",
+            "Systems Analyst",
+            "Beta Hotels",
+            "Liberia, Provincia de Guanacaste, Costa Rica",
+        ),
+    ]
+    assert jobs[0].url == "https://cr.indeed.com/viewjob?jk=0123456789abcdef"
+
+
 def test_indeed_job_key_links_win_over_text() -> None:
     html = '<a href="https://cr.indeed.com/rc/clk?jk=0123456789abcdef&amp;from=ja">Help Desk</a>'
     message = _message(text=_fixture("email_indeed_alert.txt"), html=html)

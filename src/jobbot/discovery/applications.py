@@ -27,7 +27,7 @@ from jobbot.core.state import Status
 from jobbot.discovery.base import Source
 from jobbot.discovery.email_alerts import MailReader, _clean, parse_linkedin
 from jobbot.mail.gmail import MailMessage
-from jobbot.matching.dedupe import dedupe_key
+from jobbot.matching.dedupe import dedupe_key, is_placeholder
 from jobbot.matching.normalize import normalize_company, normalize_title
 
 NAME = "email:postulaciones"
@@ -96,14 +96,10 @@ CONFIRMATION_PARSERS: dict[str, Callable[[MailMessage], Application | None]] = {
 # --- Recording --------------------------------------------------------------------------------
 
 
-def _placeholder(company: str) -> bool:
-    return company.startswith("(") and company.endswith(")")
-
-
 def _same_opening(app: Application, row: JobRow) -> bool:
     if normalize_title(row.title) != normalize_title(app.title):
         return False
-    if app.company and not _placeholder(row.company):
+    if app.company and not is_placeholder(row.company):
         return normalize_company(row.company) == normalize_company(app.company)
     # A title alone only counts within the site that sent the confirmation.
     return row.source == f"email:{app.site}"
@@ -136,7 +132,7 @@ def record_applications(conn: sqlite3.Connection, apps: Iterable[Application]) -
 
         open_rows = db.list_jobs(conn, status=Status.DISCOVERED, limit=100_000)
         matches = [r for r in open_rows if _same_opening(app, r) and _untouched(r)]
-        named = [r for r in matches if app.company and not _placeholder(r.company)]
+        named = [r for r in matches if app.company and not is_placeholder(r.company)]
         # Same company and title: the same opening, whatever the source. A title alone must
         # point to a single job.
         for row in named or (matches if len(matches) == 1 else []):

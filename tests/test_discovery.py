@@ -335,6 +335,52 @@ def test_pipeline_filters_dedupes_and_is_idempotent(conn, rules) -> None:
     assert [row.title for row in discovered] == ["Service Desk Analyst"]
 
 
+def test_alert_job_stored_without_company_gets_it_and_is_screened_again(conn) -> None:
+    search = load_search_rules()
+    search.location.local_exclude = [r"\bliberia\b"]
+    rules = RuleSet(search)
+
+    def alert(job_id: str, title: str, company: str = "(Indeed)", place: str = "Costa Rica"):
+        return make_job(
+            source="email:indeed", ats="indeed", ats_job_id=job_id, title=title,
+            company=company, location=place,
+        )  # fmt: skip
+
+    support = "Technical Support Engineer, Storage"
+    run_source(
+        FakeSource("email:indeed", [alert("a", support), alert("b", "IT Support Analyst"),
+                                    alert("c", "Service Desk Analyst")]),
+        conn, rules,
+    )  # fmt: skip
+    site = make_job(source="greenhouse:acme", ats="greenhouse", ats_job_id="9", title=support,
+                    company="Acme", location="San Jose, Costa Rica")  # fmt: skip
+    run_source(FakeSource("greenhouse:acme", [site]), conn, rules)
+    rows = {row.title: row for row in db.list_jobs(conn)}
+    db.set_status(conn, rows["Service Desk Analyst"].id, Status.SUBMITTED, "applied_manually")
+
+    # The same alerts again, now read with their company and place.
+    named = [
+        alert("a", support, "Acme Software", "San José, Provincia de San José, Costa Rica"),
+        alert("b", "IT Support Analyst", "Beta Hotels", "Liberia, Guanacaste, Costa Rica"),
+        alert("c", "Service Desk Analyst", "Gamma", "Heredia, Costa Rica"),
+    ]
+    report = run_source(FakeSource("email:indeed", named), conn, rules)
+
+    rows = {(row.source, row.title): row for row in db.list_jobs(conn)}
+    from_alert = rows[("email:indeed", support)]
+    from_site = rows[("greenhouse:acme", support)]
+    # The company's own listing stays; the alert copy is the duplicate.
+    assert (from_alert.company, from_alert.status) == ("Acme Software", Status.SKIPPED)
+    assert from_alert.status_reason == f"duplicate_of: {from_site.id}"
+    assert from_site.status is Status.DISCOVERED
+    far = rows[("email:indeed", "IT Support Analyst")]
+    assert (far.status, far.status_reason) == (Status.SKIPPED, "location_outside_area: liberia")
+    # The candidate's decision stands; only the company is filled in.
+    applied = rows[("email:indeed", "Service Desk Analyst")]
+    assert (applied.company, applied.status) == ("Gamma", Status.SUBMITTED)
+    assert (report.seen, report.screened_out) == (3, 2)
+
+
 class FullListing(FakeSource):
     """A site whose API lists every open posting (Workday, Greenhouse...)."""
 

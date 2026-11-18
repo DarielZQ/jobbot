@@ -209,6 +209,28 @@ def open_without_details(conn: sqlite3.Connection, ats: str, ats_job_id: str) ->
     return row["id"] if row else None
 
 
+def name_company(conn: sqlite3.Connection, job: Job, dedupe_key: str) -> int | None:
+    """A known job stored without its company ("(Indeed)", from an alert parsed before its
+    layout was understood) now comes with it: keep the company, the place and the dedupe key
+    they give. Returns the id when the job is still open and untouched by the candidate, so the
+    caller screens it again; None if nothing changed or the candidate already decided."""
+    row = conn.execute(
+        "SELECT id, status, status_reason FROM jobs WHERE ats = ? AND ats_job_id = ? "
+        "AND company LIKE '(%)'",
+        (job.ats, job.ats_job_id),
+    ).fetchone()
+    if row is None:
+        return None
+    with conn:
+        conn.execute(
+            "UPDATE jobs SET company = ?, location = ?, remote = ?, dedupe_key = ?, updated_at = ? "
+            "WHERE id = ?",
+            (job.company, job.location, int(job.remote), dedupe_key, _now(), row["id"]),
+        )
+    still_open = row["status"] == Status.DISCOVERED.value
+    return row["id"] if still_open and row["status_reason"] != REOPENED_MANUALLY else None
+
+
 def set_description(conn: sqlite3.Connection, job_id: int, description: str) -> None:
     with conn:
         conn.execute(
@@ -268,10 +290,12 @@ def last_seen_at(conn: sqlite3.Connection, source: str) -> datetime | None:
     return datetime.fromisoformat(value) if value else None
 
 
-def find_by_dedupe_key(conn: sqlite3.Connection, dedupe_key: str) -> int | None:
+def find_by_dedupe_key(
+    conn: sqlite3.Connection, dedupe_key: str, *, other_than: int | None = None
+) -> int | None:
     row = conn.execute(
-        "SELECT id FROM jobs WHERE dedupe_key = ? AND status != ? ORDER BY id LIMIT 1",
-        (dedupe_key, Status.SKIPPED.value),
+        "SELECT id FROM jobs WHERE dedupe_key = ? AND status != ? AND id != ? ORDER BY id LIMIT 1",
+        (dedupe_key, Status.SKIPPED.value, -1 if other_than is None else other_than),
     ).fetchone()
     return row["id"] if row else None
 

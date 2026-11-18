@@ -29,11 +29,31 @@ def normalize_text(text: str) -> str:
     return _SPACES.sub(" ", text).strip()
 
 
+# Words a site may add to or drop from a company name: "Veeam Software" on Indeed is "Veeam" on its
+# own career site. Dropped only at the end, and never the first word.
+_GENERIC_TAIL = frozenset(
+    {
+        "software",
+        "technologies",
+        "technology",
+        "solutions",
+        "services",
+        "systems",
+        "group",
+        "holdings",
+        "international",
+        "global",
+    }
+)
+
+
 def normalize_company(name: str) -> str:
     text = normalize_text(name)
     text = _COMPANY_SUFFIXES.sub(" ", text)
-    text = re.sub(r"[.-]", " ", text)
-    return _SPACES.sub(" ", text).strip()
+    words = re.sub(r"[.-]", " ", text).split()
+    while len(words) > 1 and words[-1] in _GENERIC_TAIL:
+        words.pop()
+    return " ".join(words)
 
 
 def normalize_title(title: str) -> str:
