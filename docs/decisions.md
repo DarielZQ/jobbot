@@ -302,7 +302,7 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - **"Ya no aparece en el sitio":**
     - una fuente marca `listing_complete` cuando su `fetch` listó todas las vacantes abiertas. Lo hacen Workday (solo con la faceta de país), Greenhouse, Lever, Ashby, Recruitee, Deel, iCIMS, Jibe y Amazon, y solo si la paginación terminó sola, sin llegar al tope de páginas;
     - el pipeline guarda entonces la hora en que empezó esa corrida (`source_listings`, migración 6). Una vacante de esa fuente que no se vio desde entonces ya no está en el sitio (`db.taken_down`);
-    - Jobicy, Himalayas, Get on Board y Remotive no lo marcan, porque solo dan las más nuevas. Tampoco elempleo ni SuccessFactors, que son búsquedas, ni los correos;
+    - Jobicy, Himalayas, Get on Board y Remotive no lo marcan, porque solo dan las más nuevas. Tampoco elempleo, que es una búsqueda, ni los correos. SuccessFactors lo marca desde ADR-028;
     - el panel muestra la etiqueta en todas las pestañas y, en Descartadas, el filtro "Ya no en el sitio" para quitarlas con el botón de ADR-025.
 - **Consecuencias:**
   - Una corrida que falla a medias no registra el listado, así que no marca nada.
@@ -324,4 +324,20 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - `scripts/probe_workday.py` explica los errores con `pipeline.describe_error`, igual que el informe. Antes se caía cuando Workday pedía la verificación anti-bots.
 - **Consecuencias:**
   - Las empresas de Workday que no se pudieron verificar (Cloudflare, ADR-003) y las de sitio propio quedan anotadas en `targets.yaml` para probarlas más adelante.
-  - El `robots.txt` típico de SuccessFactors Career Site Builder prohíbe `/services/`, que es donde está el feed RSS que lee `discovery/successfactors.py`. Hay que decidir si se cambia a la página de búsqueda, que sí está permitida, o si se dejan de leer esos sitios.
+  - El `robots.txt` típico de SuccessFactors Career Site Builder prohíbe `/services/`, que es donde está el feed RSS que leía `discovery/successfactors.py`. Se resolvió en ADR-028.
+
+## ADR-028 — SuccessFactors: página de búsqueda en vez del feed RSS
+
+- **Fecha:** 2026-11-17.
+- **Contexto:**
+  - Desde 2026-10-27 JobBot leía el feed RSS de SuccessFactors Career Site Builder (`/services/rss/job/`).
+  - Al revisar el `robots.txt` de cada ATS (ADR-027) se vio que estos sitios prohíben `/services/` y permiten `/search/` y `/job/`.
+- **Decisión:**
+  - `discovery/successfactors.py` lee la página de búsqueda (`/search/?locationsearch=<país>`) y pagina con `startrow`. El detalle (`/job/...`) se pide solo para las vacantes que pasan los filtros, como en iCIMS.
+  - El id de la vacante sigue siendo el número final de la ruta, así que las vacantes que ya estaban en la base no se duplican.
+  - La fuente marca `listing_complete` cuando leyó todas las páginas que anuncia el sitio, igual que iCIMS (ADR-026).
+  - Los sitios con el diseño nuevo, que cargan la lista con JavaScript desde `/services/`, no se leen. La fuente lo explica en el informe en vez de devolver cero vacantes.
+- **Consecuencias:**
+  - Foundever y Boston Scientific se leen sin pasar por rutas prohibidas.
+  - Wipro sale de la plantilla y se sigue con alertas de LinkedIn. Las 5 vacantes de Costa Rica que JobBot vio desde octubre (QA, desarrollo y un analista por contrato) quedaron todas descartadas por los filtros.
+  - La lista no trae la descripción, así que los filtros de descripción se aplican después del detalle, como en Workday e iCIMS.

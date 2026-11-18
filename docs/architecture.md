@@ -71,7 +71,7 @@ region:
   timezone: America/Costa_Rica # nombre IANA
 ```
 
-`config.with_region` completa con esos valores los campos que una fuente no declara: país de Workday y Jibe, código de país de Amazon, palabra clave de SuccessFactors, `geo` de Jobicy, país y desfase de Himalayas. Un valor escrito en la entrada de la fuente siempre gana. Si después de eso falta el país, la fuente lanza `SourceNotConfigured` y se reporta como "sin configurar" en vez de adivinar.
+`config.with_region` completa con esos valores los campos que una fuente no declara: país de Workday y Jibe, código de país de Amazon, lugar de búsqueda de SuccessFactors, `geo` de Jobicy, país y desfase de Himalayas. Un valor escrito en la entrada de la fuente siempre gana. Si después de eso falta el país, la fuente lanza `SourceNotConfigured` y se reporta como "sin configurar" en vez de adivinar.
 
 ## Flujo
 
@@ -142,7 +142,7 @@ Reglas:
 | `jobbot/core/http.py` | Cliente HTTP con intervalo mínimo por host, `Retry-After`, reintentos y `User-Agent` honesto |
 | `jobbot/discovery/base.py` | Interfaz `Source` (`fetch`, `enrich`, `min_hours_between_runs`, `listing_complete`) y `SourceNotConfigured` |
 | `jobbot/discovery/workday.py` | JSON del sitio de empleo de Workday, filtrado por faceta de país |
-| `jobbot/discovery/successfactors.py` | Feed RSS público de SAP SuccessFactors Career Site Builder |
+| `jobbot/discovery/successfactors.py` | Página de búsqueda pública de SAP SuccessFactors Career Site Builder |
 | `jobbot/discovery/greenhouse.py`, `lever.py` | APIs públicas de Greenhouse y Lever |
 | `jobbot/discovery/amazon.py`, `getonboard.py`, `remotive.py`, `jobicy.py`, `himalayas.py`, `recruitee.py`, `jibe.py` | APIs públicas de bolsas y sitios de empleo |
 | `jobbot/discovery/elempleo.py` | Listado público de elempleo |

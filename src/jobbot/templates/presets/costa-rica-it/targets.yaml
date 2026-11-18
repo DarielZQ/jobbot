@@ -31,10 +31,11 @@ greenhouse: []   # { company, token }  -> token = parte final de boards.greenhou
 lever: []        # { company, slug }   -> slug  = parte final de jobs.lever.co/<slug>
 ashby: []        # { company, board }  -> board = parte final de jobs.ashbyhq.com/<board>
 
-# SAP SuccessFactors Career Site Builder: feed RSS público filtrado por el nombre del país.
+# SAP SuccessFactors Career Site Builder: página de búsqueda pública filtrada por el país (ADR-028).
+# Wipro no se puede leer: su sitio carga la lista desde /services/, que su robots.txt prohíbe.
 successfactors:
-  - { company: "Foundever", base_url: "https://jobs.foundever.com" }
-  - { company: "Wipro",     base_url: "https://careers.wipro.com" }
+  - { company: "Foundever",         base_url: "https://jobs.foundever.com" }
+  - { company: "Boston Scientific", base_url: "https://jobs.bostonscientific.com" }
 
 # amazon.jobs (JSON público del sitio). Incluye AWS y sus centros de servicio.
 amazon:

@@ -28,7 +28,7 @@ from jobbot.discovery.greenhouse import GreenhouseSource
 from jobbot.discovery.icims import ICimsSource
 from jobbot.discovery.lever import LeverSource
 from jobbot.discovery.pipeline import run_source
-from jobbot.discovery.successfactors import SuccessFactorsSource
+from jobbot.discovery.successfactors import SuccessFactorsSource, job_description
 from jobbot.discovery.workday import WorkdaySource, find_country_facet
 from jobbot.matching.rules import RuleSet
 
@@ -226,33 +226,79 @@ def test_lever_source(load_fixture, make_client) -> None:
     assert "3+ years" in job.description
 
 
-def test_successfactors_source(make_client) -> None:
-    xml = (FIXTURES / "successfactors_rss.xml").read_text(encoding="utf-8")
+SF_TARGET = SuccessFactorsTarget(
+    company="Acme", base_url="https://jobs.acme.com/", keywords="costa rica"
+)
+
+
+def test_successfactors_reads_the_search_page_not_the_services_path(make_client) -> None:
+    pages = {
+        None: (FIXTURES / "successfactors_search.html").read_text(encoding="utf-8"),
+        "2": (FIXTURES / "successfactors_search_page2.html").read_text(encoding="utf-8"),
+    }
     seen_urls: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         seen_urls.append(str(request.url))
-        return httpx.Response(200, text=xml)
+        return httpx.Response(200, text=pages[request.url.params.get("startrow")])
 
-    target = SuccessFactorsTarget(
-        company="Acme", base_url="https://jobs.acme.com/", keywords="costa rica"
-    )
-    first, second = SuccessFactorsSource(make_client(handler), target).fetch()
+    source = SuccessFactorsSource(make_client(handler), SF_TARGET)
+    first, second, third = source.fetch()
 
+    # robots.txt of these sites disallows /services/ (the RSS feed); /search/ is allowed (ADR-028).
     assert seen_urls == [
-        "https://jobs.acme.com/services/rss/job/?locale=en_US&keywords=costa%20rica"
+        "https://jobs.acme.com/search/?q=&locationsearch=costa%20rica&locale=en_US",
+        "https://jobs.acme.com/search/?q=&locationsearch=costa%20rica&locale=en_US&startrow=2",
     ]
-    assert first.title == "Junior Networking Agent - Audio Products (Entry Level) (On Site)"
+    assert first.title == "Junior Networking Agent & Support (Entry Level)"
     assert first.location == "Heredia, Costa Rica, CR"
-    assert first.url == "https://jobs.acme.com/job/Heredia-Junior-Networking-Agent/1413280300/"
-    assert first.ats_job_id == "jobs.acme.com:1413280300"
-    assert first.posted_at is not None
-    # A parenthesis without commas is part of the title, not a location.
-    assert (second.title, second.location) == (
-        "Remote Customer Service Representative (Remote)",
-        "",
+    assert first.url == (
+        "https://jobs.acme.com/job/Heredia-Junior-Networking-Agent-%28Entry-Level%29/1413280300/"
     )
-    assert second.remote
+    assert first.ats_job_id == "jobs.acme.com:1413280300"
+    assert first.posted_at == datetime(2026, 10, 22, tzinfo=UTC)
+    assert (second.posted_at, second.remote) == (None, True)
+    assert third.title == "IT Support Analyst"
+    assert source.listing_complete
+
+
+def test_successfactors_detail_page_gives_description_and_date(make_client) -> None:
+    detail = (FIXTURES / "successfactors_job.html").read_text(encoding="utf-8")
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/job/Heredia-Junior-Networking-Agent/1413280300/"
+        return httpx.Response(200, text=detail)
+
+    job = make_job(url="https://jobs.acme.com/job/Heredia-Junior-Networking-Agent/1413280300/")
+    enriched = SuccessFactorsSource(make_client(handler), SF_TARGET).enrich(job)
+
+    # The description nests spans of its own; it ends at the span that opened it.
+    assert enriched.description == (
+        '<div><p>Entry level role, <span style="font-weight:bold">no experience</span>'
+        " required.</p></div>"
+    )
+    assert enriched.posted_at == datetime(2026, 10, 22, tzinfo=UTC)
+
+
+def test_successfactors_description_span_may_carry_more_attributes() -> None:
+    page = '<div class="job"><span itemprop="description" class="jobdescription"><p>Hi</p></span>'
+    assert job_description(page) == "<p>Hi</p>"
+
+
+def test_successfactors_without_results_is_a_complete_empty_listing(make_client) -> None:
+    page = '<div id="noresults"><label>There are currently no open positions.</label></div>'
+    source = SuccessFactorsSource(make_client(lambda r: httpx.Response(200, text=page)), SF_TARGET)
+
+    assert list(source.fetch()) == []
+    assert source.listing_complete
+
+
+def test_successfactors_page_that_loads_jobs_with_javascript_is_explained(make_client) -> None:
+    page = '<div id="jobSearch_j_id1"></div><script src="/platform/js/search/search.js"></script>'
+    source = SuccessFactorsSource(make_client(lambda r: httpx.Response(200, text=page)), SF_TARGET)
+
+    with pytest.raises(ValueError, match="carga con JavaScript"):
+        list(source.fetch())
 
 
 class FakeSource(Source):

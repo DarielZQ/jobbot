@@ -133,7 +133,7 @@ class AshbyTarget(BaseModel):
 class SuccessFactorsTarget(BaseModel):
     company: str
     base_url: str = Field(description="Career Site Builder root, e.g. https://jobs.foundever.com")
-    keywords: str = ""  # RSS search; the region country unless set here
+    keywords: str = ""  # place for the location search; the region country unless set here
     locale: str = "en_US"
 
 
