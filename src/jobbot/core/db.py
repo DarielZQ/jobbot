@@ -75,6 +75,13 @@ MIGRATIONS: list[str] = [
         listed_at TEXT NOT NULL
     );
     """,
+    # ADR-032: when each platform was last queried, counting the runs a bot check stopped
+    """
+    CREATE TABLE platform_queries (
+        platform   TEXT PRIMARY KEY,
+        queried_at TEXT NOT NULL
+    );
+    """,
 ]
 
 
@@ -166,6 +173,23 @@ def record_listing(conn: sqlite3.Connection, source: str, started_at: str) -> No
             "ON CONFLICT (source) DO UPDATE SET listed_at = excluded.listed_at",
             (source, started_at),
         )
+
+
+def record_query(conn: sqlite3.Connection, platform: str, started_at: str) -> None:
+    """A run that started at `started_at` queried `platform`: it answered, or it asked for a
+    bot check, which counts too (ADR-032)."""
+    with conn:
+        conn.execute(
+            "INSERT INTO platform_queries (platform, queried_at) VALUES (?, ?) "
+            "ON CONFLICT (platform) DO UPDATE SET queried_at = excluded.queried_at",
+            (platform, started_at),
+        )
+
+
+def last_query(conn: sqlite3.Connection, platform: str) -> datetime | None:
+    row = conn.execute("SELECT queried_at FROM platform_queries WHERE platform = ?", (platform,))
+    value = row.fetchone()
+    return datetime.fromisoformat(value["queried_at"]) if value else None
 
 
 def taken_down(conn: sqlite3.Connection) -> set[int]:

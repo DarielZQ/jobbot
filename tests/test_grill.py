@@ -181,6 +181,7 @@ def test_failing_source_question_says_why_in_plain_words(conn) -> None:
     assert "(Bloqueo anti-bots: Cloudflare, la protección del sitio, pidió" in decision.question
     assert "[HTTP" not in decision.question  # the detail stays in the report
     assert decision.reason.startswith("El sitio bloquea las consultas automáticas")
+    assert decision.recommended == signals.KEEP  # bot checks usually lift (ADR-032)
 
 
 def test_skill_many_postings_ask_for_is_asked_without_a_recommendation(conn) -> None:

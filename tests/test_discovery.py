@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from urllib.parse import unquote
 
 import httpx
@@ -35,7 +35,7 @@ from jobbot.discovery.ibm import IbmSource
 from jobbot.discovery.icims import ICimsSource
 from jobbot.discovery.lever import LeverSource
 from jobbot.discovery.oracle_hcm import OracleHcmSource
-from jobbot.discovery.pipeline import run_source
+from jobbot.discovery.pipeline import run_source, run_sources
 from jobbot.discovery.sitemap import SitemapSource, from_slug
 from jobbot.discovery.successfactors import SuccessFactorsSource, job_description
 from jobbot.discovery.workday import WorkdaySource, find_country_facet
@@ -812,6 +812,55 @@ def test_bot_check_is_explained_and_never_retried(conn, rules, make_client) -> N
     assert report.error.startswith("Bloqueo anti-bots: Cloudflare, la protección del sitio,")
     assert "No es una falla de JobBot ni un cambio en la página" in report.error
     assert report.error.endswith("[HTTP 429 · acme.wd1.myworkdayjobs.com]")
+
+
+def _cloudflare_check(request: httpx.Request) -> httpx.Response:
+    headers = {"Content-Type": "text/html", "Server": "cloudflare", "cf-mitigated": "challenge"}
+    return httpx.Response(429, text="<title>Security Check</title>", headers=headers)
+
+
+GLOBEX = WORKDAY.model_copy(update={"host": "globex.wd5.myworkdayjobs.com", "tenant": "globex"})
+
+
+def test_bot_check_stops_the_whole_platform_until_its_next_day(conn, rules, make_client) -> None:
+    hosts: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        hosts.append(request.url.host)
+        return _cloudflare_check(request)
+
+    client = make_client(handler)
+    sources = [WorkdaySource(client, WORKDAY), WorkdaySource(client, GLOBEX)]
+
+    (_, acme), (_, globex) = run_sources(sources, conn, rules)
+    assert hosts == ["acme.wd1.myworkdayjobs.com"]  # ADR-032: one refused query, not one each
+    assert acme.blocked
+    assert "deja de consultar todo Workday y vuelve a probar mañana (ADR-032)." in acme.error
+    assert globex.skipped_blocked == "workday:acme" and not globex.error
+
+    # A search later that day leaves Workday alone: the refused query counts as its daily one.
+    later = [report for _, report in run_sources(sources, conn, rules)]
+    assert len(hosts) == 1 and all(report.skipped_recent for report in later)
+
+    yesterday = (datetime.now(UTC) - timedelta(days=1)).isoformat(timespec="seconds")
+    conn.execute("UPDATE platform_queries SET queried_at = ?", (yesterday,))
+    list(run_sources(sources, conn, rules))  # a new day: Workday is due again
+    assert len(hosts) == 2
+
+
+def test_every_source_of_a_due_platform_runs(conn, rules, make_client) -> None:
+    hosts: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        hosts.append(request.url.host)
+        return httpx.Response(200, json={"total": 0, "jobPostings": [], "facets": []})
+
+    client = make_client(handler)
+    sources = [WorkdaySource(client, WORKDAY), WorkdaySource(client, GLOBEX)]
+
+    reports = [report for _, report in run_sources(sources, conn, rules)]
+    assert not any(report.skipped or report.error for report in reports)
+    assert {"acme.wd1.myworkdayjobs.com", "globex.wd5.myworkdayjobs.com"} == set(hosts)
 
 
 def test_bot_check_page_without_cloudflare_header_is_recognized() -> None:

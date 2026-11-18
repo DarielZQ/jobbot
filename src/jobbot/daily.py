@@ -22,7 +22,7 @@ from jobbot.core.db import JobRow
 from jobbot.core.http import HttpClient
 from jobbot.core.models import as_utc, posted_within
 from jobbot.core.state import Status
-from jobbot.discovery.pipeline import SourceReport, build_sources, expire_old, run_source
+from jobbot.discovery.pipeline import SourceReport, build_sources, expire_old, run_sources
 from jobbot.grill import signals
 from jobbot.matching.dedupe import applied_twins
 from jobbot.matching.language import ResumeAdvice, recommend_resume
@@ -291,7 +291,7 @@ def render_report(
         )
 
     if results:
-        checked = sum(1 for _, r in results if not (r.skipped_recent or r.not_configured))
+        checked = sum(1 for _, r in results if not (r.skipped or r.not_configured))
         checked_text = f"{checked} fuentes revisadas"
     else:
         checked_text = "regenerado sin consultar fuentes (nuevas = últimas 24 h)"
@@ -398,8 +398,7 @@ def run_all(
     disabled = set(load_settings().disabled_sources)
     sources = [s for s in build_sources(load_targets(), client) if s.name not in disabled]
     results: list[tuple[str, SourceReport]] = []
-    for source in sources:
-        report = run_source(source, conn, ruleset)
+    for source, report in run_sources(sources, conn, ruleset):
         results.append((source.name, report))
         if on_result:
             on_result(source.name, report, len(results), len(sources))

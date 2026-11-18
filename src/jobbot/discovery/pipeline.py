@@ -6,6 +6,7 @@ import contextlib
 import sqlite3
 import xml.etree.ElementTree as ET
 from collections import Counter
+from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
@@ -53,7 +54,10 @@ class SourceReport:
     seen: int = 0
     skip_reasons: Counter[str] = field(default_factory=Counter)
     error: str = ""
+    blocked: bool = False  # the error is a bot check (ADR-003)
     skipped_recent: str = ""
+    # Not queried: this source asked for a bot check earlier in the run, on the same platform.
+    skipped_blocked: str = ""
     not_configured: str = ""
     # Known open jobs that failed the filters once their details (rescreen) or their company
     # and place (alerts first stored as "(Indeed)") arrived.
@@ -61,6 +65,10 @@ class SourceReport:
     # ConfirmationSource only: confirmation emails read and jobs marked (or added) as applied.
     confirmations: int | None = None
     marked_applied: int = 0
+
+    @property
+    def skipped(self) -> bool:
+        return bool(self.skipped_recent or self.skipped_blocked)
 
 
 def build_sources(targets: Targets, client: HttpClient) -> list[Source]:
@@ -225,9 +233,12 @@ _SERVER_ERROR = (
 _CHALLENGE = (
     ANTI_BOT + ": {who} pidió una verificación de navegador («Security Check») en vez de "
     "responder. No es una falla de JobBot ni un cambio en la página: el sitio frena las "
-    "consultas automáticas. JobBot no se salta esas verificaciones (ADR-003), así que no "
-    "reintenta y vuelve a probar en la próxima corrida."
+    "consultas automáticas. JobBot no se salta esas verificaciones (ADR-003) ni reintenta: "
 )
+_CHALLENGE_NEXT = "vuelve a probar en la próxima corrida."
+# A platform's bot check stops all its sources (ADR-032).
+_CHALLENGE_PLATFORM = "deja de consultar todo {name} en esta corrida (ADR-032)."
+_CHALLENGE_DAILY = "deja de consultar todo {name} y vuelve a probar mañana (ADR-032)."
 
 
 def _host(exc: httpx.HTTPError) -> str:
@@ -237,13 +248,18 @@ def _host(exc: httpx.HTTPError) -> str:
         return ""
 
 
-def describe_error(exc: Exception) -> str:
+def describe_error(exc: Exception, source: Source | None = None) -> str:
     """Plain words first, then the technical detail in brackets: code and site, never the
-    whole URL."""
+    whole URL. `source`: who failed, which tells whether a bot check stops its platform."""
     if isinstance(exc, ChallengeError):
         who = "Cloudflare, la protección del sitio," if exc.by_cloudflare else "el sitio"
-        response = exc.response
-        return f"{_CHALLENGE.format(who=who)} [HTTP {response.status_code} · {response.url.host}]"
+        then = _CHALLENGE_NEXT
+        if source is not None and source.platform:
+            then = (_CHALLENGE_DAILY if source.once_a_day else _CHALLENGE_PLATFORM).format(
+                name=source.platform.capitalize()
+            )
+        detail = f"[HTTP {exc.response.status_code} · {exc.response.url.host}]"
+        return f"{_CHALLENGE.format(who=who)}{then} {detail}"
     if isinstance(exc, NotJsonError):
         return f"Sin datos: {exc}"
     if isinstance(exc, httpx.HTTPStatusError):
@@ -281,15 +297,57 @@ def _record_applications(source: ConfirmationSource, conn: sqlite3.Connection) -
     return report
 
 
+def platform_of(source: Source) -> str:
+    return source.platform or source.name
+
+
+def _queried_recently(conn: sqlite3.Connection, source: Source) -> str:
+    """Why the source's platform is not due yet ("5.2 h < 6 h"), or "" when it is."""
+    last = db.last_query(conn, platform_of(source))
+    if source.once_a_day:
+        if last and last.astimezone().date() == datetime.now().astimezone().date():
+            return f"hoy a las {last.astimezone():%H:%M}; una vez al día"
+        return ""
+    if not source.min_hours_between_runs:
+        return ""
+    # Runs before ADR-032 left only the jobs' last_seen_at.
+    known = [last, db.last_seen_at(conn, source.name)]
+    if not (times := [t for t in known if t]):
+        return ""
+    hours = (datetime.now(UTC) - max(times)).total_seconds() / 3600
+    if hours >= source.min_hours_between_runs:
+        return ""
+    return f"{hours:.1f} h < {source.min_hours_between_runs:g} h"
+
+
+def run_sources(
+    sources: Iterable[Source], conn: sqlite3.Connection, rules: RuleSet
+) -> Iterator[tuple[Source, SourceReport]]:
+    """Each source in turn, by platform (ADR-032): whether a platform is due is decided at its
+    first source, and a bot check stops the rest of the platform for the run."""
+    skips: dict[str, dict[str, str]] = {}  # platform -> why its sources are skipped ({} = run)
+    for source in sources:
+        platform = platform_of(source)
+        if platform not in skips:
+            wait = _queried_recently(conn, source)
+            skips[platform] = {"skipped_recent": wait} if wait else {}
+        if skips[platform]:
+            yield source, SourceReport(**skips[platform])
+            continue
+        started = db.utc_now()
+        report = run_source(source, conn, rules)
+        if report.blocked or not report.error:
+            db.record_query(conn, platform, started)
+        if report.blocked and source.platform:
+            skips[platform] = {"skipped_blocked": source.name}
+        yield source, report
+
+
 def run_source(source: Source, conn: sqlite3.Connection, rules: RuleSet) -> SourceReport:
+    """One source, now: `run_sources` decides which ones are due."""
     if isinstance(source, ConfirmationSource):
         return _record_applications(source, conn)
     report = SourceReport()
-    if source.min_hours_between_runs and (last := db.last_seen_at(conn, source.name)):
-        hours = (datetime.now(UTC) - last).total_seconds() / 3600
-        if hours < source.min_hours_between_runs:
-            report.skipped_recent = f"{hours:.1f} h < {source.min_hours_between_runs:g} h"
-            return report
     started = db.utc_now()
     try:
         for job in source.fetch():
@@ -334,5 +392,6 @@ def run_source(source: Source, conn: sqlite3.Connection, rules: RuleSet) -> Sour
     except Exception as exc:
         # FETCH_ERRORS, or a response shaped unlike any seen before: one site's failure is
         # reported and the others still run.
-        report.error = describe_error(exc)
+        report.error = describe_error(exc, source)
+        report.blocked = isinstance(exc, ChallengeError)
     return report

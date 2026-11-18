@@ -47,8 +47,15 @@ class Source:
     """A source lists postings cheaply; `enrich` fetches details only for promising ones."""
 
     name: str
-    # Some APIs ask callers to query rarely (e.g. Remotive: max ~4 times a day).
+    # Sources that share a site's bot protection (every Workday tenant) name the same platform:
+    # a bot check stops the rest of the platform for that run (ADR-032). "" = its own platform.
+    platform: str = ""
+    # Some APIs ask callers to query rarely (e.g. Remotive: max ~4 times a day). Counted from
+    # the platform's last query, blocked ones too.
     min_hours_between_runs: float = 0
+    # At most one query per calendar day (local time) for the whole platform, blocked ones too:
+    # the first run of the day makes it and later searches skip it (ADR-032).
+    once_a_day: bool = False
     # Set by `fetch` once it has listed every open posting of the site, not just the newest ones
     # or the first pages: a known job missing from that listing was taken down (ADR-026).
     # Feeds, searches and email alerts never set it.

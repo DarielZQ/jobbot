@@ -23,7 +23,7 @@ from jobbot.core.http import HttpClient
 from jobbot.core.state import InvalidTransition, Status
 from jobbot.discovery.applications import NAME as CONFIRMATIONS
 from jobbot.discovery.base import SourceNotConfigured
-from jobbot.discovery.pipeline import SourceReport, build_sources, rescreen, run_source
+from jobbot.discovery.pipeline import SourceReport, build_sources, rescreen, run_sources
 from jobbot.matching.dedupe import applied_twins
 from jobbot.matching.rules import RuleSet
 
@@ -57,6 +57,8 @@ def _http_client(settings: Settings) -> HttpClient:
 def report_line(name: str, report: SourceReport) -> str:
     if report.skipped_recent:
         return f"{name:<28} omitida: consultada hace poco ({report.skipped_recent})"
+    if report.skipped_blocked:
+        return f"{name:<28} omitida: {report.skipped_blocked} recibió un bloqueo anti-bots"
     if report.not_configured:
         return f"{name:<28} sin configurar: {report.not_configured}"
     if report.confirmations is not None or (report.error and name == CONFIRMATIONS):
@@ -234,8 +236,7 @@ def cmd_discover(args: argparse.Namespace) -> int:
             print("No hay fuentes que coincidan en config/targets.yaml.")
             return 1
         failed = 0
-        for source in sources:
-            report = run_source(source, conn, rules)
+        for source, report in run_sources(sources, conn, rules):
             failed += bool(report.error)
             print(report_line(source.name, report))
     return 1 if failed == len(sources) else 0

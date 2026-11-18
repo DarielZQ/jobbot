@@ -134,7 +134,7 @@ class HttpClient:
         return _json(self.request("POST", url, json=payload, **kwargs))
 
     def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
-        host = urlsplit(url).netloc
+        host = self._pace_key(urlsplit(url).netloc)
         for attempt in range(self._max_retries + 1):
             self._wait_for_host(host)
             try:
@@ -152,6 +152,12 @@ class HttpClient:
                 return response
             self._sleep(_retry_delay(response, attempt))
         raise AssertionError("unreachable")
+
+    def _pace_key(self, host: str) -> str:
+        """The configured host or domain whose pause applies: the hosts under a domain share
+        one (every *.myworkdayjobs.com tenant sits behind the same Cloudflare, ADR-032)."""
+        matches = [d for d in self._host_min_interval_s if host == d or host.endswith(f".{d}")]
+        return max(matches, key=len, default=host)
 
     def _wait_for_host(self, host: str) -> None:
         last = self._last_request_at.get(host)

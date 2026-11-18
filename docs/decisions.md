@@ -30,6 +30,7 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - Desde el 2026-11-16, Cloudflare pide una verificación de navegador a parte de las empresas de Workday (`docs/platforms/workday.md`).
   - Antes, `HttpClient` trataba esa respuesta como un 429 cualquiera y reintentaba tres veces. Ahora la reconoce (`cf-mitigated: challenge` o el texto de la página) y lanza `ChallengeError` sin reintentar: esa fuente se detiene en la corrida.
   - El informe la explica como «Bloqueo anti-bots». Todos los errores de fuente se explican igual: primero qué pasó en palabras simples y al final el detalle técnico corto (`pipeline.describe_error`).
+- **Actualización 2026-11-18:** un bloqueo detiene toda la plataforma en esa corrida, y Workday se consulta una vez al día (ADR-032).
 
 ## ADR-004 — Adapters deterministas por fuente
 
@@ -85,7 +86,7 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
 
 - **Fecha:** 2026-10.
 - **Contexto:** CompuTrabajo responde 403 a cualquier cliente automatizado, incluso al pedir `robots.txt`. Remotive pide en sus términos un máximo de unas 4 consultas al día.
-- **Decisión:** un sitio que bloquea al bot no se fuerza (ADR-003): CompuTrabajo entra por sus alertas de correo. Las fuentes con límite declaran `min_hours_between_runs` y el pipeline las omite si se consultaron hace menos, usando `last_seen_at` de la base. Para reaplicar filtros sin volver a consultar los sitios existe `jobbot rescreen`, que permite la transición `SKIPPED → DISCOVERED`.
+- **Decisión:** un sitio que bloquea al bot no se fuerza (ADR-003): CompuTrabajo entra por sus alertas de correo. Las fuentes con límite declaran `min_hours_between_runs` y el pipeline las omite si se consultaron hace menos, usando `last_seen_at` de la base (desde ADR-032, la última consulta de su plataforma). Para reaplicar filtros sin volver a consultar los sitios existe `jobbot rescreen`, que permite la transición `SKIPPED → DISCOVERED`.
 - **Consecuencias:** se respetan los términos de cada fuente, y ajustar `search.yaml` no obliga a borrar la base.
 
 ## ADR-012 — Alertas por correo con Gmail de solo lectura
@@ -396,3 +397,21 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - Las vacantes de IBM se juzgan sin la descripción completa. Un requisito que solo esté ahí (por ejemplo, ciudadanía) no se detecta.
   - El sitemap de Experian lista unas 400 vacantes del mundo y se descarga entero en cada corrida (unos 90 KB).
   - Si Oracle Recruiting Cloud deja de nombrar el país en sus facetas, la fuente lo dice en el informe.
+
+## ADR-032 — Workday: una consulta al día y un solo intento bloqueado
+
+- **Fecha:** 2026-11-18.
+- **Contexto:**
+  - Workday respondió bien en todas las corridas hasta el 2026-11-13. Desde el 14 Cloudflare empezó a pedir la verificación de navegador (HTTP 429 con `cf-mitigated: challenge`) a parte de las empresas, y el 18 a las 27, en las dos corridas del día.
+  - Esa tarde, tras media hora sin consultas, la primera consulta pasó y las siguientes, segundos después, volvieron a ser bloqueadas: además de que JobBot se identifica como programa, el ritmo cuenta.
+  - Todas las empresas están en `*.myworkdayjobs.com`, detrás del mismo Cloudflare. JobBot esperaba 2 s solo entre consultas al mismo subdominio, seguía con las otras 26 empresas después del primer bloqueo y volvía a consultarlas en cada búsqueda manual o del panel.
+- **Decisión** (no se evade nada, ADR-003; se consulta menos):
+  - **Plataforma:** las fuentes que comparten la protección de un sitio declaran la misma `platform` (Workday: `workday`). `pipeline.run_sources` recorre las fuentes; cuando una de esas fuentes recibe un bloqueo, las demás de su plataforma se omiten en esa corrida («omitida: workday:intel recibió un bloqueo anti-bots»).
+  - **Una vez al día:** cada plataforma guarda cuándo se consultó por última vez, también si fue bloqueada (`db.record_query`, tabla `platform_queries`), y `min_hours_between_runs` se cuenta desde ahí. Workday declara `once_a_day`: una consulta por día del calendario. La primera corrida del día lo consulta, normalmente la de las 08:30, y las búsquedas de después lo saltan. Se eligió el día del calendario y no un número de horas para que una búsqueda en la tarde no le quite su turno a la corrida de la mañana siguiente. Las vacantes de estas empresas duran semanas.
+  - **Pausa compartida:** `http.host_min_interval_s` acepta un dominio, y sus subdominios comparten la pausa. `myworkdayjobs.com: 5` deja 5 s entre cualquier consulta a Workday.
+  - **Decisiones:** si una fuente queda bloqueada tres corridas seguidas, la pregunta recomienda «Seguir intentando»: estos bloqueos suelen pasar solos y cada intento rechazado cuesta una sola consulta. El candidato ya lo había elegido así tres veces.
+- **Consecuencias:**
+  - Un día bloqueado cuesta una consulta rechazada en vez de 27.
+  - Si la primera corrida del día sale bloqueada, Workday no se vuelve a probar hasta el día siguiente. Una búsqueda después de medianoche y antes de las 08:30 le quita el turno a la corrida de las 08:30.
+  - La parte de Workday de cada corrida tarda unos minutos más.
+  - Mientras dure el bloqueo, las alertas de LinkedIn por empresa cubren esas vacantes por correo.

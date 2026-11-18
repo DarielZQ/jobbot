@@ -33,7 +33,7 @@ Antes de empezar, lee [`docs/architecture.md`](docs/architecture.md) y las decis
 - Python ≥ 3.11, type hints, `ruff` (largo de línea 100).
 - Paquete en `src/jobbot/`.
 - Cada fuente implementa `discovery.base.Source` y devuelve `core.models.Job`.
-- Toda llamada HTTP pasa por `core.http.HttpClient` (intervalo mínimo por host, `Retry-After`, reintentos, `User-Agent` honesto).
+- Toda llamada HTTP pasa por `core.http.HttpClient` (intervalo mínimo por host o dominio, `Retry-After`, reintentos, `User-Agent` honesto).
 - Rutas de datos siempre con `jobbot.paths`; nunca rutas fijas ni relativas al repositorio.
 
 ## Preparar el entorno
@@ -77,6 +77,7 @@ CI (`.github/workflows/ci.yml`) corre `pytest`, `ruff check` y `ruff format --ch
    - `fetch()`: devuelve los `Job` del listado, con llamadas baratas.
    - `enrich(job)` (opcional): pide el detalle solo de las vacantes que pasan los filtros de título y ubicación.
    - `min_hours_between_runs`: si la fuente pide consultas espaciadas.
+   - `platform`: si varias fuentes comparten la protección anti-bots de un sitio (como las empresas de Workday). Un bloqueo detiene a todas en la corrida (ADR-032).
    - Usa `self.client` (`HttpClient`) para todo HTTP.
 3. **Configuración:** agrega su modelo Pydantic en `src/jobbot/config.py`, la clave en `Targets` y el registro en `discovery/pipeline.py: build_sources`. Si la fuente usa país, código de país o zona horaria, toma el valor por defecto de `region` en `config.with_region`, y en `fetch()` llama a `discovery.base.require(...)` para que, sin país, la fuente quede "sin configurar" en vez de adivinar.
 4. **Fixture y test:** guarda una respuesta real **anonimizada** en `tests/fixtures/<fuente>_<algo>.json|html|xml` y escribe el test con `httpx.MockTransport` (las fixtures `make_client` y `load_fixture` están en `tests/conftest.py`). Cubre al menos: paginación, campos opcionales vacíos, ID estable y que una segunda corrida no duplica.

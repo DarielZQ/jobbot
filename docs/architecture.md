@@ -139,8 +139,8 @@ Reglas:
 | `jobbot/core/models.py` | `Job` y tipos comunes |
 | `jobbot/core/state.py` | Estados y transiciones válidas |
 | `jobbot/core/db.py` | Esquema, migraciones, upsert idempotente, consultas |
-| `jobbot/core/http.py` | Cliente HTTP con intervalo mínimo por host, `Retry-After`, reintentos y `User-Agent` honesto |
-| `jobbot/discovery/base.py` | Interfaz `Source` (`fetch`, `enrich`, `min_hours_between_runs`, `listing_complete`) y `SourceNotConfigured` |
+| `jobbot/core/http.py` | Cliente HTTP con intervalo mínimo por host o dominio, `Retry-After`, reintentos y `User-Agent` honesto |
+| `jobbot/discovery/base.py` | Interfaz `Source` (`fetch`, `enrich`, `platform`, `min_hours_between_runs`, `once_a_day`, `listing_complete`) y `SourceNotConfigured` |
 | `jobbot/discovery/workday.py` | JSON del sitio de empleo de Workday, filtrado por faceta de país |
 | `jobbot/discovery/successfactors.py` | Página de búsqueda pública de SAP SuccessFactors Career Site Builder |
 | `jobbot/discovery/greenhouse.py`, `lever.py` | APIs públicas de Greenhouse y Lever |
@@ -148,7 +148,7 @@ Reglas:
 | `jobbot/discovery/elempleo.py` | Listado público de elempleo |
 | `jobbot/discovery/email_alerts.py`, `jobbot/mail/gmail.py` | Alertas de LinkedIn, CompuTrabajo, Indeed y elempleo desde Gmail, solo lectura (extra `gmail`) |
 | `jobbot/discovery/applications.py` | Confirmaciones de postulación desde Gmail (ADR-018) |
-| `jobbot/discovery/pipeline.py` | Construye y ejecuta las fuentes, respeta `min_hours_between_runs`, registra los listados completos (`source_listings`), `rescreen` sin red |
+| `jobbot/discovery/pipeline.py` | Construye y ejecuta las fuentes (`run_sources`), respeta `min_hours_between_runs` por plataforma, detiene una plataforma al primer bloqueo anti-bots, registra los listados completos (`source_listings`), `rescreen` sin red |
 | `jobbot/matching/normalize.py` | Normalización de texto, empresa y título |
 | `jobbot/matching/rules.py` | Familias de roles y filtros duros con motivo |
 | `jobbot/matching/language.py` | Idioma del anuncio y CV recomendado por vacante |
@@ -235,6 +235,12 @@ Migración 6 (ADR-026):
 | :--- | :--- |
 | `source_listings` | Por fuente, `listed_at`: cuándo empezó su última corrida que listó todas las vacantes abiertas. Una vacante de esa fuente con `last_seen_at` anterior ya no está en el sitio (`db.taken_down`) |
 
+Migración 7 (ADR-032):
+
+| Tabla | Contenido |
+| :--- | :--- |
+| `platform_queries` | Por plataforma (Workday, o el nombre de la fuente), `queried_at`: cuándo empezó la última corrida que la consultó, aunque recibiera un bloqueo anti-bots. Decide si la plataforma ya toca según `min_hours_between_runs` u `once_a_day` |
+
 Las migraciones usan `PRAGMA user_version` (ADR-002).
 
 ## Detección de ATS por URL
@@ -261,7 +267,8 @@ Las migraciones usan `PRAGMA user_version` (ADR-002).
 
 `core/http.py`, usado por todas las fuentes:
 
-- **Intervalo mínimo por host:** `settings.yaml: http.min_interval_s`, con excepciones en `http.host_min_interval_s` (por ejemplo, el `crawl-delay` que pide un sitio).
+- **Intervalo mínimo por host:** `settings.yaml: http.min_interval_s`, con excepciones en `http.host_min_interval_s` (por ejemplo, el `crawl-delay` que pide un sitio). Una excepción puede ser un dominio: sus subdominios comparten la pausa (`myworkdayjobs.com`, ADR-032).
+- **Bloqueo anti-bots:** no se reintenta (ADR-003). Si la fuente comparte plataforma con otras (Workday), el resto de esa plataforma se omite en la corrida (ADR-032).
 - **`Retry-After`:** se respeta en 429 y 503.
 - **Reintentos:** con espera creciente y un máximo (`http.max_retries`) para fallos de conexión (DNS, conexión rechazada o sin respuesta), 502–504 y los 403 que Google usa para avisar de límite de uso. Cualquier otro 403 (un sitio que bloquea al bot, un permiso que falta) es definitivo: la fuente se detiene y lo reporta.
 - **`User-Agent` honesto:** `JobBot/<versión> (job search tool; contact: <JOBBOT_CONTACT_EMAIL>)`. Sin correo configurado, se omite la parte de contacto.

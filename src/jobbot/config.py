@@ -16,6 +16,7 @@ class HttpSettings(BaseModel):
     min_interval_s: float = 2.0
     max_retries: int = 3
     # Per-host override, e.g. the Gmail API tolerates much faster calls than career sites.
+    # A domain ("myworkdayjobs.com") covers its subdomains, which then share one pause.
     host_min_interval_s: dict[str, float] = Field(default_factory=dict)
 
 

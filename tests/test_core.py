@@ -136,6 +136,19 @@ def test_http_client_retries_failed_connections() -> None:
     assert sleeps == [2.0, 8.0]
 
 
+def test_http_client_paces_a_domain_across_its_subdomains() -> None:
+    sleeps: list[float] = []
+    client = HttpClient(
+        transport=httpx.MockTransport(lambda request: httpx.Response(200, json={})),
+        host_min_interval_s={"myworkdayjobs.com": 5},
+        sleep=sleeps.append,
+    )
+    client.get_json("https://acme.wd1.myworkdayjobs.com/jobs")
+    client.get_json("https://globex.wd5.myworkdayjobs.com/jobs")  # same Cloudflare (ADR-032)
+    client.get_json("https://example.com/jobs")  # another site: no pause
+    assert len(sleeps) == 1 and 4.5 < sleeps[0] <= 5
+
+
 def _google_403(reason: str) -> httpx.Response:
     error = {
         "code": 403,

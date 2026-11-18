@@ -66,6 +66,12 @@ def find_country_facet(facets: list[dict[str, Any]], country: str) -> tuple[str,
 
 
 class WorkdaySource(Source):
+    # Every tenant sits behind the same Cloudflare, which since 2026-11-14 answers repeated
+    # queries with a bot check: once a day for all of them, and the first check stops the
+    # rest (ADR-032). Postings stay open for weeks.
+    platform = "workday"
+    once_a_day = True
+
     def __init__(self, client: HttpClient, target: WorkdayTarget) -> None:
         super().__init__(client)
         self.target = target

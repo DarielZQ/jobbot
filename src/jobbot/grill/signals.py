@@ -56,7 +56,7 @@ def record_runs(conn: sqlite3.Connection, results: Sequence[tuple[str, object]])
     rows = [
         (name, now, report.error)
         for name, report in results
-        if not (report.skipped_recent or report.not_configured)
+        if not (report.skipped or report.not_configured)
     ]
     with conn:
         conn.executemany("INSERT INTO source_runs (source, ran_at, error) VALUES (?, ?, ?)", rows)
@@ -96,14 +96,19 @@ def _failing(conn: sqlite3.Connection) -> list[dict]:
                 f"({_headline(errors[0])}). ¿La desactivo?"
             ),
             "options": [DISABLE, KEEP],
-            "recommended": DISABLE,
+            # A bot check usually lifts by itself, and each refused try costs one query
+            # (ADR-032); several plain failures in a row are usually a change in the site.
+            "recommended": KEEP if errors[0].startswith(ANTI_BOT) else DISABLE,
             "reason": (
                 (
-                    "El sitio bloquea las consultas automáticas y JobBot no lo evade (ADR-003)."
+                    "El sitio bloquea las consultas automáticas y JobBot no lo evade (ADR-003). "
+                    "Estos bloqueos suelen pasar solos, y cada intento rechazado cuesta una sola "
+                    "consulta (ADR-032)."
                     if errors[0].startswith(ANTI_BOT)
                     else "Varios fallos seguidos suelen ser un cambio del sitio."
                 )
-                + " Para reactivarla, quítala de disabled_sources en config/settings.yaml."
+                + " Si la desactivas, se reactiva quitándola de disabled_sources en "
+                "config/settings.yaml."
             ),
         }
         for source, errors in recent.items()

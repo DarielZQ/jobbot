@@ -27,7 +27,7 @@ from jobbot.discovery.base import Source
 from jobbot.discovery.getonboard import GetOnBoardSource
 from jobbot.discovery.himalayas import HimalayasSource
 from jobbot.discovery.jobicy import JobicySource
-from jobbot.discovery.pipeline import run_source
+from jobbot.discovery.pipeline import run_sources
 from jobbot.discovery.recruitee import RecruiteeSource
 from jobbot.discovery.remotive import RemotiveSource
 
@@ -212,13 +212,16 @@ class _CountingSource(Source):
 
 def test_pipeline_respects_min_hours_between_runs(conn, rules) -> None:
     source = _CountingSource()
-    assert run_source(source, conn, rules).new_matched == 1
+    ((_, report),) = run_sources([source], conn, rules)
+    assert report.new_matched == 1
 
-    report = run_source(source, conn, rules)  # immediately again: skipped
+    ((_, report),) = run_sources([source], conn, rules)  # immediately again: skipped
     assert report.skipped_recent and source.calls == 1
 
     old = (datetime.now(UTC) - timedelta(hours=7)).isoformat(timespec="seconds")
     conn.execute("UPDATE jobs SET last_seen_at = ?", (old,))
-    assert run_source(source, conn, rules).seen == 1
+    conn.execute("UPDATE platform_queries SET queried_at = ?", (old,))
+    ((_, report),) = run_sources([source], conn, rules)
+    assert report.seen == 1
     assert source.calls == 2
     assert db.list_jobs(conn, status=Status.DISCOVERED)[0].role_family == "it_support"
