@@ -357,3 +357,18 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - Las vacantes de Indeed de los últimos 14 días (`lookback_days`) se completan en la siguiente corrida. Las más viejas se quedan como «(Indeed)».
   - Las claves guardadas de empresas que terminan en esas palabras no se recalculan, así que esas vacantes viejas no se reconocen como duplicadas de las nuevas.
   - Las decisiones del candidato no cambian: una vacante postulada solo recibe el nombre de la empresa.
+
+## ADR-030 — Microsoft por su buscador, y más multinacionales en Workday
+
+- **Fecha:** 2026-11-17.
+- **Contexto:**
+  - El candidato pidió revisar por qué no se leen Experian, Expeditors, Accenture, Emerson y otras multinacionales con sede en Costa Rica, y sumar las importantes que falten.
+  - Microsoft movió su sitio de empleos a Eightfold (`apply.careers.microsoft.com`). Su `robots.txt` prohíbe todo salvo algunas rutas, entre ellas el buscador `/api/pcsx` y las páginas `/careers`.
+- **Decisión:**
+  - Nueva fuente `discovery/eightfold.py`. Busca por país, pagina de 10 en 10 y pide el detalle solo de las vacantes que pasan los filtros. La plantilla de Costa Rica trae Microsoft.
+  - **Experian y Expeditors siguen sin leerse.** Su página pública en `careers.smartrecruiters.com` no tiene reglas en `robots.txt`, pero los términos de SmartRecruiters prohíben «usar medios automáticos para acceder a contenido o datos de otros usuarios», y las vacantes las publican las empresas, que son sus usuarios. Se sigue el criterio de CINDE Jobs (ADR-027): alertas de LinkedIn. El sitio propio de Experian responde 403 a programas.
+  - **Workday:** las direcciones se confirmaron con vacantes de Costa Rica publicadas e indexadas en buscadores. El `robots.txt` de cada sitio permite sus rutas. No se pudieron verificar con `probe_workday.py` porque Cloudflare pedía la verificación (ADR-003), así que JobBot las reintenta en cada corrida.
+  - No se agregan Emerson Electric, cuyo `emerson.wd5` es de Emerson College; Akamai, que no aparece en ningún Workday público; ni McKinsey, cuyo sitio no responde a programas.
+- **Consecuencias:**
+  - Si una dirección de Workday estuviera mal, el informe lo dirá cuando Cloudflare deje pasar la consulta.
+  - IBM y Oracle quedan pendientes: tienen sitio propio y cada una necesitaría su propio lector.

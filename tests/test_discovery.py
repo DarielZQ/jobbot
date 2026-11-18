@@ -11,6 +11,7 @@ from conftest import FIXTURES, make_job
 from jobbot.config import (
     AshbyTarget,
     DeelTarget,
+    EightfoldTarget,
     GreenhouseTarget,
     ICimsTarget,
     LeverTarget,
@@ -24,6 +25,7 @@ from jobbot.core.state import Status
 from jobbot.discovery.ashby import AshbySource
 from jobbot.discovery.base import Source
 from jobbot.discovery.deel import DeelSource
+from jobbot.discovery.eightfold import EightfoldSource
 from jobbot.discovery.greenhouse import GreenhouseSource
 from jobbot.discovery.icims import ICimsSource
 from jobbot.discovery.lever import LeverSource
@@ -299,6 +301,63 @@ def test_successfactors_page_that_loads_jobs_with_javascript_is_explained(make_c
 
     with pytest.raises(ValueError, match="carga con JavaScript"):
         list(source.fetch())
+
+
+EIGHTFOLD = EightfoldTarget(
+    company="Acme", host="careers.acme.com", domain="acme.com", country="Costa Rica"
+)
+
+
+def _eightfold_position(position_id: int, name: str, place: str, mode: str = "onsite") -> dict:
+    return {
+        "id": position_id,
+        "name": name,
+        "locations": [place],
+        "postedTs": 1794582278,
+        "workLocationOption": mode,
+        "positionUrl": f"/careers/job/{position_id}",
+    }
+
+
+def test_eightfold_search_pages_through_the_results(make_client) -> None:
+    pages = {
+        "0": [_eightfold_position(11, "Service Desk Analyst", "Costa Rica, San José, San José")],
+        "1": [_eightfold_position(12, "Support Engineer", "Costa Rica, Heredia", "remote")],
+    }
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        start = request.url.params["start"]
+        return httpx.Response(200, json={"data": {"positions": pages[start], "count": 2}})
+
+    source = EightfoldSource(make_client(handler), EIGHTFOLD)
+    first, second = source.fetch()
+
+    assert seen == [
+        "https://careers.acme.com/api/pcsx/search?domain=acme.com&query=&location=Costa%20Rica&start=0",
+        "https://careers.acme.com/api/pcsx/search?domain=acme.com&query=&location=Costa%20Rica&start=1",
+    ]
+    assert (first.ats_job_id, first.title, first.location) == (
+        "acme.com:11",
+        "Service Desk Analyst",
+        "Costa Rica, San José, San José",
+    )
+    assert first.url == "https://careers.acme.com/careers/job/11"
+    assert first.posted_at == datetime.fromtimestamp(1794582278, UTC)
+    assert (first.remote, second.remote) == (False, True)
+    assert source.listing_complete
+
+
+def test_eightfold_details_bring_the_description(make_client) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == "/api/pcsx/position_details"
+        assert request.url.params["position_id"] == "11"
+        return httpx.Response(200, json={"data": {"jobDescription": "<p>Entry level.</p>"}})
+
+    job = make_job(ats="eightfold", ats_job_id="acme.com:11")
+    enriched = EightfoldSource(make_client(handler), EIGHTFOLD).enrich(job)
+    assert enriched.description == "<p>Entry level.</p>"
 
 
 class FakeSource(Source):

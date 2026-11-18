@@ -21,6 +21,7 @@ from jobbot.discovery.applications import ConfirmationSource
 from jobbot.discovery.ashby import AshbySource
 from jobbot.discovery.base import Source, SourceNotConfigured
 from jobbot.discovery.deel import DeelSource
+from jobbot.discovery.eightfold import EightfoldSource
 from jobbot.discovery.elempleo import ElempleoSource
 from jobbot.discovery.email_alerts import PARSERS, EmailAlertSource
 from jobbot.discovery.getonboard import GetOnBoardSource
@@ -82,6 +83,7 @@ def build_sources(targets: Targets, client: HttpClient) -> list[Source]:
     if targets.deel:
         sources.append(DeelSource(client, targets.deel))
     sources += [JibeSource(client, t) for t in targets.jibe]
+    sources += [EightfoldSource(client, t) for t in targets.eightfold]
     if (alerts := targets.email_alerts) and alerts.enabled:
         credentials, token = resolve(alerts.credentials_file), resolve(alerts.token_file)
         mail = GmailClient(client, token=lambda: access_token(credentials, token))

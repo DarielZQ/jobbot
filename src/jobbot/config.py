@@ -203,6 +203,13 @@ class JibeTarget(BaseModel):
     country: str = ""  # from `region` unless set here
 
 
+class EightfoldTarget(BaseModel):
+    company: str
+    host: str = Field(description="e.g. apply.careers.microsoft.com")
+    domain: str = Field(description="the `domain` the site's search asks for, e.g. microsoft.com")
+    country: str = ""  # from `region` unless set here
+
+
 class EmailAlertFeed(BaseModel):
     query: str = Field(description="Gmail search, e.g. from:(jobalerts-noreply@linkedin.com)")
     # Used when the email does not say where the job is (the alert was set up for one place).
@@ -260,6 +267,7 @@ class Targets(BaseModel):
     elempleo: ElempleoTarget | None = None
     deel: DeelTarget | None = None
     jibe: list[JibeTarget] = Field(default_factory=list)
+    eightfold: list[EightfoldTarget] = Field(default_factory=list)
     email_alerts: EmailAlertsTarget | None = None
     # One group of buttons per entry; a single mapping (the first format) is one group
     linkedin_searches: list[LinkedInSearches] = Field(default_factory=list)
@@ -303,7 +311,7 @@ def _fill(target: BaseModel, **values: object) -> None:
 
 def with_region(targets: Targets, region: Region) -> Targets:
     """Sources take the country from `region` unless their entry names one."""
-    for target in [*targets.workday, *targets.jibe]:
+    for target in [*targets.workday, *targets.jibe, *targets.eightfold]:
         _fill(target, country=region.country)
     for target in targets.amazon:
         _fill(target, country_code=region.country_code, country=region.country)

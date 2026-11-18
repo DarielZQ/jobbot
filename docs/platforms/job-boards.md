@@ -1,6 +1,6 @@
 # Bolsas y sitios con API pública
 
-Amazon, Get on Board, Remotive, Jobicy, Himalayas, Recruitee, elempleo y Jibe.
+Amazon, Get on Board, Remotive, Jobicy, Himalayas, Recruitee, elempleo, Jibe y Eightfold.
 
 **Última verificación:** 2026-10-28 · **Estado:** descubrimiento disponible. La postulación la hace el usuario en el sitio de cada vacante.
 
@@ -79,6 +79,17 @@ Las fuentes que buscan por país toman el valor de `settings.yaml: region` salvo
 - El filtro `location` de la API puede no funcionar, así que la fuente trae todo y filtra por `country` en el código (por defecto, `region.country`).
 - **URL pública** de cada vacante: `https://<host>.jibeapply.com/jobs/<slug>`. La postulación puede terminar en otro ATS (por ejemplo iCIMS).
 - **Configuración:** `jibe: [{ company, host }]` en `targets.yaml`. Los presets no traen sitios Jibe configurados.
+
+## Eightfold (`discovery/eightfold.py`)
+
+Es el buscador del sitio de empleos de Microsoft desde 2026 (`apply.careers.microsoft.com`), y de otras empresas que usan Eightfold.
+
+- **Qué permite el `robots.txt`:** el de Microsoft prohíbe todo (`Disallow: /`) salvo algunas rutas, entre ellas `/api/pcsx` (el buscador) y `/careers` (la página de cada vacante). JobBot usa solo esas (ADR-030).
+- **Listado:** `GET https://<host>/api/pcsx/search?domain=<dominio>&query=&location=<país>&start=N`. Devuelve 10 por página y el total en `count`. Cada vacante trae `id`, `name`, `locations` ("Costa Rica, San José, San José"), `postedTs` (segundos) y `workLocationOption` (`onsite`, `hybrid`, `remote`).
+- La búsqueda por lugar es aproximada: con «Mexico» también devuelve vacantes de Brasil. Los filtros de ubicación de `search.yaml` deciden.
+- **Detalle (`enrich`):** solo para las que pasan los filtros. `GET /api/pcsx/position_details?position_id=<id>&domain=<dominio>`; la descripción está en `jobDescription`.
+- **URL pública:** `https://<host>/careers/job/<id>`.
+- **Configuración:** `eightfold: [{ company, host, domain }]` en `targets.yaml`. El país sale de `region.country`, salvo que la entrada diga otro.
 
 ## Revisados y no automatizados
 

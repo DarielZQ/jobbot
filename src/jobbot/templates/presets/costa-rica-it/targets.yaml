@@ -92,6 +92,10 @@ elempleo:
 
 jibe: []   # { company, host } -> API pública /api/jobs de sitios Jibe (<empresa>.jibeapply.com)
 
+# Eightfold: buscador del sitio de empleos (ADR-030). Microsoft tiene oficina en San José.
+eightfold:
+  - { company: "Microsoft", host: apply.careers.microsoft.com, domain: microsoft.com }
+
 # Alertas de empleo y confirmaciones de postulación que llegan a tu Gmail (extra "gmail").
 # El bot solo LEE esos correos (permiso de solo lectura); nunca entra a LinkedIn ni a CompuTrabajo.
 # Actívalo después de seguir docs/platforms/email-alerts.md.
