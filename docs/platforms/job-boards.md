@@ -1,6 +1,6 @@
 # Bolsas y sitios con API pública
 
-Amazon, Get on Board, Remotive, Jobicy, Himalayas, Recruitee, elempleo, Jibe y Eightfold.
+Amazon, Get on Board, Remotive, Jobicy, Himalayas, Recruitee, elempleo, Jibe, Eightfold, IBM, Oracle Recruiting Cloud y los sitios leídos por su sitemap.
 
 **Última verificación:** 2026-10-28 · **Estado:** descubrimiento disponible. La postulación la hace el usuario en el sitio de cada vacante.
 
@@ -90,6 +90,38 @@ Es el buscador del sitio de empleos de Microsoft desde 2026 (`apply.careers.micr
 - **Detalle (`enrich`):** solo para las que pasan los filtros. `GET /api/pcsx/position_details?position_id=<id>&domain=<dominio>`; la descripción está en `jobDescription`.
 - **URL pública:** `https://<host>/careers/job/<id>`.
 - **Configuración:** `eightfold: [{ company, host, domain }]` en `targets.yaml`. El país sale de `region.country`, salvo que la entrada diga otro.
+
+## IBM (`discovery/ibm.py`)
+
+- **Qué está permitido:**
+  - el buscador de `ibm.com/careers/search` usa `POST https://www-api.ibm.com/search/api/v2`;
+  - el `robots.txt` de `www-api.ibm.com` redirige a la página de inicio, así que no tiene reglas;
+  - los términos de ibm.com permiten usar programas «según el `robots.txt`» (ADR-031).
+- **Consulta:** cuerpo JSON con `appId: careers`, `scopes: [careers2]` y el filtro `field_keyword_05` = país. Pagina con `from` y `size`.
+- **Campos:** `title`, `url` (con `jobId`), `dcdate` (fecha), `description` (un resumen de unas 250 letras), `field_keyword_08` (área), `field_keyword_17` (modalidad), `field_keyword_18` (nivel: Entry Level, Internship, Professional) y `field_keyword_19` (lugar: «Heredia, CR»).
+- **Sin detalle:** la página de cada vacante (`careers.ibm.com`, Avature) responde con la verificación anti-bots de AWS (`x-amzn-waf-action: challenge`). JobBot no la abre: la descripción es el resumen, precedido del área, el nivel y la modalidad.
+- **Configuración:** `ibm: { company: "IBM" }`. El país sale de `region.country` y debe escribirse como lo nombra IBM.
+
+## Oracle Recruiting Cloud (`discovery/oracle_hcm.py`)
+
+Lo usan Oracle (`eeho.fa.us2.oraclecloud.com`, sitio `CX_45001`) y Emerson (`hdjq.fa.us2.oraclecloud.com`, sitio `CX_1`). Esos servidores no tienen `robots.txt`.
+
+- **Lugar:** `GET {host}/hcmRestApi/resources/latest/recruitingCEJobRequisitions?onlyData=true&finder=findReqs;siteNumber=<sitio>,facetsList=LOCATIONS,keyword="<país>"`. Se toma el `Id` de la faceta de ubicación que se llama igual que el país. Si no hay, la fuente falla con un mensaje claro; `location_id` en `targets.yaml` lo fija a mano.
+- **Listado:** el mismo recurso con `locationId=<id>,limit=25,offset=N`. Cada vacante trae `Id`, `Title`, `PrimaryLocation`, `secondaryLocations`, `PostedDate` y `WorkplaceTypeCode` (`ORA_REMOTE`, `ORA_HYBRID`…).
+- **Detalle (`enrich`):** `recruitingCEJobRequisitionDetails?expand=all&onlyData=true&finder=ById;Id="<id>",siteNumber=<sitio>`; la descripción junta `ExternalDescriptionStr`, `ExternalResponsibilitiesStr` y `ExternalQualificationsStr`.
+- **URL pública:** `https://{host}/hcmUI/CandidateExperience/en/sites/<sitio>/job/<id>`.
+- **Configuración:** `oraclehcm: [{ company, host, site }]`. El sitio es el `CX_…` de la URL de la página de empleos.
+- Banco Nacional, Coopenae y Dos Pinos también publican en Oracle Recruiting Cloud; se pueden agregar con una línea cada una.
+
+## Sitios leídos por su sitemap (`discovery/sitemap.py`)
+
+Para sitios propios cuyo `robots.txt` prohíbe la búsqueda pero permite las páginas de cada vacante y publica un `sitemap.xml`. Experian, por ejemplo, prohíbe `/jobs?` y permite `/job/`.
+
+- **Listado:** `GET {sitemap}`. Si es un índice, se leen sus sitemaps (hasta 10). Quedan las URL que contienen `match` («costa-rica»).
+- **Título, lugar e id** salen de la URL: `.../job/<título>-in-<lugar>-jid-<id>`. El lugar es lo que sigue al último `-in-`.
+- **Detalle (`enrich`):** el JSON-LD `JobPosting` de la página da el título exacto, la fecha, el lugar y la descripción.
+- El sitemap trae todas las vacantes, así que el listado se marca completo (ADR-026).
+- **Configuración:** `sitemap: [{ company, sitemap, match }]`.
 
 ## Revisados y no automatizados
 

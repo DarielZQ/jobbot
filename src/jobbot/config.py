@@ -210,6 +210,25 @@ class EightfoldTarget(BaseModel):
     country: str = ""  # from `region` unless set here
 
 
+class IbmTarget(BaseModel):
+    company: str = "IBM"
+    country: str = ""  # as IBM names it in its search ("Costa Rica"); from `region` unless set
+
+
+class OracleHcmTarget(BaseModel):
+    company: str
+    host: str = Field(description="e.g. hdjq.fa.us2.oraclecloud.com")
+    site: str = Field(description="siteNumber in the career site URL, e.g. CX_1")
+    country: str = ""  # from `region` unless set here
+    location_id: int | None = None  # found from the country name unless set here
+
+
+class SitemapTarget(BaseModel):
+    company: str
+    sitemap: str = Field(description="e.g. https://jobs.experian.com/sitemap.xml")
+    match: str = Field(description="text every wanted job URL has, e.g. costa-rica")
+
+
 class EmailAlertFeed(BaseModel):
     query: str = Field(description="Gmail search, e.g. from:(jobalerts-noreply@linkedin.com)")
     # Used when the email does not say where the job is (the alert was set up for one place).
@@ -268,6 +287,9 @@ class Targets(BaseModel):
     deel: DeelTarget | None = None
     jibe: list[JibeTarget] = Field(default_factory=list)
     eightfold: list[EightfoldTarget] = Field(default_factory=list)
+    ibm: IbmTarget | None = None
+    oraclehcm: list[OracleHcmTarget] = Field(default_factory=list)
+    sitemap: list[SitemapTarget] = Field(default_factory=list)
     email_alerts: EmailAlertsTarget | None = None
     # One group of buttons per entry; a single mapping (the first format) is one group
     linkedin_searches: list[LinkedInSearches] = Field(default_factory=list)
@@ -311,8 +333,10 @@ def _fill(target: BaseModel, **values: object) -> None:
 
 def with_region(targets: Targets, region: Region) -> Targets:
     """Sources take the country from `region` unless their entry names one."""
-    for target in [*targets.workday, *targets.jibe, *targets.eightfold]:
+    for target in [*targets.workday, *targets.jibe, *targets.eightfold, *targets.oraclehcm]:
         _fill(target, country=region.country)
+    if targets.ibm:
+        _fill(targets.ibm, country=region.country)
     for target in targets.amazon:
         _fill(target, country_code=region.country_code, country=region.country)
     for target in targets.successfactors:

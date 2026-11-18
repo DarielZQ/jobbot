@@ -372,3 +372,27 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
 - **Consecuencias:**
   - Si una dirección de Workday estuviera mal, el informe lo dirá cuando Cloudflare deje pasar la consulta.
   - IBM y Oracle quedan pendientes: tienen sitio propio y cada una necesitaría su propio lector.
+
+## ADR-031 — IBM, Oracle Recruiting Cloud y sitios leídos por su sitemap
+
+- **Fecha:** 2026-11-18.
+- **Contexto:**
+  - El candidato pidió investigar IBM y Oracle, que tienen sitio de empleos propio.
+  - Al investigarlos aparecieron dos más: Emerson Electric publica en Oracle Recruiting Cloud, no en Workday, y Experian tiene un sitio propio (`jobs.experian.com`) además de SmartRecruiters.
+- **Decisión:**
+  - **IBM** (`discovery/ibm.py`):
+    - se lee la API de su buscador (`www-api.ibm.com/search/api/v2`), que no tiene reglas en `robots.txt`;
+    - sus términos permiten programas que respeten el `robots.txt`. Su cláusula contra «robots» trata de lo que uno publica o transmite en sus sitios, no de leerlos;
+    - la página de cada vacante (Avature) pide la verificación anti-bots de AWS, así que JobBot no la abre (ADR-003) y filtra con el resumen.
+  - **Oracle Recruiting Cloud** (`discovery/oracle_hcm.py`):
+    - API REST pública del sitio, en servidores sin `robots.txt`;
+    - el lugar se busca por el nombre del país en la faceta de ubicaciones. Se agregan Oracle y Emerson.
+  - **Sitemap** (`discovery/sitemap.py`):
+    - para sitios cuyo `robots.txt` prohíbe la búsqueda pero permite las vacantes y publica un sitemap. Es el caso de Experian, cuyos términos no mencionan programas automáticos;
+    - Experian sale de los botones de LinkedIn. Su página en SmartRecruiters sigue sin leerse (ADR-030).
+  - `job_posting` (el JSON-LD `JobPosting`) pasa a `discovery/base.py`, porque lo usan iCIMS y los sitemaps.
+  - No se agregan empresas nacionales (Banco Nacional, Coopenae, Dos Pinos): el candidato pidió transnacionales. Quedan anotadas en `job-boards.md`.
+- **Consecuencias:**
+  - Las vacantes de IBM se juzgan sin la descripción completa. Un requisito que solo esté ahí (por ejemplo, ciudadanía) no se detecta.
+  - El sitemap de Experian lista unas 400 vacantes del mundo y se descarga entero en cada corrida (unos 90 KB).
+  - Si Oracle Recruiting Cloud deja de nombrar el país en sus facetas, la fuente lo dice en el informe.

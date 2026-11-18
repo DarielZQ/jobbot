@@ -2,11 +2,27 @@
 
 from __future__ import annotations
 
+import json
+import re
 from collections.abc import Iterable
 
 from jobbot.core.http import HttpClient
 from jobbot.core.models import Job
 from jobbot.matching.normalize import normalize_text
+
+_JSON_LD = re.compile(r'<script type="application/ld\+json"[^>]*>(.*?)</script>', re.S)
+
+
+def job_posting(page: str) -> dict:
+    """The schema.org JobPosting of a job page (iCIMS, Experian...), or {}."""
+    for block in _JSON_LD.findall(page):
+        try:
+            data = json.loads(block)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(data, dict) and data.get("@type") == "JobPosting":
+            return data
+    return {}
 
 
 class SourceNotConfigured(Exception):

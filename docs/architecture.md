@@ -71,7 +71,7 @@ region:
   timezone: America/Costa_Rica # nombre IANA
 ```
 
-`config.with_region` completa con esos valores los campos que una fuente no declara: país de Workday, Jibe y Eightfold, código de país de Amazon, lugar de búsqueda de SuccessFactors, `geo` de Jobicy, país y desfase de Himalayas. Un valor escrito en la entrada de la fuente siempre gana. Si después de eso falta el país, la fuente lanza `SourceNotConfigured` y se reporta como "sin configurar" en vez de adivinar.
+`config.with_region` completa con esos valores los campos que una fuente no declara: país de Workday, Jibe, Eightfold, IBM y Oracle Recruiting Cloud, código de país de Amazon, lugar de búsqueda de SuccessFactors, `geo` de Jobicy, país y desfase de Himalayas. Un valor escrito en la entrada de la fuente siempre gana. Si después de eso falta el país, la fuente lanza `SourceNotConfigured` y se reporta como "sin configurar" en vez de adivinar.
 
 ## Flujo
 
@@ -144,7 +144,7 @@ Reglas:
 | `jobbot/discovery/workday.py` | JSON del sitio de empleo de Workday, filtrado por faceta de país |
 | `jobbot/discovery/successfactors.py` | Página de búsqueda pública de SAP SuccessFactors Career Site Builder |
 | `jobbot/discovery/greenhouse.py`, `lever.py` | APIs públicas de Greenhouse y Lever |
-| `jobbot/discovery/amazon.py`, `getonboard.py`, `remotive.py`, `jobicy.py`, `himalayas.py`, `recruitee.py`, `jibe.py`, `eightfold.py` | APIs públicas de bolsas y sitios de empleo |
+| `jobbot/discovery/amazon.py`, `getonboard.py`, `remotive.py`, `jobicy.py`, `himalayas.py`, `recruitee.py`, `jibe.py`, `eightfold.py`, `ibm.py`, `oracle_hcm.py`, `sitemap.py` | APIs públicas de bolsas y sitios de empleo, y sitemaps |
 | `jobbot/discovery/elempleo.py` | Listado público de elempleo |
 | `jobbot/discovery/email_alerts.py`, `jobbot/mail/gmail.py` | Alertas de LinkedIn, CompuTrabajo, Indeed y elempleo desde Gmail, solo lectura (extra `gmail`) |
 | `jobbot/discovery/applications.py` | Confirmaciones de postulación desde Gmail (ADR-018) |
@@ -249,6 +249,7 @@ Las migraciones usan `PRAGMA user_version` (ADR-002).
 | SuccessFactors Career Site Builder | `/go/<nombre>/<id>/`, `/job/<título>/<id>/` (dominio propio de la empresa) |
 | Jibe | `*.jibeapply.com` |
 | Eightfold | `apply.careers.<empresa>.com/careers/job/<id>`, `*.eightfold.ai` |
+| Oracle Recruiting Cloud | `*.fa.*.oraclecloud.com/hcmUI/CandidateExperience/.../sites/CX_…/job/<id>` |
 | Phenom | `/us/en/job/...`, IDs `phn-...` (dominio propio) |
 | Taleo | `*.taleo.net` |
 | Oracle Recruiting | `*.oraclecloud.com/hcmUI/CandidateExperience` |

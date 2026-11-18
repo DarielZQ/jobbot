@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 from collections.abc import Iterable
 from datetime import UTC, datetime
+from urllib.parse import unquote
 
 import httpx
 import pytest
@@ -13,8 +14,11 @@ from jobbot.config import (
     DeelTarget,
     EightfoldTarget,
     GreenhouseTarget,
+    IbmTarget,
     ICimsTarget,
     LeverTarget,
+    OracleHcmTarget,
+    SitemapTarget,
     SuccessFactorsTarget,
     WorkdayTarget,
     load_search_rules,
@@ -27,9 +31,12 @@ from jobbot.discovery.base import Source
 from jobbot.discovery.deel import DeelSource
 from jobbot.discovery.eightfold import EightfoldSource
 from jobbot.discovery.greenhouse import GreenhouseSource
+from jobbot.discovery.ibm import IbmSource
 from jobbot.discovery.icims import ICimsSource
 from jobbot.discovery.lever import LeverSource
+from jobbot.discovery.oracle_hcm import OracleHcmSource
 from jobbot.discovery.pipeline import run_source
+from jobbot.discovery.sitemap import SitemapSource, from_slug
 from jobbot.discovery.successfactors import SuccessFactorsSource, job_description
 from jobbot.discovery.workday import WorkdaySource, find_country_facet
 from jobbot.matching.rules import RuleSet
@@ -358,6 +365,169 @@ def test_eightfold_details_bring_the_description(make_client) -> None:
     job = make_job(ats="eightfold", ats_job_id="acme.com:11")
     enriched = EightfoldSource(make_client(handler), EIGHTFOLD).enrich(job)
     assert enriched.description == "<p>Entry level.</p>"
+
+
+def _ibm_hit(job_id: int, title: str, level: str, mode: str = "Hybrid") -> dict:
+    return {
+        "_source": {
+            "title": title,
+            "url": f"https://careers.ibm.com/careers/JobDetail?jobId={job_id}",
+            "description": "Help users with their laptops...",
+            "dcdate": "2026-11-13",
+            "field_keyword_05": "Costa Rica",
+            "field_keyword_08": "Infrastructure & Technology",
+            "field_keyword_17": mode,
+            "field_keyword_18": level,
+            "field_keyword_19": "Heredia, CR",
+        }
+    }
+
+
+def test_ibm_search_filters_by_country_and_keeps_the_summary(make_client) -> None:
+    pages = {0: [_ibm_hit(1, "IT Support Intern", "Internship")],
+             1: [_ibm_hit(2, "Service Desk Analyst", "Entry Level", "Remote")]}  # fmt: skip
+    bodies: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert (request.method, str(request.url)) == (
+            "POST",
+            "https://www-api.ibm.com/search/api/v2",
+        )
+        body = json.loads(request.content)
+        bodies.append(body)
+        return httpx.Response(
+            200, json={"hits": {"total": {"value": 2}, "hits": pages[body["from"]]}}
+        )
+
+    source = IbmSource(make_client(handler), IbmTarget(country="Costa Rica"))
+    intern, analyst = source.fetch()
+
+    assert bodies[0]["post_filter"] == {
+        "bool": {"must": [{"term": {"field_keyword_05": "Costa Rica"}}]}
+    }
+    assert [body["from"] for body in bodies] == [0, 1]
+    assert (intern.ats_job_id, intern.title, intern.location) == (
+        "1",
+        "IT Support Intern",
+        "Heredia, CR",
+    )
+    assert intern.posted_at == datetime(2026, 11, 13, tzinfo=UTC)
+    # The job page sits behind a bot check: the summary, with area and level, is the description.
+    assert intern.description.startswith("Infrastructure & Technology · Internship · Hybrid\n")
+    assert (intern.remote, analyst.remote) == (False, True)
+    assert source.listing_complete
+
+
+ORACLE = OracleHcmTarget(company="Acme", host="acme.fa.us2.oraclecloud.com", site="CX_1",
+                         country="Costa Rica")  # fmt: skip
+
+
+def test_oracle_finds_the_country_location_then_lists_its_jobs(make_client) -> None:
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        url = unquote(str(request.url))
+        seen.append(url)
+        if "facetsList=LOCATIONS" in url:
+            facets = [{"Id": 1, "Name": "Costa Rica (Remote)"}, {"Id": 77, "Name": "Costa Rica"}]
+            return httpx.Response(200, json={"items": [{"locationsFacet": facets}]})
+        assert "locationId=77" in url
+        posting = {
+            "Id": "501",
+            "Title": "University Internship",
+            "PrimaryLocation": "Escazú, San José, Costa Rica",
+            "secondaryLocations": [{"Name": "Hungary"}],
+            "PostedDate": "2026-10-29",
+            "WorkplaceTypeCode": "ORA_HYBRID",
+        }
+        return httpx.Response(
+            200, json={"items": [{"requisitionList": [posting], "TotalJobsCount": 1}]}
+        )
+
+    source = OracleHcmSource(make_client(handler), ORACLE)
+    (job,) = source.fetch()
+
+    assert 'keyword="Costa Rica"' in seen[0]
+    assert job.ats_job_id == "acme.fa.us2.oraclecloud.com:501"
+    assert job.location == "Escazú, San José, Costa Rica / Hungary"
+    assert job.url == (
+        "https://acme.fa.us2.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1/job/501"
+    )
+    assert (job.posted_at, job.remote) == (datetime(2026, 10, 29, tzinfo=UTC), False)
+    assert source.listing_complete
+
+
+def test_oracle_details_and_a_site_without_the_country(make_client) -> None:
+    def details(request: httpx.Request) -> httpx.Response:
+        assert 'finder=ById;Id="501",siteNumber=CX_1' in unquote(str(request.url))
+        item = {"ExternalDescriptionStr": "<p>Role</p>", "ExternalQualificationsStr": "<p>Req</p>"}
+        return httpx.Response(200, json={"items": [item]})
+
+    job = make_job(ats="oraclehcm", ats_job_id="acme.fa.us2.oraclecloud.com:501")
+    enriched = OracleHcmSource(make_client(details), ORACLE).enrich(job)
+    assert enriched.description == "<p>Role</p>\n<p>Req</p>"
+
+    no_facet = httpx.Response(
+        200, json={"items": [{"locationsFacet": [{"Id": 1, "Name": "Peru"}]}]}
+    )
+    source = OracleHcmSource(make_client(lambda r: no_facet), ORACLE)
+    with pytest.raises(ValueError, match="no tiene una ubicación llamada «Costa Rica»"):
+        list(source.fetch())
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        (
+            "https://jobs.acme.com/job/help-desk-technician-in-heredia-costa-rica-jid-2306",
+            ("Help desk technician", "Heredia Costa Rica", "2306"),
+        ),
+        (  # the place follows the last "-in-"
+            "https://jobs.acme.com/job/engineer-in-training-in-heredia-costa-rica-jid-7",
+            ("Engineer in training", "Heredia Costa Rica", "7"),
+        ),
+        ("https://jobs.acme.com/job/it-intern-1234/", ("It intern", "", "1234")),
+    ],
+)
+def test_sitemap_job_url_gives_title_place_and_id(url: str, expected: tuple) -> None:
+    assert from_slug(url) == expected
+
+
+def test_sitemap_source_follows_the_index_and_keeps_the_country(make_client) -> None:
+    ns = 'xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"'
+    index = (f"<sitemapindex {ns}><sitemap><loc>https://jobs.acme.com/jobs.xml</loc></sitemap>"
+             "</sitemapindex>")  # fmt: skip
+    jobs = (
+        f"<urlset {ns}>"
+        "<url><loc>https://jobs.acme.com/job/it-support-analyst-in-heredia-costa-rica-jid-1</loc></url>"
+        "<url><loc>https://jobs.acme.com/job/it-support-analyst-in-london-england-jid-2</loc></url>"
+        "</urlset>"
+    )
+    page = (
+        '<script type="application/ld+json">{"@type": "JobPosting", "title": "IT Support Analyst",'
+        ' "datePosted": "2026-11-10T08:00:00+00:00", "description": "<p>Entry level</p>",'
+        ' "jobLocation": [{"address": {"addressLocality": "Heredia, Costa Rica"}}]}</script>'
+    )
+    replies = {"/sitemap.xml": index, "/jobs.xml": jobs}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, text=replies.get(request.url.path, page))
+
+    target = SitemapTarget(company="Acme", sitemap="https://jobs.acme.com/sitemap.xml",
+                           match="costa-rica")  # fmt: skip
+    source = SitemapSource(make_client(handler), target)
+    (job,) = source.fetch()
+
+    assert (job.ats_job_id, job.title, job.location) == (
+        "jobs.acme.com:1",
+        "It support analyst",
+        "Heredia Costa Rica",
+    )
+    assert source.listing_complete
+    enriched = source.enrich(job)
+    assert (enriched.title, enriched.location) == ("IT Support Analyst", "Heredia, Costa Rica")
+    assert enriched.posted_at == datetime(2026, 11, 10, 8, tzinfo=UTC)
+    assert enriched.description == "<p>Entry level</p>"
 
 
 class FakeSource(Source):

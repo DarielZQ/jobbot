@@ -10,7 +10,6 @@ that inner page. Only jobs that pass the title and location filters get their de
 from __future__ import annotations
 
 import html as html_lib
-import json
 import re
 from collections.abc import Iterable, Iterator
 from datetime import datetime
@@ -18,31 +17,18 @@ from datetime import datetime
 from jobbot.config import ICimsTarget
 from jobbot.core.http import HttpClient
 from jobbot.core.models import Job
-from jobbot.discovery.base import Source
+from jobbot.discovery.base import Source, job_posting
 
 MAX_PAGES = 10
 _CARD = re.compile(r'<li class="iCIMS_JobCardItem">(.*?)</li>', re.S)
 _LINK = re.compile(r'href="(https?://[^"?]+/jobs/(\d+)/[^"?/]+/job)[^"]*"')
 _TITLE = re.compile(r"<h3[^>]*>(.*?)</h3>", re.S)
 _LOCATION = re.compile(r"Job Locations</span>\s*<span[^>]*>(.*?)</span>", re.S)
-_JSON_LD = re.compile(r'<script type="application/ld\+json">(.*?)</script>', re.S)
 _TAG = re.compile(r"<[^>]+>")
 
 
 def _text(fragment: str) -> str:
     return " ".join(html_lib.unescape(_TAG.sub(" ", fragment)).split())
-
-
-def job_posting(page: str) -> dict:
-    """The schema.org JobPosting of a detail page, or {}."""
-    for block in _JSON_LD.findall(page):
-        try:
-            data = json.loads(block)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(data, dict) and data.get("@type") == "JobPosting":
-            return data
-    return {}
 
 
 class ICimsSource(Source):

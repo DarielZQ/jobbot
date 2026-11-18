@@ -96,6 +96,19 @@ jibe: []   # { company, host } -> API pública /api/jobs de sitios Jibe (<empres
 eightfold:
   - { company: "Microsoft", host: apply.careers.microsoft.com, domain: microsoft.com }
 
+# IBM: API del buscador de ibm.com/careers, filtrada por país (ADR-031). Heredia.
+ibm:
+  company: "IBM"
+
+# Oracle Recruiting Cloud: API pública del sitio (ADR-031). Emerson tiene su centro en Escazú.
+oraclehcm:
+  - { company: "Oracle",  host: eeho.fa.us2.oraclecloud.com, site: CX_45001 }
+  - { company: "Emerson", host: hdjq.fa.us2.oraclecloud.com, site: CX_1 }
+
+# Sitios propios leídos por su sitemap.xml (ADR-031): solo las URL que contienen `match`.
+sitemap:
+  - { company: "Experian", sitemap: "https://jobs.experian.com/sitemap.xml", match: "costa-rica" }
+
 # Alertas de empleo y confirmaciones de postulación que llegan a tu Gmail (extra "gmail").
 # El bot solo LEE esos correos (permiso de solo lectura); nunca entra a LinkedIn ni a CompuTrabajo.
 # Actívalo después de seguir docs/platforms/email-alerts.md.

@@ -27,12 +27,15 @@ from jobbot.discovery.email_alerts import PARSERS, EmailAlertSource
 from jobbot.discovery.getonboard import GetOnBoardSource
 from jobbot.discovery.greenhouse import GreenhouseSource
 from jobbot.discovery.himalayas import HimalayasSource
+from jobbot.discovery.ibm import IbmSource
 from jobbot.discovery.icims import ICimsSource
 from jobbot.discovery.jibe import JibeSource
 from jobbot.discovery.jobicy import JobicySource
 from jobbot.discovery.lever import LeverSource
+from jobbot.discovery.oracle_hcm import OracleHcmSource
 from jobbot.discovery.recruitee import RecruiteeSource
 from jobbot.discovery.remotive import RemotiveSource
+from jobbot.discovery.sitemap import SitemapSource
 from jobbot.discovery.successfactors import SuccessFactorsSource
 from jobbot.discovery.workday import WorkdaySource
 from jobbot.mail.gmail import GmailClient, access_token
@@ -84,6 +87,10 @@ def build_sources(targets: Targets, client: HttpClient) -> list[Source]:
         sources.append(DeelSource(client, targets.deel))
     sources += [JibeSource(client, t) for t in targets.jibe]
     sources += [EightfoldSource(client, t) for t in targets.eightfold]
+    sources += [OracleHcmSource(client, t) for t in targets.oraclehcm]
+    sources += [SitemapSource(client, t) for t in targets.sitemap]
+    if targets.ibm:
+        sources.append(IbmSource(client, targets.ibm))
     if (alerts := targets.email_alerts) and alerts.enabled:
         credentials, token = resolve(alerts.credentials_file), resolve(alerts.token_file)
         mail = GmailClient(client, token=lambda: access_token(credentials, token))
