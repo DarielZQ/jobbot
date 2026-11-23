@@ -61,7 +61,8 @@ def test_elempleo_source_dedupes_across_searches(make_client) -> None:
 # --- Jibe ---------------------------------------------------------------------------------------
 
 
-def test_jibe_source_keeps_only_target_country(load_fixture, make_client, rules) -> None:
+def test_jibe_source_keeps_only_target_country(load_fixture, make_client, rules_any_age) -> None:
+    rules = rules_any_age  # the fixture has fixed past dates
     payload = load_fixture("jibe_jobs.json")
     urls: list[str] = []
 

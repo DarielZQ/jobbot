@@ -11,12 +11,15 @@ OUTSIDE_GAM = (
     r"\b(guanacaste|liberia|limon|puntarenas|perez zeledon|san carlos|nicoya"
     r"|golfito)\b"
 )
+OUTSIDE_GAM_CANTONS = (
+    r"\b(hojancha|santa cruz|tilaran|upala|sarapiqui|guapiles|siquirres|turrialba|quepos|jaco)\b"
+)
 
 
 @pytest.fixture
 def rules_gam_only() -> RuleSet:
     search = load_search_rules()
-    search.location.local_exclude = [OUTSIDE_GAM]
+    search.location.local_exclude = [OUTSIDE_GAM, OUTSIDE_GAM_CANTONS]
     return RuleSet(search)
 
 
@@ -269,6 +272,8 @@ def test_san_jose_california_is_not_costa_rica(rules: RuleSet) -> None:
         ("Austin, TX", False, "location_not_target"),
         ("Crawley, United Kingdom", False, "location_not_target"),  # "cr" only as a whole word
         ("Liberia, Guanacaste, Costa Rica", False, "location_outside_area: liberia"),
+        # A LinkedIn alert names only the district; the reader adds the country
+        ("Hojancha, Costa Rica", False, "location_outside_area: hojancha"),
         ("Remote - US only", True, "remote_not_eligible: us only"),
         ("Remote", True, "remote_region_unknown"),
     ],

@@ -43,10 +43,13 @@ _NOISE = re.compile(
     r"solicitar|postularme|post[uú]late( ahora| hoy)?|easy apply|"
     r"solicitud sencilla|actively recruiting|contratando activamente|be an early applicant|"
     r"s[eé] de los primeros en solicitar|promoted|promocionado|new|nuevo|"
-    r".*\b(connections?|contactos?|alumni|applicants?|solicitantes|school|escuela|"
+    # "2 contactos", "Tienes contactos en Acme"; a title such as "Centro de Contacto" stays
+    r"\d+ (connections?|contactos?)\b.*|(tienes|you have) (contactos|connections)\b.*|"
+    r".*\b(alumni|applicants?|solicitantes|school|escuela|"
     r"instituci[oó]n educativa|busca personal activamente|actively hiring|perfil y cv)\b.*)$",
     re.I,
 )
+_REMOTE_PLACE = re.compile(r"\b(remote|remoto)\b", re.I)
 # A saved-search alert lists only jobs posted since the previous alert: its "see all" link
 # carries f_TPR=a<time of that alert>. Other LinkedIn emails (similar jobs, the suggestions under
 # an application confirmation) can bring postings that are months old. So can an alert with no
@@ -94,7 +97,9 @@ def parse_linkedin(message: MailMessage, source: str, default_location: str) -> 
     # LinkedIn's emails carry no posting date: an alert's jobs are about as old as the email.
     posted = message.received_at if alert else None
     return [
-        _linkedin_job(job_id, title, company, location or default_location, source).model_copy(
+        _linkedin_job(
+            job_id, title, company, _linkedin_place(location, default_location), source
+        ).model_copy(
             update={
                 "posted_at": posted,
                 "posted_approx": posted is not None,
@@ -103,6 +108,17 @@ def parse_linkedin(message: MailMessage, source: str, default_location: str) -> 
         )
         for job_id, (title, company, location) in jobs.items()
     ]
+
+
+def _linkedin_place(location: str, country: str) -> str:
+    """The alerts are for one country and often name only the district ("Pavas", "Calle
+    Blancos"): add the country, so the location filter recognizes it. A place with a comma
+    already says where it is."""
+    if not location:
+        return country
+    if "," in location or _REMOTE_PLACE.search(location):
+        return location
+    return _with_country(location, country)
 
 
 def _linkedin_from_text(text: str) -> dict[str, tuple[str, str, str]]:
@@ -123,7 +139,8 @@ def _linkedin_from_text(text: str) -> dict[str, tuple[str, str, str]]:
             continue
         match = LINKEDIN_JOB.search(line)
         if not match:
-            if not _NOISE.match(line):
+            # A line in capitals is a name ("APPLY" is a company), not the apply button
+            if not _NOISE.match(line) or line.isupper():
                 pending.append(line)
             continue
         if pending and match.group(1) not in jobs:
@@ -335,6 +352,8 @@ def _indeed_from_text(text: str) -> list[tuple[str, str, str, str]]:
     Daily alerts: blocks of `title / company - location / [badges] / snippet / age / link`.
     Single-job matches: `title / company / location / [Tipo de empleo: …]`, then a block that
     starts with `Ver empleo: link`.
+    Recommendations ("Empleo de X en Y y otro empleo nuevo", 2026-11): `title / company -
+    location / [salary, badges] / snippet`, then the link alone in the next block.
     """
     found: list[tuple[str, str, str, str]] = []
     previous: list[str] = []
@@ -349,6 +368,9 @@ def _indeed_from_text(text: str) -> list[tuple[str, str, str, str]]:
             found.append((lines[0], company, location, link.group(0)))
         elif view and len(previous) >= 3:
             found.append((previous[0], previous[1], previous[2], view.group(1)))
+        elif link and len(lines) == 1 and len(previous) >= 2 and " - " in previous[1]:
+            company, _, location = previous[1].rpartition(" - ")
+            found.append((previous[0], company, location, link.group(0)))
         previous = lines
     return found
 

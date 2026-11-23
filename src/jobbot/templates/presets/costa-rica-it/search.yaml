@@ -195,8 +195,10 @@ location:
     # «American Free Zone, San Franci, CR» o «CR - Alajuela»: el código del país (ADR-027)
     - '\bcr$|^cr\b'
   # Lugares que no aceptas aunque coincidan con `local`. El primero es San José de California
-  # («San Jose, CA, USA»), no la de Costa Rica (ADR-027). Ejemplo para quien solo trabaja en el GAM:
+  # («San Jose, CA, USA»), no la de Costa Rica (ADR-027). Ejemplo para quien solo trabaja en el GAM
+  # (provincias y cantones, porque las alertas de LinkedIn a veces nombran solo el distrito):
   #   - '\b(guanacaste|liberia|limon|puntarenas|perez zeledon|san carlos|nicoya|golfito)\b'
+  #   - '\b(hojancha|santa cruz|tilaran|upala|sarapiqui|guapiles|siquirres|turrialba|quepos|jaco)\b'
   local_exclude:
     - '\bsan jose (ca|california)\b'
   # Remoto aceptado solo si es elegible desde tu país

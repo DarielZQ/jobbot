@@ -41,7 +41,8 @@ def _serve(payload: object, urls: list[str] | None = None):
     return handler
 
 
-def test_amazon_source(load_fixture, make_client, rules) -> None:
+def test_amazon_source(load_fixture, make_client, rules_any_age) -> None:
+    rules = rules_any_age  # the fixture has fixed past dates
     urls: list[str] = []
     client = make_client(_serve(load_fixture("amazon_search.json"), urls))
     support, consultant = AmazonSource(
@@ -63,8 +64,9 @@ def test_amazon_source(load_fixture, make_client, rules) -> None:
 
 
 def test_getonboard_source_maps_remote_modality_and_seniority(
-    load_fixture, make_client, rules
+    load_fixture, make_client, rules_any_age
 ) -> None:
+    rules = rules_any_age  # the fixture has fixed past dates
     urls: list[str] = []
     client = make_client(_serve(load_fixture("getonboard_search.json"), urls))
     target = GetOnBoardTarget(queries=["support", "soporte"], max_pages=3)
@@ -111,7 +113,8 @@ def test_remotive_source(load_fixture, make_client, rules) -> None:
     assert rules.evaluate(usa).reason == "remote_region_unknown"
 
 
-def test_jobicy_source(load_fixture, make_client, rules) -> None:
+def test_jobicy_source(load_fixture, make_client, rules_any_age) -> None:
+    rules = rules_any_age  # the fixture has fixed past dates
     urls: list[str] = []
     client = make_client(_serve(load_fixture("jobicy_jobs.json"), urls))
     database, bilingual, senior, brazil = JobicySource(

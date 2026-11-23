@@ -60,6 +60,67 @@ def test_linkedin_html_fallback_uses_default_location() -> None:
     ]
 
 
+def _linkedin_block(job_id: str, *lines: str) -> str:
+    view = f"Ver anuncio de empleo: https://www.linkedin.com/comm/jobs/view/{job_id}/?trackingId=t"
+    return "\n".join([*lines, view, "", "-" * 57, ""])
+
+
+def test_linkedin_bare_place_gets_the_alert_country(rules) -> None:
+    """The emails of a Costa Rica alert name only the district ("Pavas"): JobBot adds the
+    country. A place outside the area is then left to `location.local_exclude`."""
+    text = "".join(
+        [
+            _linkedin_block("4100000001", "IT Support Technician", "Acme Corp", "Pavas"),
+            _linkedin_block("4100000002", "Service Desk Analyst", "Beta Inc", "Hojancha"),
+            _linkedin_block(
+                "4100000003", "Help Desk Agent", "Gamma", "Heredia, Heredia, Costa Rica"
+            ),
+            _linkedin_block("4100000004", "Soporte TI", "Delta", "Costa Rica (En remoto)"),
+        ]
+    )
+    jobs = parse_linkedin(_message(text=text), "email:linkedin", "Costa Rica")
+
+    assert [j.location for j in jobs] == [
+        "Pavas, Costa Rica",
+        "Hojancha, Costa Rica",
+        "Heredia, Heredia, Costa Rica",
+        "Costa Rica (En remoto)",
+    ]
+    assert rules.evaluate(jobs[0]).ok
+
+
+def test_linkedin_title_with_a_noise_word_keeps_its_fields() -> None:
+    """ "Centro de Contacto" is a title, not the "2 contactos" insight; a company called
+    "APPLY" is not the apply button."""
+    text = "".join(
+        [
+            _linkedin_block(
+                "4100000011",
+                "Agente de Centro de Contacto bilingüe / San José, Pavas",
+                "Acme Corp",
+                "San José",
+                "Esta empresa busca personal activamente",
+                "2 contactos",
+            ),
+            _linkedin_block("4100000012", "Service Desk", "APPLY", "Costa Rica", "Solicitar"),
+            _linkedin_block(
+                "4100000013", "Help Desk", "Beta Inc", "Heredia", "Tienes contactos en Beta"
+            ),
+        ]
+    )
+    jobs = parse_linkedin(_message(text=text), "email:linkedin", "Costa Rica")
+
+    assert [(j.title, j.company, j.location) for j in jobs] == [
+        (
+            "Agente de Centro de Contacto bilingüe / San José, Pavas",
+            "Acme Corp",
+            "San José, Costa Rica",
+        ),
+        ("Service Desk", "APPLY", "Costa Rica"),
+        ("Help Desk", "Beta Inc", "Heredia, Costa Rica"),
+    ]
+
+
 # --- Indeed -------------------------------------------------------------------------------------
 # The fixtures follow the layout of real alerts (2026-10-29), with made-up jobs and tokens.
 
@@ -102,6 +163,37 @@ def test_indeed_single_job_email() -> None:
         "San José, Provincia de San José, Costa Rica",
     )
     assert job.url == "https://cts.indeed.com/v3/VIEWtoken0000"
+
+
+def test_indeed_recommendation_with_the_link_in_its_own_block() -> None:
+    """ "Empleo de X en Y y otro empleo nuevo" (2026-11): each job's link comes alone after a
+    blank line, and the link has no job key."""
+    text = (
+        "Hola, Parece que tu experiencia coincide con la vacante de Support Engineer.\n\n"
+        "Support Engineer - Costa Rica\n"
+        "Acme Fleet - Remote\n"
+        "$822 000 - $913 000 por mes\n"
+        "Postúlate rápidamente\n"
+        "Acme builds fleet software.\n\n"
+        "https://cr.indeed.com/pagead/clk/dl?from=jobi2a_multijob-es-CR_email&jrtk=5-abc&ad=TOKEN1\n\n"
+        "Bilingual Sales Representative\n"
+        "Beta Services - Escazú, Provincia de San José\n"
+        "Empresa que responde\n"
+        "Beta helps small businesses.\n\n"
+        "https://cr.indeed.com/pagead/clk/dl?from=jobi2a_multijob-es-CR_email&jrtk=5-def&ad=TOKEN2\n\n"
+        "Los salarios se estiman si no están disponibles.\n"
+    )
+    jobs = parse_indeed(_message(text=text), "email:indeed", "Costa Rica")
+
+    assert [(j.title, j.company, j.location) for j in jobs] == [
+        ("Support Engineer - Costa Rica", "Acme Fleet", "Remote, Costa Rica"),
+        (
+            "Bilingual Sales Representative",
+            "Beta Services",
+            "Escazú, Provincia de San José, Costa Rica",
+        ),
+    ]
+    assert jobs[0].remote
 
 
 def test_indeed_alert_with_job_keys_keeps_company_and_place() -> None:

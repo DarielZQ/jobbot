@@ -72,7 +72,7 @@ def test_linkedin_alert_skips_insight_lines_and_is_dated_by_the_email() -> None:
     jobs = parse_linkedin(_mail("email_linkedin_alert_es.txt"), "email:linkedin", "Costa Rica")
 
     assert [(j.title, j.company, j.location) for j in jobs] == [
-        ("Técnico de Soporte TI", "Acme Corp", "Heredia"),
+        ("Técnico de Soporte TI", "Acme Corp", "Heredia, Costa Rica"),  # the alert's country
         ("Analista de Mesa de Ayuda", "Globex", "San José, Costa Rica"),
     ]
     assert all(j.posted_at == RECEIVED and j.posted_approx for j in jobs)
