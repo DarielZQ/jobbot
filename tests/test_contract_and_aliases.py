@@ -200,3 +200,14 @@ def test_rescreen_reopens_only_one_copy_of_an_opening(conn, rules) -> None:
 
     assert db.get_job(conn, first).status == Status.DISCOVERED
     assert db.get_job(conn, second).status == Status.SKIPPED
+
+
+def test_rescreen_moves_an_open_job_to_a_new_family(conn, rules) -> None:
+    # A family added to search.yaml changes the CV recommended for jobs already pending
+    job = make_job(title="Service Desk Analyst")
+    job_id = db.insert_job(
+        conn, job, dedupe_key=dedupe_key(job), status=Status.DISCOVERED, role_family="old_family"
+    )
+
+    assert rescreen(conn, rules)["reason_updated"] == 1
+    assert db.get_job(conn, job_id).role_family == "it_support"

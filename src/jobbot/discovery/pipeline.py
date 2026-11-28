@@ -152,6 +152,7 @@ def rescreen(conn: sqlite3.Connection, rules: RuleSet) -> Counter[str]:
     changes: Counter[str] = Counter()
     if rekeyed := rekey(conn):
         changes["rekeyed"] = rekeyed
+    families = dict(conn.execute("SELECT id, role_family FROM jobs").fetchall())
     for job_id, status, reason, job, seen_at in db.screenable_jobs(conn):
         result = rules.evaluate(job, seen_at)
         if result.ok and rules.too_old(job.posted_at, seen_at):  # undated: since first seen
@@ -173,7 +174,9 @@ def rescreen(conn: sqlite3.Connection, rules: RuleSet) -> Counter[str]:
         elif not result.ok and status is Status.DISCOVERED:
             db.set_status(conn, job_id, Status.SKIPPED, result.reason, result.role_family)
             changes["newly_skipped"] += 1
-        elif result.reason != reason:  # another exclusion, or a note on one that passes
+        elif result.reason != reason or result.role_family != families.get(job_id):
+            # Another exclusion, a note on one that passes, or another family: a new family in
+            # search.yaml changes the CV recommended for open jobs
             with conn:
                 conn.execute(
                     "UPDATE jobs SET status_reason = ?, role_family = ? WHERE id = ?",
