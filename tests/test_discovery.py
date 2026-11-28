@@ -105,7 +105,8 @@ def test_greenhouse_reads_a_bare_remote_as_the_company_scope(load_fixture, make_
     assert second.location == "Remote - US only"  # a location with a place is kept
 
 
-def test_ashby_source(load_fixture, make_client, rules) -> None:
+def test_ashby_source(load_fixture, make_client, rules_any_age) -> None:
+    rules = rules_any_age  # the fixture has fixed past dates
     payload = load_fixture("ashby_board.json")
     urls: list[str] = []
 
@@ -128,7 +129,8 @@ def test_ashby_source(load_fixture, make_client, rules) -> None:
     assert all(rules.evaluate(j).ok for j in jobs)
 
 
-def test_deel_reads_the_jobs_inside_its_careers_page(make_client, rules) -> None:
+def test_deel_reads_the_jobs_inside_its_careers_page(make_client, rules_any_age) -> None:
+    rules = rules_any_age  # the fixture has fixed past dates
     page = (FIXTURES / "deel_careers.html").read_text(encoding="utf-8")
     urls: list[str] = []
 

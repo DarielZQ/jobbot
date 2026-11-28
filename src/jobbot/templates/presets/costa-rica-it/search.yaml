@@ -113,7 +113,8 @@ role_families:
       # Mismo vocabulario fuera de TI
       - '\bredes\s+(sociales|electricas)\b'
       - '\b(market|patient)\s+access\b'
-      - '\b(access\s+control|control\s+de\s+accesos?)\b'
+      # Control de accesos físico; el de la red (NAC) sí es TI
+      - '(?<!network\s)\b(access\s+control|control\s+de\s+accesos?\b(?!\s+a\s+(la\s+)?red))\b'
       - '\b(provider|transportation|supply chain|logistics|distribution)\s+network\b'
       - '\b(transaction|transactional|aml|fraud|sanctions)\s+monitoring\b'
       - '\bmonitoreo\s+(transaccional|de\s+transacciones)\b'

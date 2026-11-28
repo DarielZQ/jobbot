@@ -85,6 +85,8 @@ def rules_gam_only() -> RuleSet:
         "Access Management Specialist",
         "User Provisioning Analyst",
         "Analista de Accesos e Identidades",
+        # Control de acceso a la red (NAC) es TI; el control de accesos físico no
+        "Network Access Control (NAC) & Monitoring Support Agent L1",
         "IT Operations Analyst",
         "Infrastructure Monitoring Technician",
         "Command Center Analyst",

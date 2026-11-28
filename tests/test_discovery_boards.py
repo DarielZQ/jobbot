@@ -101,7 +101,8 @@ def test_getonboard_senior_rejected_but_semi_senior_passes(rules) -> None:
     assert rules.evaluate(job("Semi Senior")).ok  # level 2 passes
 
 
-def test_remotive_source(load_fixture, make_client, rules) -> None:
+def test_remotive_source(load_fixture, make_client, rules_any_age) -> None:
+    rules = rules_any_age  # the fixture has fixed past dates
     urls: list[str] = []
     client = make_client(_serve(load_fixture("remotive_jobs.json"), urls))
     target = RemotiveTarget(categories=["customer-support", "data"])
