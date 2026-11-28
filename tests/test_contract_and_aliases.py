@@ -180,3 +180,23 @@ def test_another_title_or_a_remote_place_is_not_a_copy(conn, rules) -> None:
 
     assert same_opening_elsewhere(conn, rules, other_title) is None
     assert same_opening_elsewhere(conn, rules, remote) is None
+
+
+def test_rescreen_reopens_only_one_copy_of_an_opening(conn, rules) -> None:
+    # Both skipped by an old filter, under two places: reopening both would show it twice
+    def skipped(ats_job_id: str, location: str) -> int:
+        job = make_job(ats_job_id=ats_job_id, title="Service Desk Analyst", location=location)
+        return db.insert_job(
+            conn,
+            job,
+            dedupe_key=dedupe_key(job),
+            status=Status.SKIPPED,
+            status_reason="title_not_target_role",
+        )
+
+    first, second = skipped("a", "Heredia, Costa Rica"), skipped("b", "Barreal, Costa Rica")
+
+    rescreen(conn, rules)
+
+    assert db.get_job(conn, first).status == Status.DISCOVERED
+    assert db.get_job(conn, second).status == Status.SKIPPED

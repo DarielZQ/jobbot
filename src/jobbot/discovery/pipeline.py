@@ -165,9 +165,9 @@ def rescreen(conn: sqlite3.Connection, rules: RuleSet) -> Counter[str]:
             db.set_status(conn, job_id, Status.SKIPPED, reason, result.role_family)
             changes["duplicates"] += 1
         elif result.ok and status is Status.SKIPPED:
-            key = dedupe_key(job)
-            original = db.find_by_dedupe_key(conn, key)
-            if original is None:
+            original = db.find_by_dedupe_key(conn, dedupe_key(job))
+            # Another copy of the same opening, under another place, already open or applied to
+            if original is None and same_opening_elsewhere(conn, rules, job, job_id) is None:
                 db.set_status(conn, job_id, Status.DISCOVERED, result.reason, result.role_family)
                 changes["reopened"] += 1
         elif not result.ok and status is Status.DISCOVERED:
