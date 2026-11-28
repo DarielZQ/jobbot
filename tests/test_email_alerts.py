@@ -89,6 +89,32 @@ def test_linkedin_bare_place_gets_the_alert_country(rules) -> None:
     assert rules.evaluate(jobs[0]).ok
 
 
+def test_linkedin_bare_place_that_is_a_country_keeps_its_name(rules) -> None:
+    text = _linkedin_block("4100000005", "Soporte TI", "Acme Corp", "Guatemala")
+    (job,) = parse_linkedin(_message(text=text), "email:linkedin", "Costa Rica")
+
+    assert job.location == "Guatemala"
+    assert not rules.evaluate(job).ok
+
+
+def test_linkedin_wider_search_suggestions_get_no_country(rules) -> None:
+    """ "Amplía tu búsqueda" suggests jobs outside the alert's area on purpose (Guatemala, for
+    a Costa Rica alert): a bare place there is not a district of the alert's country."""
+    link = (
+        "Ver anuncio de empleo: https://www.linkedin.com/comm/jobs/view/4100000006/"
+        "?trk=eml-email_jobs_facet_suggestions-JOBS_POSTING_SECTION-0-view_job"
+    )
+    text = "\n".join(
+        ["Amplía tu búsqueda", "", "Técnico de Soporte IT", "Acme Corp", "Santa Catarina Pinula"]
+        + [link, ""]
+    )
+    (job,) = parse_linkedin(_message(text=text), "email:linkedin", "Costa Rica")
+
+    assert job.location == "Santa Catarina Pinula"
+    assert job.recommended
+    assert not rules.evaluate(job).ok
+
+
 def test_linkedin_title_with_a_noise_word_keeps_its_fields() -> None:
     """ "Centro de Contacto" is a title, not the "2 contactos" insight; a company called
     "APPLY" is not the apply button."""

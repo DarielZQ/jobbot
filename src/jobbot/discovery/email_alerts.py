@@ -50,6 +50,16 @@ _NOISE = re.compile(
     re.I,
 )
 _REMOTE_PLACE = re.compile(r"\b(remote|remoto)\b", re.I)
+# A bare place that is itself a country is not a district of the alert's country
+_COUNTRY_NAME = re.compile(
+    r"^(argentina|belice|belize|bolivia|brasil|brazil|canad[aá]|chile|colombia|ecuador|"
+    r"el salvador|españa|spain|estados unidos|united states|guatemala|honduras|m[eé]xico|"
+    r"nicaragua|panam[aá]|paraguay|per[uú]|puerto rico|rep[uú]blica dominicana|"
+    r"dominican republic|uruguay|venezuela)$",
+    re.I,
+)
+# "Amplía tu búsqueda" emails suggest jobs outside the alert's area on purpose
+_LINKEDIN_WIDER = re.compile(r"jobs_facet_suggestions", re.I)
 # A saved-search alert lists only jobs posted since the previous alert: its "see all" link
 # carries f_TPR=a<time of that alert>. Other LinkedIn emails (similar jobs, the suggestions under
 # an application confirmation) can bring postings that are months old. So can an alert with no
@@ -94,11 +104,12 @@ def parse_linkedin(message: MailMessage, source: str, default_location: str) -> 
     jobs = _linkedin_from_text(message.text) or _linkedin_from_html(message.html)
     body = f"{message.text}\n{message.html}"
     alert = bool(_LINKEDIN_ALERT.search(body)) and not _LINKEDIN_SIMILAR.search(body)
+    country = "" if _LINKEDIN_WIDER.search(body) else default_location
     # LinkedIn's emails carry no posting date: an alert's jobs are about as old as the email.
     posted = message.received_at if alert else None
     return [
         _linkedin_job(
-            job_id, title, company, _linkedin_place(location, default_location), source
+            job_id, title, company, _linkedin_place(location, country), source
         ).model_copy(
             update={
                 "posted_at": posted,
@@ -113,10 +124,10 @@ def parse_linkedin(message: MailMessage, source: str, default_location: str) -> 
 def _linkedin_place(location: str, country: str) -> str:
     """The alerts are for one country and often name only the district ("Pavas", "Calle
     Blancos"): add the country, so the location filter recognizes it. A place with a comma
-    already says where it is."""
+    already says where it is, and so does a country ("Guatemala")."""
     if not location:
         return country
-    if "," in location or _REMOTE_PLACE.search(location):
+    if "," in location or _REMOTE_PLACE.search(location) or _COUNTRY_NAME.match(location):
         return location
     return _with_country(location, country)
 
