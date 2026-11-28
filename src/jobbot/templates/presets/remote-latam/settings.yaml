@@ -26,6 +26,9 @@ panel:
 # CV en PDF (`jobbot resumes`, extra "resumes"): avisa si un CV pasa de este máximo de páginas.
 resumes:
   max_pages: 2
+  # Carpeta desde la que subes tus CV: `jobbot resumes` deja ahí una copia de cada PDF con tu
+  # nombre (Nombre_Apellido_it-support_en.pdf), y el panel y el informe apuntan a esa copia.
+  # export_dir: C:\Users\<Usuario>\Documents\CV
 
 http:
   timeout_s: 30

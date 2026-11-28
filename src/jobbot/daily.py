@@ -10,12 +10,13 @@ import html
 import sqlite3
 import subprocess
 from collections.abc import Callable, Mapping, Sequence
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import NamedTuple
 from urllib.parse import urlencode
 
-from jobbot import paths
+from jobbot import paths, resumes
 from jobbot.config import SearchRules, Targets, load_search_rules, load_settings, load_targets
 from jobbot.core import db
 from jobbot.core.db import JobRow
@@ -50,10 +51,17 @@ def attention_needed(results: Sequence[tuple[str, SourceReport]]) -> list[tuple[
 def resume_advice(
     conn: sqlite3.Connection, rules: SearchRules, jobs: Sequence[JobRow]
 ) -> dict[int, ResumeAdvice]:
-    """Which CV to send for each job: its role family + the posting's language (ADR-015)."""
+    """Which CV to send for each job: its role family + the posting's language (ADR-015). It
+    points to the copy in the folder the candidate uploads from, when there is one."""
     texts = db.descriptions(conn, [j.id for j in jobs])
+    folder, prefix = resumes.upload_place()
     return {
-        j.id: recommend_resume(rules, j.role_family, j.title, texts.get(j.id, "")) for j in jobs
+        j.id: replace(
+            recommend_resume(rules, j.role_family, j.title, texts.get(j.id, "")),
+            folder=folder,
+            prefix=prefix,
+        )
+        for j in jobs
     }
 
 

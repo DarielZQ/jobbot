@@ -49,14 +49,18 @@ def detect_language(title: str, description: str = "") -> str:
 class ResumeAdvice:
     variant: str  # e.g. "it-support"
     lang: str  # "es" | "en"
+    # The folder the candidate uploads from (settings.yaml `resumes.export_dir`) and the name
+    # prefix of the copies there ("Alex_Ejemplo_"); none: the PDF next to its YAML
+    folder: Path | None = None
+    prefix: str = ""
 
     @property
     def filename(self) -> str:
-        return f"{self.variant}_{self.lang}.pdf"
+        return f"{self.prefix}{self.variant}_{self.lang}.pdf"
 
     @property
     def path(self) -> Path:
-        return paths.resumes_dir() / self.filename
+        return (self.folder or paths.resumes_dir()) / self.filename
 
     @property
     def label(self) -> str:

@@ -416,6 +416,8 @@ def cmd_resumes(args: argparse.Namespace) -> int:
         note = resumes.page_note(item.pages, max_pages)
         warnings += item.pages > max_pages
         print(f"{paths.shown(item.path)}{'  ' + note if note else ''}")
+        if item.copy is not None:
+            print(f"  copia para subir: {item.copy}")
     return 1 if warnings else 0
 
 

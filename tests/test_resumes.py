@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import pytest
 
+from conftest import make_job
 from jobbot import paths, resumes
 
 
@@ -83,3 +84,30 @@ def test_contact_links_open_and_hyphenated_words_never_break() -> None:
     assert resumes._keep_hyphenated("End-user & on-site") == (
         '<span class="nw">End-user</span> &amp; <span class="nw">on-site</span>'
     )
+
+
+def test_the_upload_folder_gets_named_copies_and_the_advice_points_there(home) -> None:
+    from jobbot import daily
+    from jobbot.config import load_search_rules
+    from jobbot.core import db
+    from jobbot.core.state import Status
+
+    assert resumes.upload_place() == (None, "")  # not configured: the PDFs next to the YAML
+
+    settings = home / "config" / "settings.yaml"
+    text = settings.read_text(encoding="utf-8")
+    assert text.count("resumes:\n") == 1
+    settings.write_text(text.replace("resumes:\n", "resumes:\n  export_dir: Subir\n"), "utf-8")
+    folder, prefix = resumes.upload_place()
+    assert (folder, prefix) == (home / "Subir", "Alex_Ejemplo_")
+
+    conn = db.connect(":memory:")
+    job_id = db.insert_job(
+        conn,
+        make_job(title="IT Support Analyst"),
+        dedupe_key="k",
+        status=Status.DISCOVERED,
+        role_family="it_support",
+    )
+    advice = daily.resume_advice(conn, load_search_rules(), db.list_jobs(conn))[job_id]
+    assert advice.path == home / "Subir" / "Alex_Ejemplo_it-support_en.pdf"

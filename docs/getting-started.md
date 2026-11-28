@@ -388,6 +388,8 @@ uv run jobbot resumes --lang es                # solo un idioma
 
 Los PDF quedan en `profile\resumes\<variante>_<es|en>.pdf`. El comando avisa si un CV pasa del máximo de páginas de `settings.yaml` (`resumes.max_pages`).
 
+Si subes los CV desde otra carpeta, ponla en `settings.yaml` (`resumes.export_dir`): `jobbot resumes` deja ahí una copia de cada PDF con tu nombre (`Alex_Ejemplo_it-support_en.pdf`), y el panel y el informe recomiendan esa copia. Un nombre con tu nombre también ayuda cuando el reclutador descarga el archivo.
+
 ### Revisiones del CV (`checks.yaml`)
 
 `profile\resumes\checks.yaml` tiene dos listas de reglas, `forbidden` (lo que ningún CV puede decir) y `required` (lo que cada CV debe decir al menos una vez). Cada regla es un `pattern` (expresión regular, sin distinguir mayúsculas) y un `reason` que explica la regla.
@@ -450,6 +452,7 @@ Si un filtro descarta algo que sí querías, mira el motivo con `uv run jobbot j
 | `http.min_interval_s` | Pausa mínima entre consultas al mismo sitio |
 | `notifications.windows_toast` | Notificación de Windows en la corrida diaria |
 | `resumes.max_pages` | Máximo de páginas por CV |
+| `resumes.export_dir` | Carpeta desde la que subes los CV: recibe una copia de cada PDF con tu nombre, y el panel apunta a ella |
 
 Las fuentes toman el país de `region`, salvo que su entrada en `targets.yaml` diga otro. Si no hay país, la fuente se reporta como `sin configurar` en vez de adivinarlo. La entrevista `grill setup-profile` llena `region` por ti.
 

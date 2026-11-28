@@ -41,6 +41,10 @@ class PanelSettings(BaseModel):
 
 class ResumeSettings(BaseModel):
     max_pages: int = 2
+    # The folder the candidate uploads CVs from: `jobbot resumes` leaves a copy of each PDF there
+    # named after them ("Alex_Ejemplo_it-support_en.pdf"), and the panel and the report point to
+    # it. None: only the PDFs next to their YAML in profile/resumes/.
+    export_dir: Path | None = None
 
 
 class Paths(BaseModel):

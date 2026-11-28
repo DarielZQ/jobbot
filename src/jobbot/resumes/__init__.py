@@ -17,6 +17,7 @@ from jinja2 import Environment, FileSystemLoader, select_autoescape
 from markupsafe import Markup, escape
 
 from jobbot import paths
+from jobbot.config import load_settings
 
 LANGS = ("es", "en")
 SUMMARY_TITLE = {"es": "Perfil profesional", "en": "Professional summary"}
@@ -28,6 +29,7 @@ _PAGE_MARKER = re.compile(rb"/Type\s*/Page(?!s)")
 class BuiltResume:
     path: Path
     pages: int
+    copy: Path | None = None  # in settings.yaml `resumes.export_dir`, when set
 
 
 def _read_yaml(path: Path) -> dict:
@@ -43,6 +45,17 @@ def variants() -> list[str]:
 
 def load_content(variant: str) -> dict:
     return _read_yaml(paths.resumes_dir() / f"{variant}.yaml")
+
+
+def upload_place() -> tuple[Path | None, str]:
+    """(folder the candidate uploads CVs from, name prefix of the copies there): settings.yaml
+    `resumes.export_dir` and the name in facts.yaml. (None, "") without that folder."""
+    folder = load_settings().resumes.export_dir
+    if folder is None:
+        return None, ""
+    name = _read_yaml(paths.profile_dir() / "facts.yaml").get("identity", {}).get("name") or ""
+    prefix = "_".join(name.split()) + "_" if name.strip() else ""
+    return paths.resolve(folder), prefix
 
 
 def _texts(node: object) -> list[str]:
@@ -146,6 +159,9 @@ def build(selected_variants: list[str], langs: list[str]) -> list[BuiltResume]:
 
     from playwright.sync_api import sync_playwright
 
+    folder, prefix = upload_place()
+    if folder is not None:
+        folder.mkdir(parents=True, exist_ok=True)
     built: list[BuiltResume] = []
     with sync_playwright() as pw:
         browser = pw.chromium.launch()
@@ -156,6 +172,10 @@ def build(selected_variants: list[str], langs: list[str]) -> list[BuiltResume]:
                 pdf = page.pdf(format="Letter", print_background=True, prefer_css_page_size=True)
                 path = paths.resumes_dir() / f"{variant}_{lang}.pdf"
                 path.write_bytes(pdf)
-                built.append(BuiltResume(path, count_pages(pdf)))
+                copy = None
+                if folder is not None:  # the copy the candidate uploads, named after them
+                    copy = folder / f"{prefix}{variant}_{lang}.pdf"
+                    copy.write_bytes(pdf)
+                built.append(BuiltResume(path, count_pages(pdf), copy))
         browser.close()
     return built
