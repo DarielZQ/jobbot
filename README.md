@@ -70,7 +70,7 @@ The Gmail extra needs your own Google Cloud OAuth client (desktop app). While th
 
 ## Daily run
 
-Windows creates the task "JobBot - busqueda diaria" in Task Scheduler. If the computer was off at that time, the task runs when it starts. Add `-JobbotHome <folder>` if your data is not in the default folder and `JOBBOT_HOME` is not set.
+Windows creates the task "JobBot - busqueda diaria" in Task Scheduler. If the computer was off at that time, the task runs when it starts. For two runs a day, pass `-At "07:00,13:00"`: sources with their own limits (Workday once a day) skip the second one. Add `-JobbotHome <folder>` if your data is not in the default folder and `JOBBOT_HOME` is not set.
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts\windows\install_schedule.ps1 -At 07:00

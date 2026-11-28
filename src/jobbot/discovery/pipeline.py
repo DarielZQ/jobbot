@@ -36,11 +36,13 @@ from jobbot.discovery.lever import LeverSource
 from jobbot.discovery.oracle_hcm import OracleHcmSource
 from jobbot.discovery.recruitee import RecruiteeSource
 from jobbot.discovery.remotive import RemotiveSource
+from jobbot.discovery.replies import MAX_MESSAGES as REPLIES_MAX_MESSAGES
+from jobbot.discovery.replies import ReplySource
 from jobbot.discovery.sitemap import SitemapSource
 from jobbot.discovery.successfactors import SuccessFactorsSource
 from jobbot.discovery.workday import WorkdaySource
 from jobbot.mail.gmail import GmailClient, access_token
-from jobbot.matching.dedupe import dedupe_key, is_placeholder
+from jobbot.matching.dedupe import dedupe_key, dedupe_key_of, is_placeholder
 from jobbot.matching.rules import TOO_OLD, RuleResult, RuleSet
 
 # Network errors, malformed JSON (ValueError) and malformed XML feeds.
@@ -65,6 +67,10 @@ class SourceReport:
     # ConfirmationSource only: confirmation emails read and jobs marked (or added) as applied.
     confirmations: int | None = None
     marked_applied: int = 0
+    # ReplySource only: employers' replies read, applications closed and questions queued.
+    replies: int | None = None
+    closed_by_reply: int = 0
+    asked: int = 0
 
     @property
     def skipped(self) -> bool:
@@ -124,6 +130,15 @@ def build_sources(targets: Targets, client: HttpClient) -> list[Source]:
                     max_messages=alerts.max_messages,
                 )
             )
+        if alerts.replies:  # after the confirmations: a reply closes only an application
+            sources.append(
+                ReplySource(
+                    mail,
+                    alerts.replies,
+                    lookback_days=alerts.lookback_days,
+                    max_messages=max(alerts.max_messages, REPLIES_MAX_MESSAGES),
+                )
+            )
     return sources
 
 
@@ -134,12 +149,21 @@ def rescreen(conn: sqlite3.Connection, rules: RuleSet) -> Counter[str]:
     title and location only.
     """
     changes: Counter[str] = Counter()
+    if rekeyed := rekey(conn):
+        changes["rekeyed"] = rekeyed
     for job_id, status, reason, job, seen_at in db.screenable_jobs(conn):
         result = rules.evaluate(job, seen_at)
         if result.ok and rules.too_old(job.posted_at, seen_at):  # undated: since first seen
             days = rules.age_days(job.posted_at, seen_at)
             result = RuleResult(False, f"{TOO_OLD}: {days} días", result.role_family)
-        if result.ok and status is Status.SKIPPED:
+        copy = _copy_of(conn, job_id, dedupe_key(job)) if status is Status.DISCOVERED else None
+        if result.ok and copy is not None:
+            # Two open copies of one opening, once a new alias gives them the same key: the
+            # first one stays, and so does one already applied to.
+            reason = f"duplicate_of: {copy}"
+            db.set_status(conn, job_id, Status.SKIPPED, reason, result.role_family)
+            changes["duplicates"] += 1
+        elif result.ok and status is Status.SKIPPED:
             key = dedupe_key(job)
             original = db.find_by_dedupe_key(conn, key)
             if original is None:
@@ -156,6 +180,28 @@ def rescreen(conn: sqlite3.Connection, rules: RuleSet) -> Counter[str]:
                 )
             changes["reason_updated"] += 1
     return changes
+
+
+def rekey(conn: sqlite3.Connection) -> int:
+    """Compute the stored dedupe keys again, after `company_aliases` (or the normalization)
+    changed: copies of one opening then share a key. Returns how many changed."""
+    keys = {
+        job_id: key
+        for job_id, company, title, location, old in db.dedupe_inputs(conn)
+        if (key := dedupe_key_of(company, title, location)) != old
+    }
+    db.set_dedupe_keys(conn, keys)
+    return len(keys)
+
+
+def _copy_of(conn: sqlite3.Connection, job_id: int, key: str) -> int | None:
+    """The job an open one duplicates: an earlier open copy, or a copy already applied to."""
+    original = db.find_by_dedupe_key(conn, key, other_than=job_id)
+    if original is None:
+        return None
+    other = db.get_job(conn, original)
+    still_open = other is not None and other.status is Status.DISCOVERED
+    return original if original < job_id or not still_open else None
 
 
 def expire_old(conn: sqlite3.Connection, rules: RuleSet) -> int:
@@ -297,6 +343,17 @@ def _record_applications(source: ConfirmationSource, conn: sqlite3.Connection) -
     return report
 
 
+def _record_replies(source: ReplySource, conn: sqlite3.Connection) -> SourceReport:
+    report = SourceReport()
+    try:
+        report.replies, report.closed_by_reply, report.asked = source.record(conn)
+    except SourceNotConfigured as exc:
+        report.not_configured = str(exc)
+    except Exception as exc:
+        report.error = describe_error(exc)
+    return report
+
+
 def platform_of(source: Source) -> str:
     return source.platform or source.name
 
@@ -347,6 +404,8 @@ def run_source(source: Source, conn: sqlite3.Connection, rules: RuleSet) -> Sour
     """One source, now: `run_sources` decides which ones are due."""
     if isinstance(source, ConfirmationSource):
         return _record_applications(source, conn)
+    if isinstance(source, ReplySource):
+        return _record_replies(source, conn)
     report = SourceReport()
     started = db.utc_now()
     try:

@@ -415,3 +415,37 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - Si la primera corrida del día sale bloqueada, Workday no se vuelve a probar hasta el día siguiente. Una búsqueda después de medianoche y antes de las 08:30 le quita el turno a la corrida de las 08:30.
   - La parte de Workday de cada corrida tarda unos minutos más.
   - Mientras dure el bloqueo, las alertas de LinkedIn por empresa cubren esas vacantes por correo.
+
+## ADR-033 — Contrato o planilla, alias de empresa y monitoreo de red
+
+- **Fecha:** 2026-11-27.
+- **Contexto:**
+  - El candidato busca planilla de tiempo completo. Algunas vacantes son por contrato (contractor, servicios profesionales, temporales) y solo se nota al leerlas.
+  - La misma vacante llega como «HPE» desde Workday y como «Hewlett Packard Enterprise» desde Indeed o LinkedIn: dos pendientes y ningún aviso de «Ya postulaste».
+  - «Front Office Monitoring Specialist» (Ericsson) es monitoreo de red, como un NOC, y quedaba fuera de las familias.
+- **Decisión:**
+  - **Nota de contrato o planilla:** `rules.engagement_note` marca las vacantes que pasan con `contract_role` («Por contrato o temporal: confirma si es en planilla») o `payroll_role` («En planilla»). El título basta con una palabra («Contract», «Temporal»); la descripción necesita una frase («this is a contract role», «servicios profesionales», «en planilla»), porque «contractors» y «contracts» también nombran a proveedores y acuerdos que el puesto maneja. Si dice las dos cosas gana contrato: «contract to hire» todavía no es planilla. No descarta nada.
+  - **Alias de empresa:** `search.yaml: company_aliases` lista grupos de nombres de una misma empresa; cada nombre se compara como el primero del grupo (`normalize.set_company_aliases`, que fija `load_search_rules`). Lo usan la clave de duplicados, «Ya postulaste» y las confirmaciones. `jobbot rescreen` recalcula las claves guardadas (`pipeline.rekey`) y pasa a duplicada la copia abierta más nueva, o la que repite una postulación.
+  - **Monitoreo de red:** la familia `it_support` incluye «monitoring specialist/analyst/associate/agent/engineer» y «monitoreo de redes/infraestructura/servicios». Excluye el monitoreo ambiental, de calidad, clínico, de medios o de cumplimiento, y a docentes.
+- **Consecuencias:**
+  - Las vacantes de correo no traen descripción: solo reciben la nota si el título lo dice.
+  - Un alias nuevo no junta duplicados guardados hasta correr `jobbot rescreen`.
+
+## ADR-034 — Respuestas de las empresas desde Gmail
+
+- **Fecha:** 2026-11-27.
+- **Contexto:**
+  - El embudo (postulaciones, entrevistas, rechazos) no se podía medir: los rechazos llegaban al correo y nadie los anotaba.
+  - En un mes de correos, los rechazos y las invitaciones a entrevista venían mezclados con cientos de acuses de recibo y alertas. Los acuses usan las mismas palabras en condicional («si no eres seleccionado…», «te invitaremos a una entrevista si…»).
+- **Decisión:**
+  - **Fuente `email:respuestas`** (`discovery/replies.py`), con la consulta de `targets.yaml: email_alerts.replies`. Solo lee, como las alertas (ADR-012). La consulta junta candidatos (frases de rechazo e invitación, sin alertas ni los correos enviados por el candidato); cada correo se clasifica leyéndolo.
+  - **Rechazo:** una frase que dice la decisión, no una condición. «Sin completar el video no podremos seguir con tu solicitud» es un recordatorio. LinkedIn lo dice solo en sus enlaces (`application_rejected`) y en el asunto («Tu solicitud para el puesto de <título> en <empresa>»).
+  - **A qué postulación corresponde:** la empresa debe estar en el remitente o el asunto (el cuerpo nombra también la bolsa, el ATS y lo que escribió el candidato), y el título en cualquier parte del correo. Si dos títulos coinciden, gana el más largo: «Support Engineer» también está dentro de «Support Engineer I».
+  - **Cierra sola** la postulación que el rechazo nombra por empresa y título (`REJECTED`, motivo `rejected_by_email`), y responde la pregunta de «¿la cierro como sin respuesta?» que hubiera.
+  - **Pregunta en Decisiones**, sin respuesta recomendada, cuando el rechazo no dice el puesto y la empresa tiene una sola postulación abierta. Toda invitación a entrevista también pregunta: una «Entrevista» equivocada escondería una postulación abierta. Si la empresa no aparece, se busca por el título exacto en el asunto (de tres palabras o más).
+  - Primero se cierran los rechazos que nombran el puesto y después se pregunta por los vagos, para no preguntar por algo que otro correo ya cerró.
+- **Consecuencias:**
+  - El embudo se mide solo: Postuladas, Entrevistas y Cerradas reflejan lo que respondieron las empresas.
+  - Un rechazo de una postulación hecha fuera de JobBot no cierra nada: no hay con qué emparejarlo.
+  - Las novedades de CompuTrabajo («Nuevo estado en …») no dicen cuál es el estado: no se leen.
+  - Se leen hasta 200 correos por corrida: los de los últimos `lookback_days`, otra vez cada día, sin cambiar nada la segunda vez.

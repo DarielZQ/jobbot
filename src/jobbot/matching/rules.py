@@ -19,6 +19,10 @@ REMOTE_NO_COUNTRY = "remote_no_country"
 # The description asks for current enrollment: someone who finished their studies should check
 # before applying (ADR-024).
 ENROLLMENT_REQUIRED = "enrollment_required"
+# Whether the posting is a contract (contractor, freelance, temporary) or a payroll job: a note
+# only, nothing is excluded (ADR-033).
+CONTRACT_ROLE = "contract_role"
+PAYROLL_ROLE = "payroll_role"
 NOTE_SEPARATOR = "; "
 # On normalized text. "current students and recent graduates" also takes graduates: no note.
 _ENROLLMENT = re.compile(
@@ -36,6 +40,26 @@ _ENTRY_LEVEL = re.compile(
     r"|practicante|practica profesional|becari[oa]|junior|jr|entry[ -]level|new[ -]grad(?:uate)?"
     r"|graduate (?:program|programme|scheme|trainee|analyst|engineer|developer)"
     r"|early[ -]career|recien graduad[oa]|egresad[oa])\b"
+)
+# On normalized text. A title says it in a word ("IT Support - Contract"); a description needs a
+# phrase, since "contractors" and "contract" also name the vendors and agreements a job handles.
+_CONTRACT_TITLE = re.compile(
+    r"\b(?:contract|contractor|contrato|contratista|freelance|freelancer|temporary|temporal"
+    r"|fixed term|plazo fijo)\b"
+)
+_CONTRACT_TEXT = re.compile(
+    r"\b(?:independent contractor|as an? (?:independent )?contractor"
+    r"|contractor (?:role|position|basis|agreement)|(?:on a|this is a) contract"
+    r"|contract (?:role|position|basis|to hire|assignment|employee)|temp to hire"
+    r"|1099 (?:contractor|position|role)|b2b contract|corp to corp|c2c|contratista"
+    r"|(?:por|de) servicios profesionales|contrato (?:por|de) servicios"
+    r"|contrato (?:temporal|a plazo fijo|por tiempo definido)|plazo fijo|freelancer?)\b"
+)
+# "en planilla": "planilla" alone is also a spreadsheet in part of the region
+_PAYROLL_TEXT = re.compile(
+    r"\b(?:(?:en|a|por) planilla|contrato (?:por tiempo |a plazo )?indefinido|tiempo indefinido"
+    r"|permanent (?:role|position|contract|employment)|full[ -]time permanent"
+    r"|full[ -]time employee|direct hire)\b"
 )
 # Posted (or, without a date, first seen) more than `max_age_days` ago (ADR-023)
 TOO_OLD = "too_old"
@@ -55,6 +79,16 @@ class RuleResult:
 def entry_level(title: str) -> bool:
     """An internship, trainee or graduate program, or a junior role: the panel's "Entrada"."""
     return _ENTRY_LEVEL.search(normalize_text(title)) is not None
+
+
+def engagement_note(title: str, description: str) -> str:
+    """The note for a posting that says it is a contract or a payroll job (normalized text), or
+    "" when it says neither. A contract wins: "contract to hire" is not payroll yet."""
+    if hit := _CONTRACT_TITLE.search(title) or _CONTRACT_TEXT.search(description):
+        return f"{CONTRACT_ROLE}: {hit.group(0)}"
+    if hit := _PAYROLL_TEXT.search(description):
+        return f"{PAYROLL_ROLE}: {hit.group(0)}"
+    return ""
 
 
 def _compile(patterns: list[str]) -> list[re.Pattern[str]]:
@@ -158,6 +192,8 @@ class RuleSet:
             notes.append(f"{FRESH_SENIORITY}: {hit}")
         if enrollment := _ENROLLMENT.search(description):
             notes.append(f"{ENROLLMENT_REQUIRED}: {enrollment.group(0)}")
+        if engagement := engagement_note(title, description):
+            notes.append(engagement)
 
         return RuleResult(True, NOTE_SEPARATOR.join(notes), family)
 

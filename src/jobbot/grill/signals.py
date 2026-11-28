@@ -5,6 +5,8 @@ Three detectors, at most `MAX_NEW_PER_DAY` new questions a day so they never pil
 - a source that failed its last `FAILING_RUNS` runs: disable it?
 - a skill asked by many open postings that the profile never mentions: do you have it?
 
+Employers' replies that may be about an application also ask here (`propose`, ADR-034).
+
 A question is identified by its `key`, so the same one is never asked twice. Answering applies
 the option the user picked (its text says what it does); nothing else changes behind their back.
 """
@@ -36,6 +38,8 @@ SKILL_MIN_JOBS = 5
 
 CLOSE, WAIT = "Sí, cerrarla", "Esperar más"
 DISABLE, KEEP = "Desactivarla", "Seguir intentando"
+# An employer's reply that may be about an application (discovery/replies.py, ADR-034)
+TO_INTERVIEW, NOT_THIS_ONE = "Sí, pasarla a Entrevistas", "No es esa"
 AT_WORK, LEARNING, NO = "Sí, la he usado en el trabajo", "La estoy aprendiendo", "No"
 
 
@@ -173,8 +177,19 @@ def refresh(conn: sqlite3.Connection, now: datetime | None = None) -> int:
     known = {row["key"] for row in conn.execute("SELECT key FROM decisions")}
     proposals = [*_failing(conn), *_stale(conn, now), *_skill_gaps(conn)]
     new = [p for p in proposals if p["key"] not in known]
+    return propose(conn, new[: max(room, 0)], now)
+
+
+def propose(
+    conn: sqlite3.Connection, proposals: Sequence[dict], now: datetime | None = None
+) -> int:
+    """Queue these questions, except the ones asked before (same key). No daily limit: the
+    callers bound it (`refresh`), or each question is about one email (replies)."""
+    stamp = (now or datetime.now(UTC)).isoformat(timespec="seconds")
+    known = {row["key"] for row in conn.execute("SELECT key FROM decisions")}
+    new = [p for p in {p["key"]: p for p in proposals}.values() if p["key"] not in known]
     with conn:
-        for proposal in new[: max(room, 0)]:
+        for proposal in new:
             conn.execute(
                 "INSERT INTO decisions (key, kind, question, options, recommended, reason, "
                 "created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
@@ -185,10 +200,10 @@ def refresh(conn: sqlite3.Connection, now: datetime | None = None) -> int:
                     json.dumps(proposal["options"], ensure_ascii=False),
                     proposal["recommended"],
                     proposal["reason"],
-                    now.isoformat(timespec="seconds"),
+                    stamp,
                 ),
             )
-    return min(len(new), max(room, 0))
+    return len(new)
 
 
 def pending(conn: sqlite3.Connection) -> list[Decision]:
@@ -207,6 +222,23 @@ def pending(conn: sqlite3.Connection) -> list[Decision]:
     ]
 
 
+def settle(conn: sqlite3.Connection, job_ids: Sequence[int], answer: str) -> None:
+    """Questions about these applications that a reply already answered ("¿la cierro como sin
+    respuesta?" once the rejection arrived) leave the list, with what happened as the answer."""
+    keys = [f"stale:{job_id}" for job_id in job_ids]
+    with conn:
+        conn.executemany(
+            "UPDATE decisions SET status = 'answered', answer = ?, answered_at = ? "
+            "WHERE key = ? AND status = 'pending'",
+            [(answer, db.utc_now(), key) for key in keys],
+        )
+
+
+def _still_waiting(conn: sqlite3.Connection, job_id: int) -> bool:
+    job = db.get_job(conn, job_id)
+    return job is not None and job.status in (Status.SUBMITTED, Status.CONFIRMED, Status.UNCERTAIN)
+
+
 def answer(conn: sqlite3.Connection, decision_id: int, option: str) -> str:
     """Apply the chosen option. Raises KeyError (no such pending decision) or ValueError."""
     decision = next((d for d in pending(conn) if d.id == decision_id), None)
@@ -219,6 +251,17 @@ def answer(conn: sqlite3.Connection, decision_id: int, option: str) -> str:
     if decision.kind == "stale" and option == CLOSE:
         db.set_outcome(conn, int(subject), Status.REJECTED)
         done = "Vacante cerrada como sin respuesta."
+    elif decision.kind in ("reply_rejected", "reply_interview") and option != NOT_THIS_ONE:
+        job_id = int(subject.split(":", 1)[0])  # "<job id>:<Gmail message id>"
+        if _still_waiting(conn, job_id):
+            if decision.kind == "reply_rejected":
+                db.set_status(conn, job_id, Status.REJECTED, "rejected_by_email")
+                done = "Postulación cerrada por el rechazo."
+            else:
+                db.set_outcome(conn, job_id, Status.INTERVIEW)
+                done = "Postulación pasada a Entrevistas."
+        else:
+            done = "Esa postulación ya tenía resultado: no cambió."
     elif decision.kind == "failing" and option == DISABLE:
         plan = Plan()
         plan.edit_list(SETTINGS, ("disabled_sources",), lambda items: [*items, subject])

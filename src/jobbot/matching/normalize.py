@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import re
 import unicodedata
+from collections.abc import Iterable, Sequence
 
 _COMPANY_SUFFIXES = re.compile(
     r"\b(inc|incorporated|llc|ltd|limited|corp|corporation|co|company|gmbh|plc|"
@@ -47,13 +48,33 @@ _GENERIC_TAIL = frozenset(
 )
 
 
-def normalize_company(name: str) -> str:
+def _company_words(name: str) -> str:
     text = normalize_text(name)
     text = _COMPANY_SUFFIXES.sub(" ", text)
     words = re.sub(r"[.-]", " ", text).split()
     while len(words) > 1 and words[-1] in _GENERIC_TAIL:
         words.pop()
     return " ".join(words)
+
+
+# Other names of one company, to the name they compare as (search.yaml `company_aliases`,
+# ADR-033). Set when search.yaml is loaded.
+_ALIASES: dict[str, str] = {}
+
+
+def set_company_aliases(groups: Iterable[Sequence[str]]) -> None:
+    """Each group names one company ("HPE", "Hewlett Packard Enterprise"): every name in it
+    compares as the first. Replaces the previous groups."""
+    _ALIASES.clear()
+    for names in groups:
+        if names:
+            first = _company_words(names[0])
+            _ALIASES.update({_company_words(name): first for name in names[1:]})
+
+
+def normalize_company(name: str) -> str:
+    words = _company_words(name)
+    return _ALIASES.get(words, words)
 
 
 def normalize_title(title: str) -> str:

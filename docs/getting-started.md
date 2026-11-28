@@ -220,6 +220,7 @@ Se abre en tu navegador, en `http://127.0.0.1:8765`. Solo funciona en tu computa
 - **Ordenar por:** fecha de publicación (por defecto: lo más nuevo primero), cuándo la vio JobBot o empresa. El panel recuerda tu elección.
 - **"Remoto sin país: confirma que acepten…":** el anuncio está en español y dice solo "Remoto". Suele estar abierto a toda la región, pero no siempre: confírmalo antes de postular.
 - **"Pide estar matriculado: revisa si aceptan egresados":** la descripción pide ser estudiante activo. Si ya terminaste la carrera, mira si también aceptan egresados o recién graduados antes de postular.
+- **"Por contrato o temporal: confirma si es en planilla"** o **"En planilla":** lo que dice el anuncio sobre el tipo de contratación. Solo es una nota; no descarta nada.
 - **Quitar de la lista:** en Descartadas, saca para siempre una vacante que ya revisaste (con **Deshacer** unos segundos). Una nueva búsqueda o un cambio de filtros no la vuelve a traer.
 - **Quitar estas N de la lista:** en Descartadas, con algún filtro o búsqueda activa, saca de una vez todas las que se ven (por ejemplo, Senior y luego Otro país). Pide confirmación y deja **Deshacer** 15 segundos.
 - **Buscar en LinkedIn:** botones que abren en tu navegador la búsqueda de LinkedIn de cada palabra clave, con lo más nuevo primero. Por defecto, solo lo publicado en las últimas 24 h; un grupo puede tener su propio rango. JobBot no entra a LinkedIn: solo arma el enlace. Las palabras clave están en `targets.yaml: linkedin_searches`.
@@ -271,6 +272,7 @@ powershell -ExecutionPolicy Bypass -File scripts\windows\install_schedule.ps1 -A
 - Si tus datos están en otra carpeta y no definiste `JOBBOT_HOME`, agrega `-JobbotHome D:\ruta\JobBot`.
 - Si hay vacantes nuevas o una fuente necesita atención, aparece una **notificación de Windows**. Al hacer clic se abre el informe. Si no hay nada nuevo, no te molesta.
 - Para cambiar la hora, corre el mismo comando con otra hora en `-At`.
+- Para dos corridas al día: `-At "07:00,13:00"`. La segunda trae los correos nuevos y las fuentes rápidas; Workday (una vez al día), elempleo y Deel (cada 12 h) se omiten solos.
 - El registro de cada corrida queda en `data\logs\daily-<fecha>.log` dentro de tu carpeta de datos.
 
 Para quitar la tarea:
@@ -416,6 +418,7 @@ Los patrones son expresiones regulares que no distinguen mayúsculas ni tildes (
 | `role_families.<familia>.cv` | Variante de CV de esa familia |
 | `role_families.<familia>.include` / `exclude` | El título debe coincidir con algún `include` y con ningún `exclude` |
 | `any_role_companies` | Empresas donde te sirve cualquier puesto: sus vacantes pasan sin familia (la seniority y la ubicación siguen aplicando) |
+| `company_aliases` | Nombres de una misma empresa en sitios distintos (`[HPE, Hewlett Packard Enterprise]`), para reconocer duplicados; después corre `jobbot rescreen` |
 | `title.seniority` | Nivel por encima del tuyo, para todas las familias: Senior, Lead, Manager, nivel 3 o más. Descarta igual que `title.exclude` y es el filtro "Senior" de Descartadas |
 | `title.exclude` | Otras exclusiones para todas las familias: ventas, idiomas que no hablas |
 | `description.exclude` | Requisitos imposibles en la descripción (autorización de seguridad, ciudadanía de EE. UU.) |

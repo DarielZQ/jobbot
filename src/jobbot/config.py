@@ -9,6 +9,7 @@ import yaml
 from pydantic import BaseModel, Field, field_validator
 
 from jobbot import paths
+from jobbot.matching.normalize import set_company_aliases
 
 
 class HttpSettings(BaseModel):
@@ -100,6 +101,9 @@ class SearchRules(BaseModel):
     # Companies where any role will do: their jobs pass without a role family; title.exclude,
     # location and description rules still apply (ADR-022)
     any_role_companies: list[str] = Field(default_factory=list)
+    # Names one company goes by on different sites, e.g. [HPE, Hewlett Packard Enterprise]:
+    # duplicates and "Ya postulaste" compare each group as its first name (ADR-033)
+    company_aliases: list[list[str]] = Field(default_factory=list)
     title: TitleRules = TitleRules()
     description: DescriptionRules = DescriptionRules()
     location: LocationRules = LocationRules()
@@ -253,6 +257,9 @@ class EmailAlertsTarget(BaseModel):
     torre: EmailAlertFeed | None = None
     # Gmail query per site whose application confirmations mark jobs as applied (ADR-018)
     confirmations: dict[str, str] = Field(default_factory=dict)
+    # Gmail query for employers' replies: rejections close applications, the rest ask in
+    # Decisiones (ADR-034). Empty = off.
+    replies: str = ""
 
 
 class LinkedInSearches(BaseModel):
@@ -317,7 +324,10 @@ def load_settings(config_dir: Path | None = None) -> Settings:
 
 
 def load_search_rules(config_dir: Path | None = None) -> SearchRules:
-    return SearchRules.model_validate(_load_yaml("search.yaml", config_dir))
+    """Also sets the company aliases company names compare with (`normalize_company`)."""
+    rules = SearchRules.model_validate(_load_yaml("search.yaml", config_dir))
+    set_company_aliases(rules.company_aliases)
+    return rules
 
 
 def load_targets(config_dir: Path | None = None) -> Targets:

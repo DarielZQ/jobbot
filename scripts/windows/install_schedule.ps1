@@ -1,6 +1,8 @@
 # Registra (o actualiza) la búsqueda diaria de JobBot en el Programador de tareas de Windows.
 # Uso:   powershell -ExecutionPolicy Bypass -File scripts\windows\install_schedule.ps1 [-At 07:00]
 #        [-JobbotHome C:\ruta\a\tus\datos]   (si no usas ~\JobBot ni la variable JOBBOT_HOME)
+# Varias corridas al día: -At "07:00,13:00". Las fuentes con límite (Workday una vez al día,
+# elempleo cada 12 h, etc.) se omiten solas en la segunda (ADR-032).
 # Quitar: Unregister-ScheduledTask -TaskName 'JobBot - busqueda diaria' -Confirm:$false
 param([string]$At = '07:00', [string]$JobbotHome = '')
 
@@ -11,7 +13,8 @@ $taskName = 'JobBot - busqueda diaria'
 $arguments = "-NoProfile -NonInteractive -ExecutionPolicy Bypass -WindowStyle Hidden -File `"$runner`""
 if ($JobbotHome) { $arguments += " -JobbotHome `"$JobbotHome`"" }
 $action = New-ScheduledTaskAction -Execute 'powershell.exe' -Argument $arguments -WorkingDirectory $root
-$trigger = New-ScheduledTaskTrigger -Daily -At $At
+$times = $At -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }
+$trigger = @($times | ForEach-Object { New-ScheduledTaskTrigger -Daily -At $_ })
 # StartWhenAvailable: si la computadora estaba apagada a esa hora, corre apenas se encienda.
 $settings = New-ScheduledTaskSettingsSet -StartWhenAvailable -AllowStartIfOnBatteries `
     -DontStopIfGoingOnBatteries -ExecutionTimeLimit (New-TimeSpan -Hours 1)

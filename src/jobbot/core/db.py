@@ -307,6 +307,19 @@ def insert_job(
     return int(cursor.lastrowid)
 
 
+def dedupe_inputs(conn: sqlite3.Connection) -> list[tuple[int, str, str, str, str]]:
+    """(id, company, title, location, stored dedupe key) of every job."""
+    rows = conn.execute("SELECT id, company, title, location, dedupe_key FROM jobs")
+    return [tuple(r) for r in rows]
+
+
+def set_dedupe_keys(conn: sqlite3.Connection, keys: dict[int, str]) -> None:
+    with conn:
+        conn.executemany(
+            "UPDATE jobs SET dedupe_key = ? WHERE id = ?", [(k, i) for i, k in keys.items()]
+        )
+
+
 def last_seen_at(conn: sqlite3.Connection, source: str) -> datetime | None:
     """Most recent time any job from this source was seen (≈ its last successful run)."""
     row = conn.execute("SELECT MAX(last_seen_at) AS ts FROM jobs WHERE source = ?", (source,))

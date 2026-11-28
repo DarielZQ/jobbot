@@ -1,6 +1,6 @@
 # Alertas por correo (Gmail, solo lectura)
 
-LinkedIn, CompuTrabajo, Indeed, elempleo y Torre, más las confirmaciones de postulación.
+LinkedIn, CompuTrabajo, Indeed, elempleo y Torre, más las confirmaciones de postulación y las respuestas de las empresas.
 
 **Estado:** disponible con el extra `gmail` (`uv sync --extra gmail`). Viene apagado: se activa con `email_alerts.enabled: true` en `targets.yaml`. La configuración de Google Cloud, `jobbot gmail-login` y la activación se explican en la [guía de inicio, sección 10](../getting-started.md#10-alertas-por-correo-opcional).
 
@@ -117,9 +117,18 @@ Cuando llegue la primera, corre `uv run jobbot alerts-sample --feed linkedin` pa
 - **elempleo:** su confirmación no dice a qué vacante se postuló; no se usa.
 - En el panel, la vacante aparece en Postuladas como "marcada por el correo de confirmación", con un botón **Deshacer**.
 
+## Respuestas de las empresas (ADR-034)
+
+- **Fuente:** `email:respuestas`, con la consulta de `targets.yaml: email_alerts.replies`. La consulta solo junta candidatos: excluye las alertas y tus correos enviados, y JobBot lee cada correo para decidir.
+- **Rechazo que nombra empresa y puesto:** la postulación pasa sola a **Cerradas** (motivo `rejected_by_email`).
+- **Rechazo sin el puesto,** cuando la empresa tiene una sola postulación abierta: pregunta en **Decisiones** si es esa.
+- **Invitación a entrevista:** siempre pregunta en Decisiones antes de pasarla a Entrevistas.
+- Los acuses de recibo y los recordatorios («completa el video», «si tu perfil encaja…») no cambian nada.
+- **No cubre:** las novedades de CompuTrabajo («Nuevo estado en …»), que no dicen el estado, ni las postulaciones hechas fuera de JobBot.
+
 ## Detalles técnicos
 
-- **Fuentes:** `discovery/email_alerts.py` (alertas) y `discovery/applications.py` (confirmaciones). Cliente: `mail/gmail.py`, la API REST de Gmail a través de `HttpClient`, con un intervalo corto para `gmail.googleapis.com` (`settings.yaml: http.host_min_interval_s`).
+- **Fuentes:** `discovery/email_alerts.py` (alertas), `discovery/applications.py` (confirmaciones) y `discovery/replies.py` (respuestas). Cliente: `mail/gmail.py`, la API REST de Gmail a través de `HttpClient`, con un intervalo corto para `gmail.googleapis.com` (`settings.yaml: http.host_min_interval_s`).
 - **Búsqueda:** `(<query>) newer_than:<lookback_days>d`, hasta `max_messages` correos.
 - **Límites de Google:** Gmail a veces avisa del límite de uso con un 403 en vez de 429; JobBot lo reconoce por el motivo que trae la respuesta y reintenta con espera. Cualquier otro 403 es definitivo y se muestra con su motivo.
 - **Sin descripción:** estas vacantes no traen descripción (no se visitan los sitios), así que los filtros de descripción no aplican. Revisa los requisitos al abrir el enlace.

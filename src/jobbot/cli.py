@@ -24,6 +24,7 @@ from jobbot.core.state import InvalidTransition, Status
 from jobbot.discovery.applications import NAME as CONFIRMATIONS
 from jobbot.discovery.base import SourceNotConfigured
 from jobbot.discovery.pipeline import SourceReport, build_sources, rescreen, run_sources
+from jobbot.discovery.replies import NAME as REPLIES
 from jobbot.matching.dedupe import applied_twins
 from jobbot.matching.rules import RuleSet
 
@@ -65,6 +66,12 @@ def report_line(name: str, report: SourceReport) -> str:
         line = (
             f"{name:<28} confirmaciones: {report.confirmations or 0:>3}  "
             f"marcadas como postuladas: {report.marked_applied:>3}"
+        )
+        return f"{line}  ERROR {report.error}" if report.error else line
+    if report.replies is not None or (report.error and name == REPLIES):
+        line = (
+            f"{name:<28} respuestas: {report.replies or 0:>3}  "
+            f"cerradas: {report.closed_by_reply:>3}  preguntas en Decisiones: {report.asked:>3}"
         )
         return f"{line}  ERROR {report.error}" if report.error else line
     line = (
@@ -339,7 +346,8 @@ def cmd_rescreen(_: argparse.Namespace) -> int:
     print(
         f"Reabiertas (ahora pasan los filtros): {changes['reopened']}\n"
         f"Ahora descartadas: {changes['newly_skipped']}\n"
-        f"Motivo de descarte actualizado: {changes['reason_updated']}"
+        f"Motivo de descarte actualizado: {changes['reason_updated']}\n"
+        f"Copias de una misma vacante juntadas (company_aliases): {changes['duplicates']}"
     )
     return 0
 

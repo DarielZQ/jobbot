@@ -143,6 +143,16 @@ email_alerts:
     linkedin: 'from:jobs-noreply@linkedin.com subject:"se ha enviado tu solicitud"'
     indeed: "from:indeedapply@indeed.com"
     computrabajo: 'from:postulaciones@computrabajo.com subject:"Seguimiento de tu candidatura"'
+  # Respuestas de las empresas (ADR-034): un rechazo que nombra la empresa y el puesto cierra
+  # la postulación; si no está claro, o si es una invitación a entrevista, pregunta en Decisiones.
+  # La consulta solo junta candidatos; JobBot decide leyendo cada correo. Excluye tus enviados.
+  replies: >-
+    -from:me -from:(jobalerts-noreply@linkedin.com OR jobalert.indeed.com OR alertas_cr@computrabajo.com
+    OR torre.ai) ("move forward" OR "not to proceed" OR "proceeding with" OR "other candidates"
+    OR "another candidate" OR "different candidate" OR "otros candidatos" OR "regret to inform"
+    OR "no longer" OR "not been selected" OR unfortunately OR lamentablemente OR "no continuar"
+    OR "no avanzar" OR "no continuaremos" OR "avanzar sin" OR "has been closed"
+    OR "Tu solicitud para el puesto" OR interview OR entrevista OR "book a meeting")
 
 # Agencias y BPO revisados, sin fuente automática:
 # - Concentrix: jobs.concentrix.com (Phenom). Sin endpoint público.

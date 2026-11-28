@@ -77,6 +77,9 @@ role_families:
       - '\b(it|infrastructure|systems?|network|technology)\s+operations\s+(analyst|specialist|technician|associate|engineer|operator)\b'
       - '\b(it|infrastructure|systems?|network|application|cloud|server|event)\s+monitoring\b'
       - '\bmonitoring\s+(operator|technician)\b'
+      # Monitoreo de red y de servicios, como un NOC («Front Office Monitoring Specialist»)
+      - '\b(front office\s+)?monitoring\s+(specialist|analyst|associate|agent|engineer)\b'
+      - '\bmonitoreo\s+(de\s+)?(redes?|infraestructura|servicios|plataformas|sistemas|ti)\b'
       - '\bcommand\s+cent(er|re)\b'
       - '(?<!security )\boperations?\s+cent(er|re)\s+(analyst|operator|technician|specialist|associate)\b'
       - '\bnoc\s+(operator|specialist|associate)\b'
@@ -117,6 +120,9 @@ role_families:
       - '(?<!network\s)\b(access\s+control|control\s+de\s+accesos?\b(?!\s+a\s+(la\s+)?red))\b'
       - '\b(provider|transportation|supply chain|logistics|distribution)\s+network\b'
       - '\b(transaction|transactional|aml|fraud|sanctions)\s+monitoring\b'
+      # Monitoreo fuera de TI: ambiental y de calidad en manufactura, clínico, de medios
+      - '\b(environmental|clinical|quality|compliance|trade|trading|media|brand|credit|patient|safety)\s+monitoring\b'
+      - '\b(docente|profesor)\b'
       - '\bmonitoreo\s+(transaccional|de\s+transacciones)\b'
       - '\b(camaras|cctv|gps|videovigilancia|alarmas)\b'
 
@@ -159,6 +165,17 @@ role_families:
 # de ninguna familia. Siguen aplicando title.seniority, title.exclude, la ubicación y la descripción.
 # Se escriben como el nombre de la empresa en targets.yaml, p. ej. ["Acme"].
 any_role_companies: []
+
+# Nombres con que una misma empresa aparece en sitios distintos (ADR-033). Cada grupo se compara
+# como su primer nombre, para reconocer duplicados y vacantes a las que ya postulaste.
+# Después de cambiar la lista, corre `jobbot rescreen` para juntar los duplicados ya guardados.
+company_aliases:
+  - [HPE, Hewlett Packard Enterprise, HPE Aruba Networking]
+  - [Procter & Gamble, P&G, Procter and Gamble]
+  - [Thermo Fisher, Thermo Fisher Scientific]
+  - [Abbott, Abbott Laboratories, Abbott Laboratorios]
+  - [Amazon, Amazon Web Services (AWS), Amazon Web Services, AWS]
+  - [DHL, DHL Express]
 
 title:
   # Exclusiones globales: aplican a todas las familias.

@@ -16,8 +16,12 @@ _MIN_TITLE_WORDS_WITHOUT_COMPANY = 3
 
 def dedupe_key(job: Job) -> str:
     """Same company + title + first location token => same opening, whatever the source."""
-    city = normalize_text(job.location.split(",")[0]) if job.location else ""
-    raw = "|".join((normalize_company(job.company), normalize_title(job.title), city))
+    return dedupe_key_of(job.company, job.title, job.location)
+
+
+def dedupe_key_of(company: str, title: str, location: str) -> str:
+    city = normalize_text(location.split(",")[0]) if location else ""
+    raw = "|".join((normalize_company(company), normalize_title(title), city))
     return hashlib.sha1(raw.encode("utf-8")).hexdigest()[:16]
 
 

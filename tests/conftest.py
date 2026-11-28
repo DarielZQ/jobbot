@@ -12,6 +12,7 @@ from jobbot.core import db
 from jobbot.core.http import HttpClient
 from jobbot.core.models import Job
 from jobbot.initialize import init_home
+from jobbot.matching.normalize import set_company_aliases
 from jobbot.matching.rules import RuleSet
 
 FIXTURES = Path(__file__).parent / "fixtures"
@@ -24,6 +25,7 @@ def home(tmp_path_factory: pytest.TempPathFactory, monkeypatch: pytest.MonkeyPat
     folder = tmp_path_factory.mktemp("home") / "JobBot"
     init_home("costa-rica-it", folder)
     monkeypatch.setenv("JOBBOT_HOME", str(folder))
+    set_company_aliases([])  # loading search.yaml sets them: none leak from another test
     return folder
 
 

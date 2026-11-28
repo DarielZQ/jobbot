@@ -27,9 +27,11 @@ from jobbot.grill import signals
 from jobbot.matching.dedupe import applied_twins
 from jobbot.matching.language import ResumeAdvice, recommend_resume
 from jobbot.matching.rules import (
+    CONTRACT_ROLE,
     ENROLLMENT_REQUIRED,
     FRESH_SENIORITY,
     NOTE_SEPARATOR,
+    PAYROLL_ROLE,
     REMOTE_NO_COUNTRY,
     RuleSet,
 )
@@ -87,6 +89,10 @@ def job_notes(row: JobRow, country: str = "") -> list[str]:
             notes.append(f"Remoto sin país: confirma que acepten {country or 'tu país'}")
         elif note.startswith(ENROLLMENT_REQUIRED):
             notes.append("Pide estar matriculado: revisa si aceptan egresados")
+        elif note.startswith(CONTRACT_ROLE):
+            notes.append("Por contrato o temporal: confirma si es en planilla")
+        elif note.startswith(PAYROLL_ROLE):
+            notes.append("En planilla")
     return notes
 
 
