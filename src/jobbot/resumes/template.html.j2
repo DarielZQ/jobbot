@@ -37,18 +37,20 @@
   li { margin: 0 0 1px; }
   .skills p { margin-bottom: 1px; }
   .label { font-weight: 700; }
+  .nw { white-space: nowrap; }
+  a { color: inherit; text-decoration: none; }
 </style>
 </head>
 <body>
 <header>
   <h1>{{ name }}</h1>
   <div class="headline">{{ c.headline }}</div>
-  <div class="contact">{{ contact_line }}</div>
-  <div class="availability">{{ c.availability }}</div>
+  <div class="contact">{% for text, link in contact %}{% if not loop.first %} · {% endif %}{% if link %}<a href="{{ link }}">{{ text }}</a>{% else %}{{ text }}{% endif %}{% endfor %}</div>
+  <div class="availability">{{ c.availability | keep }}</div>
 </header>
 
 <h2>{{ summary_title }}</h2>
-<p>{{ c.summary }}</p>
+<p>{{ c.summary | keep }}</p>
 
 {% for section in c.sections %}
 <h2>{{ section.title }}</h2>
@@ -58,25 +60,25 @@
     <span class="entry-title">{{ e.title }}</span>
     <span class="entry-dates">{{ e.dates }}</span>
   </div>
-  <div class="entry-org">{{ e.org }}</div>
+  <div class="entry-org">{{ e.org | keep }}</div>
   {% if e.bullets %}
-  <ul>{% for b in e.bullets %}<li>{{ b }}</li>{% endfor %}</ul>
+  <ul>{% for b in e.bullets %}<li>{{ b | keep }}</li>{% endfor %}</ul>
   {% endif %}
 </div>
 {% endfor %}
 {% endfor %}
 
 <h2>{{ c.certifications.title }}</h2>
-<p>{{ c.certifications.text }}</p>
+<p>{{ c.certifications.text | keep }}</p>
 
 <h2>{{ c.skills.title }}</h2>
 <div class="skills">
-{% for g in c.skills.groups %}<p><span class="label">{{ g["label"] }}:</span> {{ g["items"] }}</p>{% endfor %}
+{% for g in c.skills.groups %}<p><span class="label">{{ g["label"] }}:</span> {{ g["items"] | keep }}</p>{% endfor %}
 </div>
 
 {% if c.languages %}
 <h2>{{ c.languages.title }}</h2>
-<p>{{ c.languages.text }}</p>
+<p>{{ c.languages.text | keep }}</p>
 {% endif %}
 </body>
 </html>

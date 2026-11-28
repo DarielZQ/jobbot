@@ -73,3 +73,13 @@ def test_page_note_warns_only_past_the_limit() -> None:
     assert resumes.page_note(1, max_pages=2) == ""
     assert resumes.page_note(2, max_pages=2) == "2 páginas"
     assert resumes.page_note(3, max_pages=2).startswith("AVISO")
+
+
+def test_contact_links_open_and_hyphenated_words_never_break() -> None:
+    html = resumes.render_html("it-support", "en")
+
+    assert 'href="mailto:dariel@example.invalid"' in html
+    # "End-user" split at a line end reads back as "Enduser" in PDF parsers (ATS)
+    assert resumes._keep_hyphenated("End-user & on-site") == (
+        '<span class="nw">End-user</span> &amp; <span class="nw">on-site</span>'
+    )

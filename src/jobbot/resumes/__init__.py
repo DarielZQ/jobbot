@@ -14,6 +14,7 @@ from pathlib import Path
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, select_autoescape
+from markupsafe import Markup, escape
 
 from jobbot import paths
 
@@ -70,17 +71,33 @@ def check_content(content: dict, checks: dict | None = None) -> list[str]:
     return problems
 
 
-def _contact_line() -> str:
+def _contact_parts() -> list[tuple[str, str]]:
+    """(text, link) of each contact item; the email and LinkedIn open with a click."""
     facts = _read_yaml(paths.profile_dir() / "facts.yaml")
     contact = _read_yaml(paths.profile_dir() / "private" / "contact.yaml")
     location = facts.get("identity", {}).get("location", {})
     place = ", ".join(filter(None, [location.get("city"), location.get("province")]))
     country = location.get("country", "")
-    parts = [f"{place}, {country}" if place else country]
-    parts += [contact.get("phone"), contact.get("email")]
+    email = contact.get("email") or ""
     linkedin = (contact.get("linkedin_url") or "").removeprefix("https://").removeprefix("www.")
-    parts.append(linkedin)
-    return " · ".join(p for p in parts if p)
+    parts = [
+        (f"{place}, {country}" if place else country, ""),
+        (contact.get("phone") or "", ""),
+        (email, f"mailto:{email}"),
+        (linkedin, f"https://www.{linkedin}" if linkedin else ""),
+    ]
+    return [(text, link) for text, link in parts if text]
+
+
+# A hyphenated word ("End-user", "on-site") split at the end of a line is read back by PDF
+# parsers as one word without the hyphen ("Enduser"): those words never break.
+_HYPHENATED = re.compile(r"\b\w+(?:-\w+)+\b")
+
+
+def _keep_hyphenated(text: object) -> Markup:
+    return Markup(
+        _HYPHENATED.sub(lambda m: f'<span class="nw">{m.group(0)}</span>', str(escape(text)))
+    )
 
 
 def render_html(variant: str, lang: str) -> str:
@@ -89,12 +106,13 @@ def render_html(variant: str, lang: str) -> str:
         loader=FileSystemLoader(Path(__file__).parent),
         autoescape=select_autoescape(["html", "j2"]),
     )
+    env.filters["keep"] = _keep_hyphenated
     template = env.get_template("template.html.j2")
     return template.render(
         lang=lang,
         name=facts.get("identity", {}).get("name", ""),
         c=load_content(variant)[lang],
-        contact_line=_contact_line(),
+        contact=_contact_parts(),
         summary_title=SUMMARY_TITLE[lang],
     )
 
