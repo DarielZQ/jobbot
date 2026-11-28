@@ -149,6 +149,7 @@ Reglas:
 | `jobbot/discovery/email_alerts.py`, `jobbot/mail/gmail.py` | Alertas de LinkedIn, CompuTrabajo, Indeed y elempleo desde Gmail, solo lectura (extra `gmail`) |
 | `jobbot/discovery/applications.py` | Confirmaciones de postulación desde Gmail (ADR-018) |
 | `jobbot/discovery/replies.py` | Respuestas de las empresas desde Gmail: rechazos e invitaciones (ADR-034) |
+| `jobbot/core/runlock.py` | Una búsqueda a la vez entre procesos: corrida programada y panel (ADR-035) |
 | `jobbot/discovery/pipeline.py` | Construye y ejecuta las fuentes (`run_sources`), respeta `min_hours_between_runs` por plataforma, detiene una plataforma al primer bloqueo anti-bots, registra los listados completos (`source_listings`), `rescreen` sin red |
 | `jobbot/matching/normalize.py` | Normalización de texto, empresa y título |
 | `jobbot/matching/rules.py` | Familias de roles y filtros duros con motivo |

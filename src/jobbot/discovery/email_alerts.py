@@ -10,9 +10,11 @@ and fall back to links in the HTML. Validate with `uv run jobbot alerts-sample`.
 
 from __future__ import annotations
 
+import base64
 import hashlib
 import html as html_lib
 import re
+import zlib
 from collections.abc import Callable, Iterable
 from typing import Protocol
 from urllib.parse import unquote
@@ -30,6 +32,8 @@ COMPUTRABAJO_JOB = re.compile(
 )
 # Indeed job key (16 hex) in a link: /viewjob?jk=..., /rc/clk?jk=..., or inside a redirect.
 INDEED_JOB = re.compile(r"[?&](?:jk|vjk)=([0-9a-f]{16})\b", re.I)
+# cts.indeed.com's tracker carries its target URL gzipped and base64-encoded in the path
+_INDEED_PAYLOAD = re.compile(r"https?://cts\.indeed\.com/v\d+/(H4sI[\w-]+)", re.I)
 ELEMPLEO_JOB = re.compile(
     r"https?://(?:www\.)?elempleo\.com/cr/ofertas-trabajo/([\w-]+)/(\d+)", re.I
 )
@@ -301,6 +305,37 @@ def _job_links(message: MailMessage, pattern: re.Pattern[str]) -> dict[str, tupl
     return found
 
 
+def indeed_key(link: str) -> str:
+    """The job key of an Indeed link, also from inside a cts.indeed.com tracker: its target is
+    decoded here, never opened (ADR-013). "" for an opaque tracker (engage.indeed.com) or an ad
+    link without a key."""
+    if match := INDEED_JOB.search(link):
+        return match.group(1).lower()
+    if not (payload := _INDEED_PAYLOAD.match(link)):
+        return ""
+    data = payload.group(1)
+    try:
+        packed = base64.urlsafe_b64decode(data + "=" * (-len(data) % 4))
+        target = zlib.decompressobj(16 + zlib.MAX_WBITS).decompress(packed, 64_000)
+    except (ValueError, zlib.error):
+        return ""
+    match = INDEED_JOB.search(unquote(target.decode("utf-8", errors="replace")))
+    return match.group(1).lower() if match else ""
+
+
+def _indeed_job(source: str, key: str, title: str, company: str, location: str) -> Job:
+    return Job(
+        source=source,
+        ats="indeed",
+        ats_job_id=key,
+        company=company or "(Indeed)",
+        title=title or "(sin título)",
+        location=location,
+        url=f"https://cr.indeed.com/viewjob?jk={key}",
+        remote="remot" in location.lower(),
+    )
+
+
 def parse_indeed(message: MailMessage, source: str, default_location: str) -> list[Job]:
     blocks = _indeed_from_text(message.text)
     keyed = _job_links(message, INDEED_JOB)
@@ -310,31 +345,23 @@ def parse_indeed(message: MailMessage, source: str, default_location: str) -> li
         by_key: dict[str, tuple[str, str, str]] = {}
         by_title: dict[str, tuple[str, str, str]] = {}
         for title, company, location, link in blocks:
-            if match := INDEED_JOB.search(link):
-                by_key.setdefault(match.group(1).lower(), (title, company, location))
+            if key := indeed_key(link):
+                by_key.setdefault(key, (title, company, location))
             by_title.setdefault(title, (title, company, location))
         jobs = []
         for job_key, (_, anchor) in keyed.items():
             key = job_key.lower()
             title, company, location = by_key.get(key) or by_title.get(anchor) or (anchor, "", "")
             location = _with_country(location, default_location)
-            jobs.append(
-                Job(
-                    source=source,
-                    ats="indeed",
-                    ats_job_id=key,
-                    company=company or "(Indeed)",
-                    title=title or "(sin título)",
-                    location=location,
-                    url=f"https://cr.indeed.com/viewjob?jk={key}",
-                    remote="remot" in location.lower(),
-                )
-            )
+            jobs.append(_indeed_job(source, key, title, company, location))
         return jobs
     jobs = []
     for title, company, location, link in blocks:
         location = _with_country(location, default_location)
-        # No job key in these emails: the same title/company/place is the same job.
+        if job_key := indeed_key(link):  # the tracker carried it: a stable link
+            jobs.append(_indeed_job(source, job_key, title, company, location))
+            continue
+        # No job key: the same title/company/place is the same job.
         key = hashlib.sha1(f"{title}|{company}|{location}".lower().encode("utf-8")).hexdigest()
         jobs.append(
             Job(

@@ -347,7 +347,7 @@ def cmd_rescreen(_: argparse.Namespace) -> int:
         f"Reabiertas (ahora pasan los filtros): {changes['reopened']}\n"
         f"Ahora descartadas: {changes['newly_skipped']}\n"
         f"Motivo de descarte actualizado: {changes['reason_updated']}\n"
-        f"Copias de una misma vacante juntadas (company_aliases): {changes['duplicates']}"
+        f"Copias de una misma vacante juntadas: {changes['duplicates']}"
     )
     return 0
 

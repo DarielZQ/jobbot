@@ -83,6 +83,8 @@ role_families:
       - '\bcommand\s+cent(er|re)\b'
       - '(?<!security )\boperations?\s+cent(er|re)\s+(analyst|operator|technician|specialist|associate)\b'
       - '\bnoc\s+(operator|specialist|associate)\b'
+      # Operaciones técnicas e incidentes (Amazon «Tech Ops Engineer I - Incident Management»)
+      - '\btech(nical)?\s+op(eration)?s\s+(engineer|analyst|technician|specialist|associate)\b'
       - '\b(operador|analista|tecnico|especialista)\s+(de\s+)?(centro\s+de\s+)?monitoreo\b'
       # Roles adyacentes que suelen pedir más experiencia: sistemas, Microsoft 365 y endpoints
       - '\b(system|systems|windows|linux|server|it|infrastructure|azure|m365|microsoft 365|o365|office 365)\s+(administrator|admin)\b'

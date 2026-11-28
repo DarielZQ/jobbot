@@ -132,6 +132,13 @@ def _job_row(row: sqlite3.Row) -> JobRow:
 utc_now = _now
 
 
+def lock_path(conn: sqlite3.Connection) -> Path | None:
+    """The file that lets one search at a time use this database (`core.runlock`), next to it;
+    None for an in-memory database."""
+    file = conn.execute("PRAGMA database_list").fetchone()["file"]
+    return Path(file).with_name(f"{Path(file).name}.search-lock") if file else None
+
+
 def connect(path: Path | str) -> sqlite3.Connection:
     if str(path) != ":memory:":
         Path(path).parent.mkdir(parents=True, exist_ok=True)

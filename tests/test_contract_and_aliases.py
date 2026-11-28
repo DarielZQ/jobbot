@@ -153,3 +153,30 @@ def test_rescreen_without_new_aliases_changes_no_key(conn) -> None:
     _store(conn, "Acme", "a")
 
     assert "rekeyed" not in rescreen(conn, RuleSet(load_search_rules()))
+
+
+def test_one_opening_named_by_two_places_is_one_pending_job(conn, rules) -> None:
+    # ADR-035: "Sabana" from LinkedIn and "San José" from Indeed are the same opening
+    first = _store(conn, "Acme", "a")
+    job = make_job(
+        ats_job_id="b", company="Acme", title="NAC Support Agent L1", location="Tibas, Costa Rica"
+    )
+    copy = db.insert_job(conn, job, dedupe_key=dedupe_key(job), status=Status.DISCOVERED)
+
+    rescreen(conn, rules)
+
+    assert db.get_job(conn, first).status == Status.DISCOVERED
+    assert db.get_job(conn, copy).status_reason == f"duplicate_of: {first}"
+
+
+def test_another_title_or_a_remote_place_is_not_a_copy(conn, rules) -> None:
+    from jobbot.discovery.pipeline import same_opening_elsewhere
+
+    _store(conn, "Acme", "a")
+    other_title = make_job(
+        company="Acme", title="Service Desk Analyst", location="Tibas, Costa Rica"
+    )
+    remote = make_job(company="Acme", title="NAC Support Agent L1", location="Remote, Mexico")
+
+    assert same_opening_elsewhere(conn, rules, other_title) is None
+    assert same_opening_elsewhere(conn, rules, remote) is None

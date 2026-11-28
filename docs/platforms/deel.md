@@ -8,7 +8,7 @@ Deel usa Ashby por dentro, pero su tablero público de Ashby (`jobs.ashbyhq.com/
 
 - **Listado:** `GET https://www.deel.com/careers/`. `robots.txt` no bloquea `/careers`. La página pesa más de 1 MB, así que la fuente corre como máximo cada 12 h (`min_hours_between_runs`).
 - La página es Next.js y trae los datos dentro de scripts `self.__next_f.push([1, "<trozo>"])`. Cada trozo es una cadena JSON; unidos, contienen un objeto `"attributes": {...}` por vacante. El filtro de ubicación de la página (`?location=costa+rica`) se aplica en el navegador: el HTML trae todas.
-- **Campos usados:** `ashby_id` (ID), `title`, `all_locations` (países desde donde se puede hacer), `ashby_published_date`, `is_listed` y `slug` (enlace a la vacante en deel.com). La postulación está en `external_link` (`jobs.deel.com/.../application`).
+- **Campos usados:** `ashby_id` (ID), `title`, `all_locations` (países desde donde se puede hacer), `ashby_published_date`, `is_listed`. El enlace guardado es `jobs.deel.com/deel/job-details/<ashby_id>`: el de su página (`slug`, `/careers/position/?ashby_jid=…`) responde 404 sin la vacante (ADR-035).
 - Todas las vacantes son remotas. La ubicación queda como la lista de países, y los filtros de `search.yaml` dejan las que incluyen el tuyo.
 
 ## Configuración

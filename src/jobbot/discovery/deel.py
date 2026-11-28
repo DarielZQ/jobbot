@@ -19,7 +19,9 @@ from jobbot.core.http import HttpClient
 from jobbot.core.models import Job
 from jobbot.discovery.base import Source
 
-BASE = "https://www.deel.com"
+# Deel's job board, where each posting opens. The careers page's own link (`slug`,
+# /careers/position/?ashby_jid=…) answers 404 without the job (seen 2026-11-27).
+JOBS_BOARD = "https://jobs.deel.com/deel/job-details/"
 _PUSH = re.compile(r'self\.__next_f\.push\(\[1,("(?:[^"\\]|\\.)*")\]\)')
 _JOB = re.compile(r'"attributes":\s*(?=\{\s*"ashby_id")')
 
@@ -62,7 +64,7 @@ class DeelSource(Source):
                 title=(job.get("title") or "").strip(),
                 # The countries it can be done from; the location filters keep yours
                 location=", ".join(c for c in countries if c),
-                url=f"{BASE}{job['slug']}" if job.get("slug") else job.get("external_link", ""),
+                url=f"{JOBS_BOARD}{job['ashby_id']}",
                 remote=True,  # Deel is fully remote
                 posted_at=datetime.fromisoformat(published) if published else None,
             )

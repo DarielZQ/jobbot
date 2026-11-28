@@ -96,6 +96,7 @@ def rules_gam_only() -> RuleSet:
         "Front Office Monitoring Specialist",
         "Monitoring Analyst",
         "Analista de Monitoreo de Redes",
+        "Tech Ops Engineer I - Incident Management, Central Technical Operations",
         "Junior System Administrator",
         "Windows Administrator",
         "Administrador de sistemas",

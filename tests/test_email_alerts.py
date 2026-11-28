@@ -7,6 +7,7 @@ sanitized real samples from `jobbot alerts-sample` once alerts arrive.
 from __future__ import annotations
 
 import base64
+import gzip
 import json
 from pathlib import Path
 
@@ -17,6 +18,7 @@ from conftest import FIXTURES
 from jobbot.discovery.base import SourceNotConfigured
 from jobbot.discovery.email_alerts import (
     EmailAlertSource,
+    indeed_key,
     parse_computrabajo,
     parse_indeed,
     parse_linkedin,
@@ -177,6 +179,30 @@ def test_indeed_ids_survive_new_tracking_tokens() -> None:
     again = parse_indeed(_message(text=retracked), "email:indeed", "Costa Rica")
     assert [j.ats_job_id for j in first] == [j.ats_job_id for j in again]
     assert len({j.ats_job_id for j in first}) == 4
+
+
+def _cts_link(target: str) -> str:
+    """cts.indeed.com's tracker: the target URL as gzipped, base64 JSON in the path."""
+    packed = gzip.compress(json.dumps({"u": target}).encode("utf-8"))
+    return f"https://cts.indeed.com/v3/{base64.urlsafe_b64encode(packed).decode().rstrip('=')}/x"
+
+
+def test_indeed_cts_tracker_gives_the_job_key_without_opening_it() -> None:
+    keyed = _cts_link("https://cr.indeed.com/rc/clk?jk=0123456789abcdef&from=ja")
+    ad = _cts_link("https://cr.indeed.com/pagead/clk?from=email&ad=ABC")
+    text = (
+        f"Help Desk Analyst\nAcme Corp - Heredia\nSoporte a usuarios\nhace 1 día\n{keyed}\n\n"
+        f"Sales Closer\nBeta Inc - Remote\nVentas\nhace 2 días\n{ad}\n"
+    )
+
+    first, second = parse_indeed(_message(text=text), "email:indeed", "Costa Rica")
+
+    assert (first.ats_job_id, first.url) == (
+        "0123456789abcdef",
+        "https://cr.indeed.com/viewjob?jk=0123456789abcdef",
+    )
+    assert second.ats_job_id.startswith("mail-") and second.url == ad  # an ad: no key inside
+    assert indeed_key("https://cts.indeed.com/v3/H4sInotgzip/x") == ""
 
 
 def test_indeed_single_job_email() -> None:

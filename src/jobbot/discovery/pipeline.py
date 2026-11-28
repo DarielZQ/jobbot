@@ -8,12 +8,12 @@ import xml.etree.ElementTree as ET
 from collections import Counter
 from collections.abc import Iterable, Iterator
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
 from jobbot.config import Targets, resolve
-from jobbot.core import db
+from jobbot.core import db, runlock
 from jobbot.core.http import ANTI_BOT, ChallengeError, HttpClient, NotJsonError, error_detail
 from jobbot.core.models import Job
 from jobbot.core.state import Status
@@ -43,6 +43,7 @@ from jobbot.discovery.successfactors import SuccessFactorsSource
 from jobbot.discovery.workday import WorkdaySource
 from jobbot.mail.gmail import GmailClient, access_token
 from jobbot.matching.dedupe import dedupe_key, dedupe_key_of, is_placeholder
+from jobbot.matching.normalize import normalize_company, normalize_title
 from jobbot.matching.rules import TOO_OLD, RuleResult, RuleSet
 
 # Network errors, malformed JSON (ValueError) and malformed XML feeds.
@@ -156,7 +157,7 @@ def rescreen(conn: sqlite3.Connection, rules: RuleSet) -> Counter[str]:
         if result.ok and rules.too_old(job.posted_at, seen_at):  # undated: since first seen
             days = rules.age_days(job.posted_at, seen_at)
             result = RuleResult(False, f"{TOO_OLD}: {days} días", result.role_family)
-        copy = _copy_of(conn, job_id, dedupe_key(job)) if status is Status.DISCOVERED else None
+        copy = _copy_of(conn, rules, job_id, job) if status is Status.DISCOVERED else None
         if result.ok and copy is not None:
             # Two open copies of one opening, once a new alias gives them the same key: the
             # first one stays, and so does one already applied to.
@@ -194,14 +195,42 @@ def rekey(conn: sqlite3.Connection) -> int:
     return len(keys)
 
 
-def _copy_of(conn: sqlite3.Connection, job_id: int, key: str) -> int | None:
+def _copy_of(conn: sqlite3.Connection, rules: RuleSet, job_id: int, job: Job) -> int | None:
     """The job an open one duplicates: an earlier open copy, or a copy already applied to."""
-    original = db.find_by_dedupe_key(conn, key, other_than=job_id)
-    if original is None:
+    for original in (
+        db.find_by_dedupe_key(conn, dedupe_key(job), other_than=job_id),
+        same_opening_elsewhere(conn, rules, job, other_than=job_id),
+    ):
+        if original is None:
+            continue
+        other = db.get_job(conn, original)
+        still_open = other is not None and other.status is Status.DISCOVERED
+        if original < job_id or not still_open:
+            return original
+    return None
+
+
+def same_opening_elsewhere(
+    conn: sqlite3.Connection, rules: RuleSet, job: Job, other_than: int | None = None
+) -> int | None:
+    """An open or applied job with the same company and title, first seen within
+    `max_age_days`, in another place of the local area: sites name one opening "Sabana", "San
+    José" or "Tibás". The dedupe key keeps the place, so it misses these copies (ADR-035)."""
+    if is_placeholder(job.company) or not rules.in_local_area(job.location):
         return None
-    other = db.get_job(conn, original)
-    still_open = other is not None and other.status is Status.DISCOVERED
-    return original if original < job_id or not still_open else None
+    company, title = normalize_company(job.company), normalize_title(job.title)
+    since = datetime.now(UTC) - timedelta(days=rules.max_age_days or 30)
+    rows = [*db.list_jobs(conn, status=Status.DISCOVERED, limit=100_000), *db.applied_jobs(conn)]
+    copies = [
+        row.id
+        for row in rows
+        if row.id != other_than
+        and normalize_company(row.company) == company
+        and normalize_title(row.title) == title
+        and datetime.fromisoformat(row.first_seen_at) >= since
+        and rules.in_local_area(row.location)
+    ]
+    return min(copies) if copies else None
 
 
 def expire_old(conn: sqlite3.Connection, rules: RuleSet) -> int:
@@ -381,23 +410,25 @@ def run_sources(
     sources: Iterable[Source], conn: sqlite3.Connection, rules: RuleSet
 ) -> Iterator[tuple[Source, SourceReport]]:
     """Each source in turn, by platform (ADR-032): whether a platform is due is decided at its
-    first source, and a bot check stops the rest of the platform for the run."""
+    first source, and a bot check stops the rest of the platform for the run. One search at a
+    time: another one, in this process or another, is waited for (ADR-035)."""
     skips: dict[str, dict[str, str]] = {}  # platform -> why its sources are skipped ({} = run)
-    for source in sources:
-        platform = platform_of(source)
-        if platform not in skips:
-            wait = _queried_recently(conn, source)
-            skips[platform] = {"skipped_recent": wait} if wait else {}
-        if skips[platform]:
-            yield source, SourceReport(**skips[platform])
-            continue
-        started = db.utc_now()
-        report = run_source(source, conn, rules)
-        if report.blocked or not report.error:
-            db.record_query(conn, platform, started)
-        if report.blocked and source.platform:
-            skips[platform] = {"skipped_blocked": source.name}
-        yield source, report
+    with runlock.exclusive(db.lock_path(conn)):
+        for source in sources:
+            platform = platform_of(source)
+            if platform not in skips:
+                wait = _queried_recently(conn, source)
+                skips[platform] = {"skipped_recent": wait} if wait else {}
+            if skips[platform]:
+                yield source, SourceReport(**skips[platform])
+                continue
+            started = db.utc_now()
+            report = run_source(source, conn, rules)
+            if report.blocked or not report.error:
+                db.record_query(conn, platform, started)
+            if report.blocked and source.platform:
+                skips[platform] = {"skipped_blocked": source.name}
+            yield source, report
 
 
 def run_source(source: Source, conn: sqlite3.Connection, rules: RuleSet) -> SourceReport:
@@ -428,7 +459,9 @@ def run_source(source: Source, conn: sqlite3.Connection, rules: RuleSet) -> Sour
             status, reason = Status.DISCOVERED, result.reason
             if not result.ok:
                 status, reason = Status.SKIPPED, result.reason
-            elif (original := db.find_by_dedupe_key(conn, key)) is not None:
+            elif (original := db.find_by_dedupe_key(conn, key)) is not None or (
+                original := same_opening_elsewhere(conn, rules, job)
+            ) is not None:
                 status, reason = Status.SKIPPED, f"duplicate_of: {original}"
 
             db.insert_job(

@@ -449,3 +449,20 @@ Las ADR-001 a ADR-018 se tomaron entre el 2026-10-27 y el 2026-11-01, cuando Job
   - Un rechazo de una postulación hecha fuera de JobBot no cierra nada: no hay con qué emparejarlo.
   - Las novedades de CompuTrabajo («Nuevo estado en …») no dicen cuál es el estado: no se leen.
   - Se leen hasta 200 correos por corrida: los de los últimos `lookback_days`, otra vez cada día, sin cambiar nada la segunda vez.
+
+## ADR-035 — Revisión de fallas: copias por lugar, enlaces y una búsqueda a la vez
+
+- **Fecha:** 2026-11-27.
+- **Contexto:** una revisión de la base, los registros y los enlaces de las pendientes encontró:
+  - La misma vacante dos o tres veces en Pendientes cuando cada sitio nombra otro lugar («Sabana», «San José», «Tibás»; «Heredia» y «Flores»; «Costa Rica» y «San José»). La clave de duplicados lleva el lugar.
+  - Los enlaces de Deel (`deel.com/careers/position/?ashby_jid=…`, el `slug` de su página) responden 404 sin la vacante, aunque siga publicada.
+  - Parte de los enlaces de Indeed son el rastreador `cts.indeed.com`, que puede vencer y no deja reconocer la vacante por su ID.
+  - La corrida programada y «Buscar ahora» del panel son procesos distintos: si coinciden, las dos guardan la misma vacante nueva y la segunda falla como si el sitio hubiera cambiado.
+- **Decisión:**
+  - **Copias por lugar:** una vacante nueva, o una pendiente en `rescreen`, con la misma empresa (con sus alias) y el mismo título que otra abierta o postulada vista en los últimos `max_age_days`, ambas dentro del área local, es duplicada de la primera (`pipeline.same_opening_elsewhere`). Las remotas y las de fuera del área no se juntan así.
+  - **Deel:** el enlace es `jobs.deel.com/deel/job-details/<ashby_id>`, su bolsa de empleo, que sí abre la vacante.
+  - **Indeed:** el rastreador `cts.indeed.com` lleva su destino comprimido (gzip y base64) en la ruta. JobBot lo descomprime sin abrirlo (ADR-013) y, si trae `jk=`, guarda el enlace canónico `viewjob?jk=…`. Los anuncios pagados (`pagead/clk`) no traen ID y quedan con el rastreador.
+  - **Una búsqueda a la vez:** `run_sources` toma un candado de archivo junto a la base (`jobbot.db.search-lock`, `core/runlock.py`). La segunda búsqueda espera a la primera hasta 30 minutos y después sigue igual. El sistema operativo suelta el candado si el proceso termina, también si se cae.
+- **Consecuencias:**
+  - Dos puestos iguales de una empresa en ciudades distintas del área se ven como uno; el otro queda en Descartadas como duplicado.
+  - Mientras corre la búsqueda programada, «Buscar ahora» espera sin avanzar hasta que termine.

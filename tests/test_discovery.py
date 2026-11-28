@@ -148,7 +148,7 @@ def test_deel_reads_the_jobs_inside_its_careers_page(make_client, rules_any_age)
     ]
     latam, brazil = jobs
     assert latam.location == "Mexico, Costa Rica" and latam.remote
-    assert latam.url == "https://www.deel.com/careers/position/?ashby_jid=00000000-0001"
+    assert latam.url == "https://jobs.deel.com/deel/job-details/00000000-0001"
     assert latam.posted_at == datetime(2026, 11, 5, 10, tzinfo=UTC)
     # Only the one open to Costa Rica passes the preset's location filters
     assert rules.evaluate(latam).ok and not rules.evaluate(brazil).ok
